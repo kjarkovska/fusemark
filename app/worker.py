@@ -10,12 +10,14 @@ Errors are caught per-job: the job is marked 'error' and the worker
 moves on to the next job without crashing.
 """
 
+import json
 import threading
 import time
 
 from app import queue as q
 from app import config as cfg
 from app.transcriber import transcribe
+from app.notemaker import generate_notes, suggest_glossary_terms, save_note
 
 
 POLL_INTERVAL = 5  # seconds between queue checks
@@ -79,6 +81,24 @@ class Worker:
         q.update_job(job_id, transcript=transcript)
 
     def _generate(self, job_id, job):
-        """Phase 4 will replace this stub with Claude API call."""
         q.set_status(job_id, "generating")
-        # stub — implemented in Phase 4
+        config = cfg.load()
+        vault_path = config.get("vault_path", "")
+        if not vault_path:
+            raise ValueError("vault_path not set in config.json.")
+
+        transcript = job.get("transcript", "")
+        note = generate_notes(
+            transcript=transcript,
+            label=job.get("label", ""),
+            folder=job.get("folder", "Other"),
+            scratch_notes=job.get("scratch_notes", "") or "",
+            extra_context=job.get("extra_context", "") or "",
+        )
+        out_path = save_note(note, job.get("label", ""), job.get("folder", "Other"), vault_path)
+        q.update_job(job_id, output_note_path=out_path)
+
+        terms = suggest_glossary_terms(transcript)
+        if terms:
+            # Store suggestions in the job for the UI to present to the user
+            q.update_job(job_id, error_message=json.dumps(terms, ensure_ascii=False))

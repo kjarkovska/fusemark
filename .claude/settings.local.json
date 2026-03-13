@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(venv/Scripts/pip install:*)",
+      "Bash(venv/Scripts/python -c \"from app.notemaker import generate_notes, suggest_glossary_terms, save_note, get_api_key, set_api_key; print\\(''imports OK''\\)\")"
+    ]
+  }
+}

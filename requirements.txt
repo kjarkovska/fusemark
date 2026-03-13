@@ -9,8 +9,8 @@ pyaudiowpatch     # WASAPI loopback support on Windows (replaces sounddevice for
 faster-whisper
 
 # Phase 4 — Note Generation
-# anthropic
-# keyring
+anthropic
+keyring
 
 # Phase 5 — UI & Tray
 # flask
