@@ -10,7 +10,7 @@ Audio never leaves the machine. Recording and processing are fully decoupled so 
 
 ## Current Status
 
-**Phase 5 — complete. Ready to start Phase 6 (integration & polish).**
+**Phase 6 — complete. App is ready for daily use.**
 
 - `app/recorder.py` — dual-stream capture (WASAPI loopback + mic) via `pyaudiowpatch`; ffmpeg mixes to mp3
 - `app/config.py` — load/save `config.json`
@@ -23,6 +23,7 @@ Audio never leaves the machine. Recording and processing are fully decoupled so 
 - `app/server.py` — Flask routes for start/stop recording, jobs, settings, API key, glossary
 - `app/main.py` — entrypoint; worker + Flask on background threads, tray on main thread
 - `templates/`, `static/` — dark UI with recorder, jobs panel, settings page
+- `app/autostart.py` — Windows registry auto-start (HKCU, no admin needed); toggle in Settings
 - Run with `python -m app.main`; exit via tray right-click → Quit (Ctrl+C blocked by pystray)
 - Claude sometimes wraps JSON in markdown fences — stripped in `suggest_glossary_terms`
 - Run all modules with `python -m app.X` (not `python app/X.py`) — avoids import errors

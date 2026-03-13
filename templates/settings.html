@@ -67,6 +67,13 @@
     </div>
 
     <div class="field">
+      <label>
+        <input type="checkbox" id="autostart" onchange="toggleAutostart()">
+        Spustit automaticky se systémem Windows
+      </label>
+    </div>
+
+    <div class="field">
       <button class="btn-secondary" onclick="openGlossary()">Otevřít glossary.json ve VSCode</button>
     </div>
 
@@ -101,6 +108,21 @@
       const data = await res.json();
       showMsg(data.ok ? 'API klíč uložen.' : 'Chyba: ' + JSON.stringify(data));
       document.getElementById('api_key').value = '';
+    }
+
+    // Load autostart state on page load
+    fetch('/autostart').then(r => r.json()).then(d => {
+      document.getElementById('autostart').checked = d.enabled;
+    });
+
+    async function toggleAutostart() {
+      const enabled = document.getElementById('autostart').checked;
+      await fetch('/autostart', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({enabled}),
+      });
+      showMsg(enabled ? 'Autostart povolen.' : 'Autostart vypnut.');
     }
 
     async function openGlossary() {

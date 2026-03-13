@@ -192,6 +192,23 @@ def route_settings_save():
     return jsonify({"ok": True})
 
 
+@app.route("/autostart", methods=["GET"])
+def route_autostart_status():
+    from app.autostart import is_enabled
+    return jsonify({"enabled": is_enabled()})
+
+
+@app.route("/autostart", methods=["POST"])
+def route_autostart_set():
+    from app.autostart import enable, disable
+    data = request.get_json(silent=True) or {}
+    if data.get("enabled"):
+        enable()
+    else:
+        disable()
+    return jsonify({"ok": True})
+
+
 @app.route("/open-glossary", methods=["POST"])
 def route_open_glossary():
     from app.glossary import open_in_vscode
