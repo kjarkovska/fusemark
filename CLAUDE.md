@@ -10,13 +10,15 @@ Audio never leaves the machine. Recording and processing are fully decoupled so 
 
 ## Current Status
 
-**Phase 1 — complete. Ready to start Phase 2.**
+**Phase 2 — complete. Ready to start Phase 3.**
 
 - `app/recorder.py` — dual-stream capture (WASAPI loopback + mic) via `pyaudiowpatch`; ffmpeg mixes to mp3
 - `app/config.py` — load/save `config.json`
+- `app/queue.py` — SQLite job queue, full CRUD, state machine, startup recovery
+- `app/worker.py` — background thread, polls queue, stub transcribe/generate steps
 - `glossary.json`, `requirements.txt` created
-- Tested: speakers + mic ✓, BT headset ✓
-- BT note: Windows switches JBL to HSP/HFP when mic opens (audible quality drop). This is a Windows OS limitation — unavoidable. Recording quality is acceptable for transcription.
+- Tested: speakers + mic OK, BT headset OK
+- BT note: Windows switches JBL to HSP/HFP when mic opens (audible quality drop). Windows OS limitation — unavoidable. Acceptable for transcription quality.
 
 Update this section at the end of every session.
 
