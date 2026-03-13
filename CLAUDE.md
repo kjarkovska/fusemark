@@ -10,15 +10,21 @@ Audio never leaves the machine. Recording and processing are fully decoupled so 
 
 ## Current Status
 
-**Phase 4 — complete. Ready to start Phase 5.**
+**Phase 5 — complete. Ready to start Phase 6 (integration & polish).**
 
 - `app/recorder.py` — dual-stream capture (WASAPI loopback + mic) via `pyaudiowpatch`; ffmpeg mixes to mp3
 - `app/config.py` — load/save `config.json`
 - `app/queue.py` — SQLite job queue, full CRUD, state machine, startup recovery
-- `app/worker.py` — fully wired: transcribe -> generate -> save note, glossary suggestions stored in job
+- `app/worker.py` — fully wired: transcribe -> generate -> save note; re-fetches job after transcription (stale dict bug fix)
 - `app/transcriber.py` — faster-whisper wrapper, Czech forced, glossary initial_prompt, progress reporting to SQLite
 - `app/glossary.py` — load glossary.json, build Whisper prompt, add terms, open in VSCode
 - `app/notemaker.py` — Claude Haiku 3.5: generates Czech notes, suggests glossary terms; API key via keyring
+- `app/tray.py` — tray icon; icon bitmap only updated from main thread (Win32 safety); menu updates are thread-safe
+- `app/server.py` — Flask routes for start/stop recording, jobs, settings, API key, glossary
+- `app/main.py` — entrypoint; worker + Flask on background threads, tray on main thread
+- `templates/`, `static/` — dark UI with recorder, jobs panel, settings page
+- Run with `python -m app.main`; exit via tray right-click → Quit (Ctrl+C blocked by pystray)
+- Claude sometimes wraps JSON in markdown fences — stripped in `suggest_glossary_terms`
 - Run all modules with `python -m app.X` (not `python app/X.py`) — avoids import errors
 - Reading transcript files: use `errors='replace'` — terminal redirects write CP1250, not UTF-8
 - Currently using `small` Whisper model — sufficient in initial test; upgrade to large-v3 if quality is lacking

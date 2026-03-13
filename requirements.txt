@@ -13,6 +13,6 @@ anthropic
 keyring
 
 # Phase 5 — UI & Tray
-# flask
-# pystray
-# Pillow
+flask
+pystray
+Pillow

@@ -188,6 +188,12 @@ def suggest_glossary_terms(transcript):
     )
 
     raw = message.content[0].text.strip()
+    # Strip markdown code fences if Claude wrapped the JSON
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+        raw = raw.strip()
     try:
         terms = json.loads(raw)
         return terms if isinstance(terms, list) else []

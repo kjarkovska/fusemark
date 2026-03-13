@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Granola-CZ</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>Granola-CZ</h1>
+    <a href="/settings" class="settings-link">Nastavení</a>
+  </header>
+
+  <!-- A) Recorder -->
+  <section id="recorder">
+    <div class="recorder-top">
+      <input type="text" id="label" placeholder="Název porady" autocomplete="off">
+      <select id="folder">
+        {% for f in folders %}
+        <option value="{{ f }}">{{ f }}</option>
+        {% endfor %}
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="timer-row">
+      <span id="timer">00:00</span>
+      <button id="rec-btn" class="btn-start" onclick="toggleRecording()">Spustit nahrávání</button>
+    </div>
+    <textarea id="scratch" placeholder="Hrubé poznámky během porady..."></textarea>
+  </section>
+
+  <!-- B) Jobs panel -->
+  <section id="jobs-panel">
+    <h2>Fronta zpracování</h2>
+    <div id="jobs-list">Načítám...</div>
+  </section>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

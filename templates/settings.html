@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nastavení — Granola-CZ</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>Nastavení</h1>
+    <a href="/" class="settings-link">Zpět</a>
+  </header>
+
+  <section class="settings-form">
+
+    <div class="field">
+      <label>Cesta k Obsidian vaultu</label>
+      <input type="text" id="vault_path" value="{{ config.vault_path or '' }}" placeholder="C:\Users\...\Obsidian Vault">
+    </div>
+
+    <div class="field">
+      <label>Model Whisper</label>
+      <select id="whisper_model">
+        {% for size in ['small', 'medium', 'large-v3'] %}
+        <option value="{{ size }}" {% if config.whisper_model == size %}selected{% endif %}>{{ size }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Výstupní zařízení (loopback — systémový zvuk)</label>
+      <select id="output_device">
+        <option value="null">Výchozí</option>
+        {% for d in devices %}
+        {% if d.is_output %}
+        <option value="{{ d.index }}" {% if config.output_device == d.index %}selected{% endif %}>
+          [{{ d.index }}] {{ d.name }}{% if d.is_loopback %} (loopback){% endif %}
+        </option>
+        {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Vstupní zařízení (mikrofon)</label>
+      <select id="input_device">
+        <option value="null">Výchozí</option>
+        {% for d in devices %}
+        {% if d.is_input and not d.is_loopback %}
+        <option value="{{ d.index }}" {% if config.input_device == d.index %}selected{% endif %}>
+          [{{ d.index }}] {{ d.name }}
+        </option>
+        {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+
+    <button class="btn-save" onclick="saveSettings()">Uložit nastavení</button>
+
+    <hr>
+
+    <div class="field">
+      <label>Anthropic API klíč</label>
+      <input type="password" id="api_key" placeholder="sk-ant-...">
+      <button class="btn-secondary" onclick="saveApiKey()">Uložit klíč</button>
+    </div>
+
+    <div class="field">
+      <button class="btn-secondary" onclick="openGlossary()">Otevřít glossary.json ve VSCode</button>
+    </div>
+
+    <div id="settings-msg"></div>
+  </section>
+
+  <script src="/static/app.js"></script>
+  <script>
+    async function saveSettings() {
+      const res = await fetch('/settings/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          vault_path: document.getElementById('vault_path').value,
+          whisper_model: document.getElementById('whisper_model').value,
+          output_device: document.getElementById('output_device').value,
+          input_device: document.getElementById('input_device').value,
+        })
+      });
+      const data = await res.json();
+      showMsg(data.ok ? 'Ulozeno.' : 'Chyba: ' + JSON.stringify(data));
+    }
+
+    async function saveApiKey() {
+      const key = document.getElementById('api_key').value.trim();
+      if (!key) return showMsg('Zadej API klíč.');
+      const res = await fetch('/api-key', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({key})
+      });
+      const data = await res.json();
+      showMsg(data.ok ? 'API klíč uložen.' : 'Chyba: ' + JSON.stringify(data));
+      document.getElementById('api_key').value = '';
+    }
+
+    async function openGlossary() {
+      await fetch('/open-glossary', {method: 'POST'});
+    }
+
+    function showMsg(msg) {
+      document.getElementById('settings-msg').textContent = msg;
+    }
+  </script>
+</body>
+</html>

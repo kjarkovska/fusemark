@@ -63,6 +63,7 @@ class Worker:
 
         try:
             self._transcribe(job_id, job)
+            job = q.get_job(job_id)  # re-fetch to pick up transcript written by transcriber
             self._generate(job_id, job)
             q.set_status(job_id, "done")
             print(f"[worker] Job {job_id} done")
