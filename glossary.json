@@ -1,0 +1,16 @@
+{
+  "terms": [
+    {
+      "canonical": "Jira",
+      "aliases": ["Yira", "Džira", "jira"],
+      "context": "project management tool",
+      "type": "product"
+    },
+    {
+      "canonical": "PR",
+      "aliases": ["pé er", "pull request", "pí ár"],
+      "context": "git pull request",
+      "type": "abbreviation"
+    }
+  ]
+}

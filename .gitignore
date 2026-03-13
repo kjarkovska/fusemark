@@ -3,3 +3,10 @@ node_modules/
 .env.local
 dist/
 build/
+venv/
+__pycache__/
+*.pyc
+config.json
+jobs.db
+test.mp3
+recordings/

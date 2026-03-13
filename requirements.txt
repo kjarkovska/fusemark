@@ -1,0 +1,18 @@
+# Phase 1 — Audio Capture
+pyaudiowpatch     # WASAPI loopback support on Windows (replaces sounddevice for this use case)
+# stdlib: wave, subprocess, tempfile, threading — no extra installs needed
+# system dep: ffmpeg must be in PATH (for mp3 encoding and mixing)
+
+# Phase 2 — Job Queue (no extra deps, uses built-in sqlite3)
+
+# Phase 3 — Transcription
+# faster-whisper
+
+# Phase 4 — Note Generation
+# anthropic
+# keyring
+
+# Phase 5 — UI & Tray
+# flask
+# pystray
+# Pillow
