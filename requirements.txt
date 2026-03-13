@@ -6,7 +6,7 @@ pyaudiowpatch     # WASAPI loopback support on Windows (replaces sounddevice for
 # Phase 2 — Job Queue (no extra deps, uses built-in sqlite3)
 
 # Phase 3 — Transcription
-# faster-whisper
+faster-whisper
 
 # Phase 4 — Note Generation
 # anthropic

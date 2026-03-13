@@ -10,15 +10,17 @@ Audio never leaves the machine. Recording and processing are fully decoupled so 
 
 ## Current Status
 
-**Phase 2 — complete. Ready to start Phase 3.**
+**Phase 3 — complete. Ready to start Phase 4.**
 
 - `app/recorder.py` — dual-stream capture (WASAPI loopback + mic) via `pyaudiowpatch`; ffmpeg mixes to mp3
 - `app/config.py` — load/save `config.json`
 - `app/queue.py` — SQLite job queue, full CRUD, state machine, startup recovery
-- `app/worker.py` — background thread, polls queue, stub transcribe/generate steps
-- `glossary.json`, `requirements.txt` created
-- Tested: speakers + mic OK, BT headset OK
-- BT note: Windows switches JBL to HSP/HFP when mic opens (audible quality drop). Windows OS limitation — unavoidable. Acceptable for transcription quality.
+- `app/worker.py` — background thread, polls queue, calls transcriber; generate stub remains for Phase 4
+- `app/transcriber.py` — faster-whisper wrapper, Czech forced, glossary initial_prompt, progress reporting to SQLite
+- `app/glossary.py` — load glossary.json, build Whisper prompt, add terms, open in VSCode
+- Run modules with `python -m app.transcriber` (not `python app/transcriber.py`) — avoids import errors
+- Currently using `small` model — quality was sufficient in initial test; may stay on small and skip large-v3 download (~3 GB) unless transcription quality proves insufficient in real meetings
+- BT note: Windows switches JBL to HSP/HFP when mic opens. Windows OS limitation — unavoidable. Acceptable for transcription quality.
 
 Update this section at the end of every session.
 

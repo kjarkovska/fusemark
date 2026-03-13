@@ -4,19 +4,18 @@ worker.py — Background job processor for Granola-CZ
 Runs in a daemon thread. Polls the job queue for jobs in 'queued' state,
 processes them one at a time through the pipeline:
 
-  queued → transcribing → (transcriber.py) → generating → (notemaker.py) → done
+  queued -> transcribing -> (transcriber.py) -> generating -> (notemaker.py) -> done
 
 Errors are caught per-job: the job is marked 'error' and the worker
 moves on to the next job without crashing.
-
-Phase 2: the transcribe() and generate() steps are stubs — they will be
-replaced in Phase 3 and Phase 4.
 """
 
 import threading
 import time
 
 from app import queue as q
+from app import config as cfg
+from app.transcriber import transcribe
 
 
 POLL_INTERVAL = 5  # seconds between queue checks
@@ -70,11 +69,16 @@ class Worker:
             print(f"[worker] Job {job_id} error: {exc}")
 
     def _transcribe(self, job_id, job):
-        """Phase 3 will replace this stub with faster-whisper."""
         q.set_status(job_id, "transcribing")
-        # stub — no-op for now
+        audio_path = job.get("audio_path") or job.get("recording_path")
+        if not audio_path:
+            raise ValueError("Job has no audio_path to transcribe.")
+        config = cfg.load()
+        model_size = config.get("whisper_model", "large-v3")
+        transcript = transcribe(audio_path, model_size=model_size, job_id=job_id)
+        q.update_job(job_id, transcript=transcript)
 
     def _generate(self, job_id, job):
         """Phase 4 will replace this stub with Claude API call."""
         q.set_status(job_id, "generating")
-        # stub — no-op for now
+        # stub — implemented in Phase 4
