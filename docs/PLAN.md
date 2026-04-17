@@ -1,11 +1,11 @@
-# Granola-CZ — Implementation Plan
+# ObsiNote — Implementation Plan
 
 ---
 
 ## Project Structure
 
 ```
-granola-cz/
+obsinote/
 ├── BRIEF.md                 # Product brief
 ├── PLAN.md                  # This file
 ├── README.md                # Setup and usage instructions

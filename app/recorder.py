@@ -1,5 +1,5 @@
 """
-recorder.py — Audio capture for Granola-CZ
+recorder.py — Audio capture for ObsiNote
 
 Captures two separate streams simultaneously:
   - System audio via WASAPI loopback (pyaudiowpatch)
@@ -272,7 +272,7 @@ def list_devices():
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Granola-CZ recorder — Phase 1 CLI test"
+        description="ObsiNote recorder — Phase 1 CLI test"
     )
     parser.add_argument(
         "--test",

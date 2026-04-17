@@ -1,5 +1,5 @@
 """
-transcriber.py — faster-whisper wrapper for Granola-CZ
+transcriber.py — faster-whisper wrapper for ObsiNote
 
 Transcribes an mp3/wav file to text using a local faster-whisper model.
 Glossary terms are injected as an initial_prompt so Whisper spells them
@@ -108,7 +108,7 @@ def transcribe(audio_path, model_size="large-v3", job_id=None):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Granola-CZ transcriber — Phase 3 CLI test"
+        description="ObsiNote transcriber — Phase 3 CLI test"
     )
     parser.add_argument(
         "--file",

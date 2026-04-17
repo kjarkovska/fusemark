@@ -1,4 +1,4 @@
-# Granola-CZ — Product Brief
+# ObsiNote — Product Brief
 
 **Version:** 0.2  
 **Date:** March 12, 2026

@@ -1,31 +1,39 @@
 """
-tray.py — System tray icon for Granola-CZ
+tray.py — System tray icon for ObsiNote
 
 States:
-  idle      — grey icon, menu shows Start Recording
-  recording — red icon, menu shows Stop Recording
+  idle          — grey icon, menu shows Start Recording
+  recording     — red icon, menu shows Stop Recording
+  transcribing  — blue icon (set from worker thread via set_transcribing())
 
-Icon bitmap is set only from tray menu callbacks (main thread).
-When recording is toggled from the web UI (Flask thread), only the menu
-is updated — bitmap changes are skipped to avoid Win32 thread-safety issues.
+Icon bitmap is set only from tray menu callbacks (main thread) for recording
+state, because pystray's Win32 bitmap update must come from the message-pump
+thread.  The transcribing state uses the same safety: set_transcribing() only
+updates the menu; the bitmap is updated lazily when a menu action fires.
 
 The tray runs on the main thread (pystray requirement on Windows).
 Flask and the worker run on background threads.
 """
 
-from PIL import Image, ImageDraw
+import os
+
+from PIL import Image
 import pystray
 
 
-def _make_icon(color):
-    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.ellipse([4, 4, 60, 60], fill=color)
-    return img
+def _tint(path, color):
+    """Return a copy of the PNG at `path` with all pixels replaced by `color`."""
+    img = Image.open(path).convert("RGBA")
+    _, _, _, a = img.split()
+    colored = Image.new("RGBA", img.size, color)
+    colored.putalpha(a)
+    return colored
 
 
-ICON_IDLE = _make_icon((100, 100, 100, 255))
-ICON_RECORDING = _make_icon((220, 40, 40, 255))
+_ICON_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "icon.png")
+ICON_IDLE          = _tint(_ICON_PATH, (120, 120, 120, 255))
+ICON_RECORDING     = _tint(_ICON_PATH, (210,  40,  40, 255))
+ICON_TRANSCRIBING  = _tint(_ICON_PATH, ( 40, 120, 210, 255))
 
 
 class TrayIcon:
@@ -35,6 +43,7 @@ class TrayIcon:
         self._on_open = on_open
         self._on_quit = on_quit
         self._recording = False
+        self._transcribing = False
         self._icon = None
 
     def _menu(self):
@@ -57,12 +66,14 @@ class TrayIcon:
     def _start(self, icon, item):
         self._on_start()
         self._recording = True
+        self._transcribing = False
         icon.icon = ICON_RECORDING
         icon.menu = self._menu()
 
     def _stop(self, icon, item):
         self._on_stop()
         self._recording = False
+        self._transcribing = False
         icon.icon = ICON_IDLE
         icon.menu = self._menu()
 
@@ -74,12 +85,19 @@ class TrayIcon:
         self._on_quit()
 
     # ------------------------------------------------------------------
-    # Called from Flask thread — only update menu, never the icon bitmap
+    # Called from background threads — safe: pystray uses PostMessage for
+    # icon updates on Windows, which is thread-safe (async message queue).
     # ------------------------------------------------------------------
 
     def set_recording(self, recording):
         self._recording = recording
         if self._icon:
+            self._icon.menu = self._menu()
+
+    def set_transcribing(self, transcribing):
+        self._transcribing = transcribing
+        if self._icon:
+            self._icon.icon = ICON_TRANSCRIBING if transcribing else ICON_IDLE
             self._icon.menu = self._menu()
 
     # ------------------------------------------------------------------
@@ -89,9 +107,9 @@ class TrayIcon:
     def run(self):
         """Start the tray icon. Blocks until quit (must run on main thread)."""
         self._icon = pystray.Icon(
-            "granola-cz",
+            "obsinote",
             ICON_IDLE,
-            "Granola-CZ",
+            "ObsiNote",
             menu=self._menu(),
         )
         self._icon.run()

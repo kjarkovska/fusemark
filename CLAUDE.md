@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working in this repository.
 
 ## Project
 
-**Granola-CZ** — a local Windows 11 desktop app for recording meeting audio, transcribing it locally with faster-whisper, and generating structured Czech meeting notes into an Obsidian vault via Claude Haiku 3.5 API.
+**ObsiNote** — a local Windows 11 desktop app for recording meeting audio, transcribing it locally with faster-whisper, and generating structured Czech meeting notes into an Obsidian vault via Claude Haiku 3.5 API.
 
 Audio never leaves the machine. Recording and processing are fully decoupled so back-to-back meetings work seamlessly.
 

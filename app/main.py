@@ -1,5 +1,5 @@
 """
-main.py — Entrypoint for Granola-CZ
+main.py — Entrypoint for ObsiNote
 
 Starts three components:
   1. Worker thread  — background job processor
@@ -34,6 +34,7 @@ def main():
         on_quit=lambda: (worker.stop(), tray.stop()),
     )
     server.set_tray(tray)
+    worker.on_transcribing = tray.set_transcribing
 
     # Start Flask in a background thread
     flask_thread = threading.Thread(

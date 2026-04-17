@@ -1,5 +1,5 @@
 """
-worker.py — Background job processor for Granola-CZ
+worker.py — Background job processor for ObsiNote
 
   queued -> transcribing -> generating -> done
 
@@ -29,6 +29,7 @@ class Worker:
     def __init__(self):
         self._thread = None
         self._stop_event = threading.Event()
+        self.on_transcribing = None  # optional callback(bool) — wired to tray in main.py
 
     def start(self):
         self._stop_event.clear()
@@ -95,13 +96,19 @@ class Worker:
 
     def _transcribe(self, job_id, job):
         q.set_status(job_id, "transcribing")
-        audio_path = job.get("audio_path") or job.get("recording_path")
-        if not audio_path:
-            raise ValueError("Job has no audio_path to transcribe.")
-        config = cfg.load()
-        model_size = config.get("whisper_model", "large-v3")
-        transcript = transcribe(audio_path, model_size=model_size, job_id=job_id)
-        q.update_job(job_id, transcript=transcript)
+        if self.on_transcribing:
+            self.on_transcribing(True)
+        try:
+            audio_path = job.get("audio_path") or job.get("recording_path")
+            if not audio_path:
+                raise ValueError("Job has no audio_path to transcribe.")
+            config = cfg.load()
+            model_size = config.get("whisper_model", "large-v3")
+            transcript = transcribe(audio_path, model_size=model_size, job_id=job_id)
+            q.update_job(job_id, transcript=transcript)
+        finally:
+            if self.on_transcribing:
+                self.on_transcribing(False)
 
     def _generate(self, job_id, job):
         q.set_status(job_id, "generating")

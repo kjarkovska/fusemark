@@ -1,4 +1,4 @@
-# Granola-CZ
+# ObsiNote
 
 Local meeting notes app for Windows 11. Records audio, transcribes with faster-whisper, generates structured Czech notes via Claude Haiku API, saves to Obsidian vault.
 
@@ -150,7 +150,13 @@ tags: [meeting]
 
 **API key error**
 - Go to Settings, paste key again and save
-- The key is stored in Windows Credential Manager under `granola-cz`
+- The key is stored in Windows Credential Manager under `obsinote`
 
 **Ctrl+C doesn't stop the app**
 - Use tray icon → Quit, or: `taskkill /f /im python.exe`
+
+---
+
+## Credits
+
+Tray icon: [Note Taking](https://icons8.com/icon/YSKL7LZMQpS1/note-taking) by [Icons8](https://icons8.com)

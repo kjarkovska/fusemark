@@ -1,5 +1,5 @@
 """
-server.py — Flask web server for Granola-CZ
+server.py — Flask web server for ObsiNote
 
 Routes:
   GET  /              — main UI

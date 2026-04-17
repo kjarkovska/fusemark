@@ -1,4 +1,4 @@
-// app.js — Granola-CZ frontend logic
+// app.js — ObsiNote frontend logic
 
 let recording = false;
 let timerInterval = null;

@@ -1,5 +1,5 @@
 """
-queue.py — SQLite job queue for Granola-CZ
+queue.py — SQLite job queue for ObsiNote
 
 State machine:
   recording → queued → transcribing → generating → done
@@ -218,7 +218,7 @@ def _run_test():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Granola-CZ job queue — Phase 2 test")
+    parser = argparse.ArgumentParser(description="ObsiNote job queue — Phase 2 test")
     parser.add_argument("--test", action="store_true", help="Run the queue test")
     args = parser.parse_args()
 

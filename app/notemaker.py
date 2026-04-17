@@ -1,5 +1,5 @@
 """
-notemaker.py — Claude Haiku 3.5 note generation for Granola-CZ
+notemaker.py — Claude Haiku 3.5 note generation for ObsiNote
 
 Two Claude calls per job:
   1. Generate structured Czech meeting notes from the transcript.
@@ -22,7 +22,7 @@ import keyring
 
 from app.glossary import load as load_glossary
 
-KEYRING_SERVICE = "granola-cz"
+KEYRING_SERVICE = "obsinote"
 KEYRING_USERNAME = "anthropic-api-key"
 MODEL = "claude-haiku-4-5-20251001"
 
@@ -229,7 +229,7 @@ def save_note(note_md, label, folder, vault_path):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Granola-CZ note generator — Phase 4 CLI test"
+        description="ObsiNote note generator — Phase 4 CLI test"
     )
     parser.add_argument("--transcript", metavar="PATH", help="Path to transcript text file")
     parser.add_argument("--label", default="", help="Meeting label/title")

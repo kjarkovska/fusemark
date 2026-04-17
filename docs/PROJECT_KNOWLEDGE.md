@@ -1,4 +1,4 @@
-# Granola-CZ — Project Knowledge
+# ObsiNote — Project Knowledge
 
 > Comprehensive reference for use as Claude project knowledge. Reflects state as of Phase 6 (complete), with planned changes noted.
 
@@ -63,7 +63,7 @@ Audio capture (WASAPI loopback + mic — two separate streams)
 ## Project File Structure
 
 ```
-granola-cz/
+obsinote/
 ├── CLAUDE.md                # Claude Code instructions
 ├── requirements.txt         # Python dependencies
 ├── glossary.json            # Term glossary (editable in VSCode)
@@ -232,7 +232,7 @@ tags: [meeting]
 **Two-page web app (Flask templates, dark VSCode-like theme):**
 
 **index.html — Recorder + Jobs:**
-- Header: "Granola-CZ" + link to Settings
+- Header: "ObsiNote" + link to Settings
 - Recorder section: meeting label input, folder dropdown (from vault/Meetings/), timer, Start/Stop button (green/red), scratch notes textarea
 - Jobs panel: auto-refreshes every 3s; shows status badge, progress bar, context input, audio decision buttons, note path link
 
