@@ -6,6 +6,8 @@ A running list of requested changes. Each section tracks what needs to be done, 
 
 ## 1. Standalone Window via PyWebView
 
+**Status: Implemented** (commit 3236904 — known issue: taskbar/title bar status icon colours not working, see Known Issues below)
+
 **Goal:** Replace browser-based UI with a native standalone window (no address bar, no tabs, no browser chrome).
 
 **Approach:** Use `pywebview` which wraps Microsoft Edge WebView2 — pre-installed on Windows 11. Flask stays unchanged; pywebview renders the existing HTML/CSS/JS.
@@ -40,6 +42,8 @@ A running list of requested changes. Each section tracks what needs to be done, 
 ---
 
 ## 2. Window Close → Minimize to Tray
+
+**Status: Implemented**
 
 **Goal:** Closing the pywebview window hides it rather than quitting the app. The app continues running in the tray. Only tray → Quit performs a full shutdown.
 
@@ -289,5 +293,17 @@ This keeps notes clean while making the transcript one click away in Obsidian.
 - `Transcripts/` sits at the vault root alongside `Meetings/` — keeps raw transcripts separate from structured notes
 - Transcript file is plain text wrapped in minimal Markdown (just a heading); no frontmatter needed
 - If `vault_path` is not set when transcription finishes, skip saving the file and keep the transcript in SQLite only (current behaviour as fallback)
+
+## 11. UI Revamp
+
+**Goal:** Cleaner visual design and improved UX across the main window and settings page.
+
+### Motivation
+The current UI was built for functionality first. A focused revamp will improve clarity, reduce visual noise, and make the app more pleasant for daily use.
+
+### Scope (to be defined)
+- Visual design pass: typography, spacing, colour palette, component consistency
+- UX improvements: better feedback states, clearer job status indicators, more intuitive controls
+- Remains a single-page web UI (Flask + HTML/CSS/JS) — no framework change
 
 <!-- Add further change requests below this line -->
