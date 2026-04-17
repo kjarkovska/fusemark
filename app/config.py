@@ -8,6 +8,7 @@ DEFAULTS = {
     "output_device": None,   # None = system default output (used for WASAPI loopback)
     "input_device": None,    # None = system default input (microphone)
     "whisper_model": "large-v3",
+    "log_level": "DEBUG",
 }
 
 

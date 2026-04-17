@@ -74,7 +74,19 @@
     </div>
 
     <div class="field">
+      <label>Úroveň logování</label>
+      <select id="log_level">
+        {% for level in ['DEBUG', 'INFO', 'WARNING', 'ERROR'] %}
+        <option value="{{ level }}" {% if config.log_level == level %}selected{% endif %}>{{ level }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
       <button class="btn-secondary" onclick="openGlossary()">Otevřít glossary.json ve VSCode</button>
+    </div>
+
+    <div class="field">
       <button class="btn-secondary" onclick="openLog()">Otevřít log</button>
     </div>
 
@@ -92,6 +104,7 @@
           whisper_model: document.getElementById('whisper_model').value,
           output_device: document.getElementById('output_device').value,
           input_device: document.getElementById('input_device').value,
+          log_level: document.getElementById('log_level').value,
         })
       });
       const data = await res.json();

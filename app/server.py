@@ -181,7 +181,7 @@ def route_status():
 def route_settings_save():
     data = request.get_json(silent=True) or {}
     config = cfg.load()
-    for key in ("vault_path", "whisper_model"):
+    for key in ("vault_path", "whisper_model", "log_level"):
         if key in data:
             config[key] = data[key]
     for key in ("output_device", "input_device"):

@@ -44,6 +44,11 @@ _hwnd = None
 # ------------------------------------------------------------------
 
 def _setup_logging():
+    from app import config as cfg
+    config = cfg.load()
+    level_name = config.get("log_level", "DEBUG").upper()
+    file_level = getattr(logging, level_name, logging.DEBUG)
+
     logs_dir = os.path.join(_PROJECT_ROOT, "logs")
     os.makedirs(logs_dir, exist_ok=True)
     log_path = os.path.join(logs_dir, "obsinote.log")
@@ -53,7 +58,7 @@ def _setup_logging():
     file_handler = RotatingFileHandler(
         log_path, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
     )
-    file_handler.setLevel(logging.DEBUG)
+    file_handler.setLevel(file_level)
     file_handler.setFormatter(fmt)
 
     console_handler = logging.StreamHandler()
@@ -61,7 +66,7 @@ def _setup_logging():
     console_handler.setFormatter(fmt)
 
     root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
+    root.setLevel(file_level)
     root.addHandler(file_handler)
     root.addHandler(console_handler)
 
