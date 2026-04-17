@@ -8,9 +8,12 @@ A .vbs launcher is written to the project root so wscript.exe can start
 the app silently (no console flash) with the correct working directory.
 """
 
+import logging
 import os
 import sys
 import winreg
+
+logger = logging.getLogger(__name__)
 
 REG_PATH = r"Software\Microsoft\Windows\CurrentVersion\Run"
 APP_NAME = "ObsiNote"
@@ -59,7 +62,7 @@ def enable():
     key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_PATH, 0, winreg.KEY_SET_VALUE)
     winreg.SetValueEx(key, APP_NAME, 0, winreg.REG_SZ, cmd)
     winreg.CloseKey(key)
-    print(f"[autostart] Enabled: {cmd}")
+    logger.info("Enabled: %s", cmd)
 
 
 def disable():
@@ -67,6 +70,6 @@ def disable():
         key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_PATH, 0, winreg.KEY_SET_VALUE)
         winreg.DeleteValue(key, APP_NAME)
         winreg.CloseKey(key)
-        print("[autostart] Disabled")
+        logger.info("Disabled")
     except FileNotFoundError:
         pass

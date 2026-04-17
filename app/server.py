@@ -215,6 +215,15 @@ def route_open_glossary():
     return jsonify({"ok": True})
 
 
+@app.route("/open-log", methods=["POST"])
+def route_open_log():
+    log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs", "obsinote.log")
+    if not os.path.exists(log_path):
+        return jsonify({"error": "Log file not found"}), 404
+    os.startfile(log_path)
+    return jsonify({"ok": True})
+
+
 @app.route("/api-key", methods=["POST"])
 def route_api_key():
     data = request.get_json(silent=True) or {}

@@ -11,3 +11,4 @@ jobs.db
 test.mp3
 recordings/
 assets/*.ico
+logs/

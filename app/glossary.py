@@ -10,8 +10,11 @@ Provides:
 """
 
 import json
+import logging
 import os
 import subprocess
+
+logger = logging.getLogger(__name__)
 
 GLOSSARY_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "glossary.json"
@@ -67,9 +70,9 @@ def add_terms(new_terms):
     if added:
         with open(GLOSSARY_PATH, "w", encoding="utf-8") as f:
             json.dump(glossary, f, indent=2, ensure_ascii=False)
-        print(f"[glossary] Added: {', '.join(added)}")
+        logger.info("Added: %s", ', '.join(added))
     else:
-        print("[glossary] No new terms to add.")
+        logger.debug("No new terms to add.")
 
     return added
 

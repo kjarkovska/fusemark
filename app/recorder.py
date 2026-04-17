@@ -16,6 +16,7 @@ CLI usage:
 """
 
 import argparse
+import logging
 import os
 import subprocess
 import sys
@@ -25,6 +26,8 @@ import time
 import wave
 
 import pyaudiowpatch as pyaudio
+
+logger = logging.getLogger(__name__)
 
 CHUNK = 1024
 FORMAT = pyaudio.paInt16   # int16 — 2 bytes per sample
@@ -210,7 +213,7 @@ class Recorder:
             os.unlink(system_tmp.name)
             os.unlink(mic_tmp.name)
 
-        print(f"Saved: {path}")
+        logger.info("Saved: %s", path)
         return path
 
 

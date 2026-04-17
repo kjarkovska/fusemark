@@ -65,6 +65,8 @@ Sections are ordered by implementation priority.
 
 ## 3. Logging
 
+**Status: Implemented**
+
 **Goal:** Replace all `print()` calls (53 across 7 files) with Python's `logging` module. Persistent log file for post-mortem debugging; clean console output in normal use.
 
 ### Standard

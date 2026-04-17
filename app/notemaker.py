@@ -14,11 +14,14 @@ CLI usage (Phase 4 test):
 
 import argparse
 import json
+import logging
 import os
 from datetime import date
 
 import anthropic
 import keyring
+
+logger = logging.getLogger(__name__)
 
 from app.glossary import load as load_glossary
 
@@ -113,7 +116,7 @@ def get_api_key():
 def set_api_key(key):
     """Store the API key in Windows Credential Manager."""
     keyring.set_password(KEYRING_SERVICE, KEYRING_USERNAME, key)
-    print("API key saved to Windows Credential Manager.")
+    logger.info("API key saved to Windows Credential Manager.")
 
 
 # ------------------------------------------------------------------
@@ -198,7 +201,7 @@ def suggest_glossary_terms(transcript):
         terms = json.loads(raw)
         return terms if isinstance(terms, list) else []
     except json.JSONDecodeError:
-        print(f"[notemaker] Could not parse term suggestions: {raw[:200]}")
+        logger.warning("Could not parse term suggestions: %s", raw[:200])
         return []
 
 
@@ -219,7 +222,7 @@ def save_note(note_md, label, folder, vault_path):
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(note_md)
 
-    print(f"[notemaker] Note saved: {out_path}")
+    logger.info("Note saved: %s", out_path)
     return out_path
 
 
@@ -250,7 +253,7 @@ def main():
     with open(args.transcript, "r", encoding="utf-8", errors="replace") as f:
         transcript = f.read()
 
-    print("[notemaker] Generating notes...")
+    print("[notemaker] Generating notes...")  # intentional stdout output for CLI use
     note = generate_notes(
         transcript=transcript,
         label=args.label,

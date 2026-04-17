@@ -14,10 +14,13 @@ CLI usage (Phase 3 test):
 """
 
 import argparse
+import logging
 import os
 import time
 
 from faster_whisper import WhisperModel
+
+logger = logging.getLogger(__name__)
 
 from app import queue as q
 from app.glossary import build_whisper_prompt
@@ -28,13 +31,13 @@ MODEL_CACHE = {}   # module-level cache so the model loads only once per process
 
 def _load_model(model_size):
     if model_size not in MODEL_CACHE:
-        print(f"[transcriber] Loading model '{model_size}' (first run may download ~3 GB)...")
+        logger.info("Loading model '%s' (first run may download ~3 GB)...", model_size)
         MODEL_CACHE[model_size] = WhisperModel(
             model_size,
             device="cpu",
             compute_type="int8",   # int8 is fastest on CPU, good quality
         )
-        print("[transcriber] Model loaded.")
+        logger.info("Model loaded.")
     return MODEL_CACHE[model_size]
 
 
@@ -53,7 +56,7 @@ def transcribe(audio_path, model_size="large-v3", job_id=None):
     model = _load_model(model_size)
     initial_prompt = build_whisper_prompt()
 
-    print(f"[transcriber] Transcribing: {audio_path}")
+    logger.info("Transcribing: %s", audio_path)
     start = time.time()
 
     segments, info = model.transcribe(
@@ -89,11 +92,9 @@ def transcribe(audio_path, model_size="large-v3", job_id=None):
     elapsed_total = time.time() - start
     transcript = "\n".join(transcript_parts)
 
-    print(
-        f"[transcriber] Done in {elapsed_total:.1f}s "
-        f"({info.duration:.0f}s audio, "
-        f"language={info.language}, "
-        f"prob={info.language_probability:.2f})"
+    logger.info(
+        "Done in %.1fs (%.0fs audio, language=%s, prob=%.2f)",
+        elapsed_total, info.duration, info.language, info.language_probability,
     )
 
     if job_id:
@@ -129,7 +130,7 @@ def main():
 
     transcript = transcribe(args.file, model_size=model_size)
 
-    print("\n--- TRANSCRIPT ---")
+    print("\n--- TRANSCRIPT ---")  # intentional stdout output for CLI use
     print(transcript)
     print("------------------\n")
 

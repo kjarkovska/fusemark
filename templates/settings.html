@@ -75,6 +75,7 @@
 
     <div class="field">
       <button class="btn-secondary" onclick="openGlossary()">Otevřít glossary.json ve VSCode</button>
+      <button class="btn-secondary" onclick="openLog()">Otevřít log</button>
     </div>
 
     <div id="settings-msg"></div>
@@ -127,6 +128,11 @@
 
     async function openGlossary() {
       await fetch('/open-glossary', {method: 'POST'});
+    }
+
+    async function openLog() {
+      const res = await fetch('/open-log', {method: 'POST'});
+      if (!res.ok) showMsg('Log soubor nenalezen — zatím žádná aktivita.');
     }
 
     function showMsg(msg) {

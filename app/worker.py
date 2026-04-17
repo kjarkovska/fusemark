@@ -10,10 +10,13 @@ Error strategy:
 """
 
 import json
+import logging
 import threading
 import time
 
 import anthropic
+
+logger = logging.getLogger(__name__)
 
 from app import queue as q
 from app import config as cfg
@@ -35,20 +38,20 @@ class Worker:
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._loop, daemon=True, name="worker")
         self._thread.start()
-        print("[worker] Started")
+        logger.info("Started")
 
     def stop(self):
         self._stop_event.set()
         if self._thread:
             self._thread.join(timeout=10)
-        print("[worker] Stopped")
+        logger.info("Stopped")
 
     def _loop(self):
         while not self._stop_event.is_set():
             try:
                 self._process_next()
             except Exception as exc:
-                print(f"[worker] Unexpected error in loop: {exc}")
+                logger.error("Unexpected error in loop: %s", exc)
             self._stop_event.wait(POLL_INTERVAL)
 
     def _process_next(self):
@@ -58,14 +61,14 @@ class Worker:
 
         job = sorted(jobs, key=lambda j: j["created_at"])[0]
         job_id = job["id"]
-        print(f"[worker] Processing job {job_id} — '{job.get('label', '')}'")
+        logger.info("Processing job %s — '%s'", job_id, job.get('label', ''))
 
         # Transcription errors → error state (audio preserved, needs human action)
         try:
             self._transcribe(job_id, job)
         except Exception as exc:
             q.update_job(job_id, status="error", error_message=f"Transcription failed: {exc}")
-            print(f"[worker] Job {job_id} transcription error: {exc}")
+            logger.error("Job %s transcription error: %s", job_id, exc)
             return
 
         job = q.get_job(job_id)  # re-fetch to pick up transcript
@@ -81,18 +84,18 @@ class Worker:
                     status="queued",
                     error_message=f"retry:{retries + 1}:{exc}",
                 )
-                print(f"[worker] Job {job_id} will retry ({retries + 1}/{MAX_RETRIES}): {exc}")
+                logger.warning("Job %s will retry (%s/%s): %s", job_id, retries + 1, MAX_RETRIES, exc)
             else:
                 q.update_job(job_id, status="error", error_message=f"Generation failed after {MAX_RETRIES} retries: {exc}")
-                print(f"[worker] Job {job_id} exceeded max retries: {exc}")
+                logger.error("Job %s exceeded max retries: %s", job_id, exc)
             return
         except Exception as exc:
             q.update_job(job_id, status="error", error_message=f"Generation failed: {exc}")
-            print(f"[worker] Job {job_id} generation error: {exc}")
+            logger.error("Job %s generation error: %s", job_id, exc)
             return
 
         q.set_status(job_id, "done")
-        print(f"[worker] Job {job_id} done")
+        logger.info("Job %s done", job_id)
 
     def _transcribe(self, job_id, job):
         q.set_status(job_id, "transcribing")
@@ -137,7 +140,7 @@ class Worker:
             if terms:
                 q.update_job(job_id, error_message=json.dumps(terms, ensure_ascii=False))
         except Exception as exc:
-            print(f"[worker] Glossary suggestion failed (non-fatal): {exc}")
+            logger.debug("Glossary suggestion failed (non-fatal): %s", exc)
 
 
 class _RetryableError(Exception):

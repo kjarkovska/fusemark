@@ -14,12 +14,15 @@ CLI usage (Phase 2 test):
 """
 
 import argparse
+import logging
 import os
 import sqlite3
 import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "jobs.db")
 
@@ -158,7 +161,7 @@ def recover_interrupted_jobs():
         )
     count = result.rowcount
     if count:
-        print(f"[queue] Recovered {count} interrupted job(s) -> queued")
+        logger.info("Recovered %d interrupted job(s) -> queued", count)
     return count
 
 

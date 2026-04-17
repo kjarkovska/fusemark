@@ -18,9 +18,11 @@ Usage:
 """
 
 import ctypes
+import logging
 import os
 import time
 import threading
+from logging.handlers import RotatingFileHandler
 
 import webview
 from PIL import Image
@@ -35,6 +37,36 @@ _ASSETS = os.path.join(_PROJECT_ROOT, "assets")
 
 # Cached window handle — set once the pywebview window finishes loading
 _hwnd = None
+
+
+# ------------------------------------------------------------------
+# Logging setup
+# ------------------------------------------------------------------
+
+def _setup_logging():
+    logs_dir = os.path.join(_PROJECT_ROOT, "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+    log_path = os.path.join(logs_dir, "obsinote.log")
+
+    fmt = logging.Formatter("%(asctime)s [%(levelname)-8s] %(name)s: %(message)s")
+
+    file_handler = RotatingFileHandler(
+        log_path, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(fmt)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.WARNING)
+    console_handler.setFormatter(fmt)
+
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+    root.addHandler(file_handler)
+    root.addHandler(console_handler)
+
+    # Suppress Werkzeug per-request log spam on console
+    logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 
 # ------------------------------------------------------------------
@@ -95,6 +127,8 @@ def _win32_set_icons(small_path=None, big_path=None):
 
 
 def main():
+    _setup_logging()
+
     # Give ObsiNote a unique Windows identity — prevents grouping under python.exe
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ObsiNote.App")
 
