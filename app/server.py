@@ -17,7 +17,6 @@ Routes:
 import json
 import os
 import threading
-import webbrowser
 
 from flask import Flask, jsonify, render_template, request
 
@@ -265,11 +264,5 @@ def _get_vault_folders(vault_path):
     return sorted(folders) or ["Other"]
 
 
-def open_browser(port=5000):
-    webbrowser.open(f"http://127.0.0.1:{port}")
-
-
-def run(port=5000, open_on_start=True):
-    if open_on_start:
-        threading.Timer(0.8, open_browser, args=[port]).start()
+def run(port=5000):
     app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)

@@ -34,6 +34,9 @@ A running list of requested changes. Each section tracks what needs to be done, 
 ### Resolution
 - Closing the window minimizes to tray. Only tray right-click → Quit exits the app.
 
+### Known issues
+- **Taskbar/title bar icon colours not working** — attempted via Win32 `WM_SETICON` with `ICON_SMALL` / `ICON_BIG` after fixing 64-bit handle truncation (`c_void_p` restype), but status colours (grey/red/blue) are not reflecting in either the title bar or taskbar. `SetCurrentProcessExplicitAppUserModelID` is set to prevent grouping under `python.exe`. Root cause unclear — likely pywebview's Edge WebView2 host window overrides the icon after our `loaded` event callback fires, or the HWND we obtain is not the taskbar-visible top-level window. Needs further investigation.
+
 ---
 
 ## 2. Window Close → Minimize to Tray

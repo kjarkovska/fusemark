@@ -10,3 +10,4 @@ config.json
 jobs.db
 test.mp3
 recordings/
+assets/*.ico

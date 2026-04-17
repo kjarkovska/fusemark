@@ -104,15 +104,15 @@ class TrayIcon:
     # Lifecycle
     # ------------------------------------------------------------------
 
-    def run(self):
-        """Start the tray icon. Blocks until quit (must run on main thread)."""
+    def run_detached(self):
+        """Start the tray icon in a background thread (non-blocking)."""
         self._icon = pystray.Icon(
             "obsinote",
             ICON_IDLE,
             "ObsiNote",
             menu=self._menu(),
         )
-        self._icon.run()
+        self._icon.run_detached()
 
     def stop(self):
         if self._icon:

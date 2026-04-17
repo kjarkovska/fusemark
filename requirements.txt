@@ -16,3 +16,4 @@ keyring
 flask
 pystray
 Pillow
+pywebview
