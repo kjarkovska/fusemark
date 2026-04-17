@@ -132,6 +132,12 @@ def _win32_set_icons(small_path=None, big_path=None):
 
 
 def main():
+    # Single-instance guard — create a named mutex; exit if another instance owns it
+    _mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Global\\ObsiNote")
+    if ctypes.windll.kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
+        import sys
+        sys.exit(0)
+
     _setup_logging()
 
     # Give ObsiNote a unique Windows identity — prevents grouping under python.exe
