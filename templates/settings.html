@@ -11,106 +11,148 @@
 <body class="settings-page">
   <div class="settings-shell">
 
-    <div class="settings-header">
+    <!-- Header -->
+    <header class="settings-header">
       <a href="/" class="back-link">&#8592;</a>
       <h1>Nastavení</h1>
+    </header>
+
+    <!-- Two-column body -->
+    <div class="settings-body">
+
+      <!-- Left sidebar nav -->
+      <nav class="settings-nav">
+        <a href="#cesty" class="settings-nav-item settings-nav-active">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 2h9a2 2 0 012 2z"/></svg>
+          Cesty
+        </a>
+        <a href="#zvuk" class="settings-nav-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          Zvuk
+        </a>
+        <a href="#llm" class="settings-nav-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          LLM
+        </a>
+        <a href="#system" class="settings-nav-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Systém
+        </a>
+        <a href="#nastroje" class="settings-nav-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+          Nástroje
+        </a>
+      </nav>
+
+      <!-- Right scrollable content -->
+      <div class="settings-content">
+
+        <!-- Cesty -->
+        <section id="cesty" class="settings-section">
+          <div class="group-heading">Cesty</div>
+          <div class="field">
+            <label>Cesta k Obsidian vaultu</label>
+            <div class="input-action-row">
+              <input type="text" id="vault_path" value="{{ config.vault_path or '' }}" placeholder="C:\Users\...\Obsidian Vault">
+              <button class="btn-icon" title="Procházet">&#128193;</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Zvuk -->
+        <section id="zvuk" class="settings-section">
+          <div class="group-heading">Nastavení zvuku</div>
+          <div class="field">
+            <label>Výstupní zařízení (loopback — systémový zvuk)</label>
+            <select id="output_device">
+              <option value="null">Výchozí</option>
+              {% for d in devices %}
+              {% if d.is_output %}
+              <option value="{{ d.index }}" {% if config.output_device == d.index %}selected{% endif %}>
+                [{{ d.index }}] {{ d.name }}{% if d.is_loopback %} (loopback){% endif %}
+              </option>
+              {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label>Vstupní zařízení (mikrofon)</label>
+            <select id="input_device">
+              <option value="null">Výchozí</option>
+              {% for d in devices %}
+              {% if d.is_input and not d.is_loopback %}
+              <option value="{{ d.index }}" {% if config.input_device == d.index %}selected{% endif %}>
+                [{{ d.index }}] {{ d.name }}
+              </option>
+              {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+        </section>
+
+        <!-- LLM -->
+        <section id="llm" class="settings-section">
+          <div class="group-heading">LLM</div>
+          <div class="field">
+            <label>Model Whisper</label>
+            <select id="whisper_model">
+              {% for size in ['small', 'medium', 'large-v3'] %}
+              <option value="{{ size }}" {% if config.whisper_model == size %}selected{% endif %}>{{ size }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label>Anthropic API klíč</label>
+            <div class="input-action-row">
+              <input type="password" id="api_key" placeholder="sk-ant-...">
+              <button class="btn-inline" onclick="saveApiKey()">Uložit klíč</button>
+            </div>
+            <p class="field-hint">Klíč je nutný pro generování poznámek z přepisu.</p>
+          </div>
+        </section>
+
+        <!-- Systém -->
+        <section id="system" class="settings-section">
+          <div class="group-heading">Systém</div>
+          <div class="autostart-row">
+            <div class="autostart-label">
+              <span>Spustit automaticky se systémem Windows</span>
+              <span class="field-hint">Aplikace poběží na pozadí v systémové liště.</span>
+            </div>
+            <label class="toggle-label">
+              <input type="checkbox" id="autostart" onchange="toggleAutostart()">
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            </label>
+          </div>
+        </section>
+
+        <!-- Nástroje -->
+        <section id="nastroje" class="settings-section">
+          <div class="group-heading">Nástroje</div>
+          <div class="field">
+            <label>Úroveň logování</label>
+            <div class="log-row">
+              <select id="log_level">
+                {% for level in ['DEBUG', 'INFO', 'WARNING', 'ERROR'] %}
+                <option value="{{ level }}" {% if config.log_level == level %}selected{% endif %}>{{ level }}</option>
+                {% endfor %}
+              </select>
+              <button class="btn-inline" onclick="openLog()">Otevřít log</button>
+            </div>
+          </div>
+          <div class="field">
+            <button class="btn-secondary btn-full" onclick="openGlossary()">Otevřít slovník</button>
+          </div>
+        </section>
+
+      </div>
     </div>
 
-    <!-- Cesty -->
-    <section class="settings-group">
-      <div class="group-heading">Cesty</div>
-      <div class="field">
-        <label>Cesta k Obsidian vaultu</label>
-        <div class="input-action-row">
-          <input type="text" id="vault_path" value="{{ config.vault_path or '' }}" placeholder="C:\Users\...\Obsidian Vault">
-          <button class="btn-icon" title="Procházet">&#128193;</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Nastavení zvuku -->
-    <section class="settings-group">
-      <div class="group-heading">Nastavení zvuku</div>
-      <div class="field">
-        <label>Výstupní zařízení (loopback — systémový zvuk)</label>
-        <select id="output_device">
-          <option value="null">Výchozí</option>
-          {% for d in devices %}
-          {% if d.is_output %}
-          <option value="{{ d.index }}" {% if config.output_device == d.index %}selected{% endif %}>
-            [{{ d.index }}] {{ d.name }}{% if d.is_loopback %} (loopback){% endif %}
-          </option>
-          {% endif %}
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field">
-        <label>Vstupní zařízení (mikrofon)</label>
-        <select id="input_device">
-          <option value="null">Výchozí</option>
-          {% for d in devices %}
-          {% if d.is_input and not d.is_loopback %}
-          <option value="{{ d.index }}" {% if config.input_device == d.index %}selected{% endif %}>
-            [{{ d.index }}] {{ d.name }}
-          </option>
-          {% endif %}
-          {% endfor %}
-        </select>
-      </div>
-    </section>
-
-    <!-- LLM -->
-    <section class="settings-group">
-      <div class="group-heading">LLM</div>
-      <div class="field">
-        <label>Model Whisper</label>
-        <select id="whisper_model">
-          {% for size in ['small', 'medium', 'large-v3'] %}
-          <option value="{{ size }}" {% if config.whisper_model == size %}selected{% endif %}>{{ size }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field">
-        <label>Anthropic API klíč</label>
-        <div class="input-action-row">
-          <input type="password" id="api_key" placeholder="sk-ant-...">
-          <button class="btn-secondary btn-inline" onclick="saveApiKey()">Uložit klíč</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- System -->
-    <section class="settings-group">
-      <div class="group-heading">System</div>
-      <div class="field">
-        <label class="toggle-label">
-          <input type="checkbox" id="autostart" onchange="toggleAutostart()">
-          <span class="toggle-track"><span class="toggle-thumb"></span></span>
-          <span>Spustit automaticky se systémem Windows</span>
-        </label>
-      </div>
-      <div class="field">
-        <label>Úroveň logování</label>
-        <select id="log_level">
-          {% for level in ['DEBUG', 'INFO', 'WARNING', 'ERROR'] %}
-          <option value="{{ level }}" {% if config.log_level == level %}selected{% endif %}>{{ level }}</option>
-          {% endfor %}
-        </select>
-      </div>
-    </section>
-
-    <!-- Nástroje -->
-    <section class="settings-group">
-      <div class="group-heading">Nástroje</div>
-      <div class="field btn-row">
-        <button class="btn-secondary" onclick="openGlossary()">Otevřít slovník</button>
-        <button class="btn-secondary" onclick="openLog()">Otevřít log</button>
-      </div>
-    </section>
-
-    <button class="btn-save-primary" onclick="saveSettings()">Uložit nastavení</button>
-
-    <div id="settings-msg"></div>
+    <!-- Sticky footer -->
+    <footer class="settings-footer">
+      <div id="settings-msg"></div>
+      <button class="btn-save-primary" onclick="saveSettings()">Uložit nastavení</button>
+    </footer>
 
   </div>
 
@@ -129,7 +171,7 @@
         })
       });
       const data = await res.json();
-      showMsg(data.ok ? 'Ulozeno.' : 'Chyba: ' + JSON.stringify(data));
+      showMsg(data.ok ? 'Uloženo.' : 'Chyba: ' + JSON.stringify(data));
     }
 
     async function saveApiKey() {
