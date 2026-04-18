@@ -4,36 +4,70 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ObsiNote</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <header>
-    <h1>ObsiNote</h1>
-    <a href="/settings" class="settings-link">Nastavení</a>
-  </header>
 
-  <!-- A) Recorder -->
-  <section id="recorder">
-    <div class="recorder-top">
-      <input type="text" id="label" placeholder="Název porady" autocomplete="off">
-      <select id="folder">
-        {% for f in folders %}
-        <option value="{{ f }}">{{ f }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="timer-row">
-      <span id="timer">00:00</span>
-      <button id="rec-btn" class="btn-start" onclick="toggleRecording()">Spustit nahrávání</button>
-    </div>
-    <textarea id="scratch" placeholder="Hrubé poznámky během porady..."></textarea>
-  </section>
+  <nav class="app-nav">
+    <div class="app-title"><span>Obsi</span><span class="brand-light">Note</span></div>
+    <a href="/settings" class="settings-link">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Nastavení
+    </a>
+  </nav>
 
-  <!-- B) Jobs panel -->
-  <section id="jobs-panel">
-    <h2>Fronta zpracování</h2>
-    <div id="jobs-list">Načítám...</div>
-  </section>
+  <div class="main-content">
+
+    <!-- Left panel: recorder -->
+    <div class="left-panel">
+      <section id="recorder">
+
+        <div class="recorder-form">
+          <div class="field-group">
+            <label class="field-label">Název porady</label>
+            <input type="text" id="label" placeholder="Název porady" autocomplete="off">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Složka</label>
+            <select id="folder">
+              {% for f in folders %}
+              <option value="{{ f }}">{{ f }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="recorder-active-label">Nahrávám...</div>
+
+        <div class="timer-row">
+          <div id="timer">00:00</div>
+          <button id="rec-btn" class="btn-start" onclick="toggleRecording()">Spustit nahrávání</button>
+        </div>
+
+        <div class="notes-section">
+          <div class="notes-header">
+            <span class="notes-label-idle">Hrubé poznámky</span>
+            <span class="notes-label-active">Rychlé poznámky</span>
+            <button class="btn-ghost" disabled>Importovat přepis</button>
+          </div>
+          <textarea id="scratch" placeholder="Hrubé poznámky během porady..."></textarea>
+        </div>
+
+      </section>
+    </div>
+
+    <!-- Right panel: job queue -->
+    <div class="right-panel">
+      <div class="right-panel-header">
+        <h2>Fronta zpracování</h2>
+        <button class="btn-ghost" onclick="clearCompleted()">Vymazat historii</button>
+      </div>
+      <div class="right-panel-list" id="jobs-list">Načítám...</div>
+    </div>
+
+  </div>
 
   <script src="/static/app.js"></script>
 </body>

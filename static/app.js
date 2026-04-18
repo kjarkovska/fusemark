@@ -129,9 +129,28 @@ async function refreshJobs() {
 function renderJob(job) {
   const date = job.created_at ? job.created_at.slice(0, 16).replace('T', ' ') : '';
   const progress = progressFromJob(job);
+  const isActive = job.status === 'transcribing' || job.status === 'generating';
+  const isError = job.status === 'error';
+  const pill = `<span class="job-status status-${job.status}">${statusLabel(job.status)}</span>`;
 
-  const progressBar = (job.status === 'transcribing' || job.status === 'generating')
-    ? `<div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>`
+  // Active/error: label+date on left, pill right-aligned; done/queued: stacked
+  const header = (isActive || isError)
+    ? `<div class="job-header-row">
+         <div>
+           <div class="job-label">${esc(job.label || 'Porada')}</div>
+           <div class="job-date">${date}</div>
+         </div>
+         ${pill}
+       </div>`
+    : `<div class="job-label">${esc(job.label || 'Porada')}</div>
+       <div class="job-date">${date}</div>
+       <div class="job-pill-bottom">${pill}</div>`;
+
+  const progressBar = isActive
+    ? `<div class="job-progress-row">
+         <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
+         <span class="progress-pct">${progress}%</span>
+       </div>`
     : '';
 
   const contextField = (job.status !== 'done' && job.status !== 'error')
@@ -159,11 +178,7 @@ function renderJob(job) {
 
   return `
     <div class="job">
-      <div class="job-header">
-        <span class="job-label">${esc(job.label || 'Porada')}</span>
-        <span class="job-date">${date}</span>
-        <span class="job-status status-${job.status}">${statusLabel(job.status)}</span>
-      </div>
+      ${header}
       ${progressBar}
       ${contextField}
       ${audioDecision}
@@ -206,6 +221,10 @@ async function audioDecision(jobId, keep) {
     body: JSON.stringify({keep}),
   });
   refreshJobs();
+}
+
+function clearCompleted() {
+  // Stub — backend route not yet implemented
 }
 
 function esc(str) {

@@ -4,94 +4,115 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nastavení — ObsiNote</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
-  <header>
-    <h1>Nastavení</h1>
-    <a href="/" class="settings-link">Zpět</a>
-  </header>
+<body class="settings-page">
+  <div class="settings-shell">
 
-  <section class="settings-form">
-
-    <div class="field">
-      <label>Cesta k Obsidian vaultu</label>
-      <input type="text" id="vault_path" value="{{ config.vault_path or '' }}" placeholder="C:\Users\...\Obsidian Vault">
+    <div class="settings-header">
+      <a href="/" class="back-link">&#8592;</a>
+      <h1>Nastavení</h1>
     </div>
 
-    <div class="field">
-      <label>Model Whisper</label>
-      <select id="whisper_model">
-        {% for size in ['small', 'medium', 'large-v3'] %}
-        <option value="{{ size }}" {% if config.whisper_model == size %}selected{% endif %}>{{ size }}</option>
-        {% endfor %}
-      </select>
-    </div>
+    <!-- Cesty -->
+    <section class="settings-group">
+      <div class="group-heading">Cesty</div>
+      <div class="field">
+        <label>Cesta k Obsidian vaultu</label>
+        <div class="input-action-row">
+          <input type="text" id="vault_path" value="{{ config.vault_path or '' }}" placeholder="C:\Users\...\Obsidian Vault">
+          <button class="btn-icon" title="Procházet">&#128193;</button>
+        </div>
+      </div>
+    </section>
 
-    <div class="field">
-      <label>Výstupní zařízení (loopback — systémový zvuk)</label>
-      <select id="output_device">
-        <option value="null">Výchozí</option>
-        {% for d in devices %}
-        {% if d.is_output %}
-        <option value="{{ d.index }}" {% if config.output_device == d.index %}selected{% endif %}>
-          [{{ d.index }}] {{ d.name }}{% if d.is_loopback %} (loopback){% endif %}
-        </option>
-        {% endif %}
-        {% endfor %}
-      </select>
-    </div>
+    <!-- Nastavení zvuku -->
+    <section class="settings-group">
+      <div class="group-heading">Nastavení zvuku</div>
+      <div class="field">
+        <label>Výstupní zařízení (loopback — systémový zvuk)</label>
+        <select id="output_device">
+          <option value="null">Výchozí</option>
+          {% for d in devices %}
+          {% if d.is_output %}
+          <option value="{{ d.index }}" {% if config.output_device == d.index %}selected{% endif %}>
+            [{{ d.index }}] {{ d.name }}{% if d.is_loopback %} (loopback){% endif %}
+          </option>
+          {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Vstupní zařízení (mikrofon)</label>
+        <select id="input_device">
+          <option value="null">Výchozí</option>
+          {% for d in devices %}
+          {% if d.is_input and not d.is_loopback %}
+          <option value="{{ d.index }}" {% if config.input_device == d.index %}selected{% endif %}>
+            [{{ d.index }}] {{ d.name }}
+          </option>
+          {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+    </section>
 
-    <div class="field">
-      <label>Vstupní zařízení (mikrofon)</label>
-      <select id="input_device">
-        <option value="null">Výchozí</option>
-        {% for d in devices %}
-        {% if d.is_input and not d.is_loopback %}
-        <option value="{{ d.index }}" {% if config.input_device == d.index %}selected{% endif %}>
-          [{{ d.index }}] {{ d.name }}
-        </option>
-        {% endif %}
-        {% endfor %}
-      </select>
-    </div>
+    <!-- LLM -->
+    <section class="settings-group">
+      <div class="group-heading">LLM</div>
+      <div class="field">
+        <label>Model Whisper</label>
+        <select id="whisper_model">
+          {% for size in ['small', 'medium', 'large-v3'] %}
+          <option value="{{ size }}" {% if config.whisper_model == size %}selected{% endif %}>{{ size }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Anthropic API klíč</label>
+        <div class="input-action-row">
+          <input type="password" id="api_key" placeholder="sk-ant-...">
+          <button class="btn-secondary btn-inline" onclick="saveApiKey()">Uložit klíč</button>
+        </div>
+      </div>
+    </section>
 
-    <button class="btn-save" onclick="saveSettings()">Uložit nastavení</button>
+    <!-- System -->
+    <section class="settings-group">
+      <div class="group-heading">System</div>
+      <div class="field">
+        <label class="toggle-label">
+          <input type="checkbox" id="autostart" onchange="toggleAutostart()">
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span>Spustit automaticky se systémem Windows</span>
+        </label>
+      </div>
+      <div class="field">
+        <label>Úroveň logování</label>
+        <select id="log_level">
+          {% for level in ['DEBUG', 'INFO', 'WARNING', 'ERROR'] %}
+          <option value="{{ level }}" {% if config.log_level == level %}selected{% endif %}>{{ level }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </section>
 
-    <hr>
+    <!-- Nástroje -->
+    <section class="settings-group">
+      <div class="group-heading">Nástroje</div>
+      <div class="field btn-row">
+        <button class="btn-secondary" onclick="openGlossary()">Otevřít slovník</button>
+        <button class="btn-secondary" onclick="openLog()">Otevřít log</button>
+      </div>
+    </section>
 
-    <div class="field">
-      <label>Anthropic API klíč</label>
-      <input type="password" id="api_key" placeholder="sk-ant-...">
-      <button class="btn-secondary" onclick="saveApiKey()">Uložit klíč</button>
-    </div>
-
-    <div class="field">
-      <label>
-        <input type="checkbox" id="autostart" onchange="toggleAutostart()">
-        Spustit automaticky se systémem Windows
-      </label>
-    </div>
-
-    <div class="field">
-      <label>Úroveň logování</label>
-      <select id="log_level">
-        {% for level in ['DEBUG', 'INFO', 'WARNING', 'ERROR'] %}
-        <option value="{{ level }}" {% if config.log_level == level %}selected{% endif %}>{{ level }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div class="field">
-      <button class="btn-secondary" onclick="openGlossary()">Otevřít glossary.json ve VSCode</button>
-    </div>
-
-    <div class="field">
-      <button class="btn-secondary" onclick="openLog()">Otevřít log</button>
-    </div>
+    <button class="btn-save-primary" onclick="saveSettings()">Uložit nastavení</button>
 
     <div id="settings-msg"></div>
-  </section>
+
+  </div>
 
   <script src="/static/app.js"></script>
   <script>
@@ -124,7 +145,6 @@
       document.getElementById('api_key').value = '';
     }
 
-    // Load autostart state on page load
     fetch('/autostart').then(r => r.json()).then(d => {
       document.getElementById('autostart').checked = d.enabled;
     });

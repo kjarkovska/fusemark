@@ -107,15 +107,25 @@ Sections are ordered by implementation priority.
 
 ## 4. UI Revamp
 
-**Goal:** Cleaner visual design and improved UX across the main window and settings page.
+**Status: In progress — main dashboard done, settings screen next**
 
-### Motivation
-The current UI was built for functionality first. A focused revamp will improve clarity, reduce visual noise, and make the app more pleasant for daily use.
+**Goal:** Cleaner visual design and improved UX across the main window and settings page. Design system: "Nocturnal Precision" — deep obsidian surfaces, Inter font, no-border layout hierarchy via background color shifts, gradient CTAs.
 
-### Scope (to be defined)
-- Visual design pass: typography, spacing, colour palette, component consistency
-- UX improvements: better feedback states, clearer job status indicators, more intuitive controls
-- Remains a single-page web UI (Flask + HTML/CSS/JS) — no framework change
+Reference files: `stitch/` folder — each screen has `screen_v1.png`, `screen_v2.png`, `DESIGN.md`, and `code.html` (authoritative).
+
+### Completed
+- `static/style.css` — full rewrite with new token-based color system (`--bg`, `--card`, `--border`, etc.)
+- `templates/index.html` — two-column layout (left recorder + right jobs panel), nav with gear icon, job cards with status pills and progress bars
+- `templates/settings.html` — grouped into 5 sections (Cesty, Nastavení zvuku, LLM, System, Nástroje), toggle switch for autostart, gradient save button
+- `static/app.js` — `renderJob()` updated for new card structure; `clearCompleted()` stub added
+- Brand name "ObsiNote" split: "Obsi" bold, "Note" normal weight — applies everywhere the brand appears
+
+### Remaining
+- **Settings screen** — review `stitch/obsinote_settings_screen/code.html` and implement any differences vs current `settings.html`
+- **Active recording view** — review `stitch/obsinote_active_recording_view/` for any differences vs current CSS-only active state
+- Import Transcript modal — deferred (future feature, item 10)
+- Template dropdown — deferred (future feature, item 9)
+- `clearCompleted()` backend — deferred (item 5)
 
 ---
 
