@@ -138,7 +138,12 @@ def set_status(job_id, status):
 
 def delete_job(job_id):
     with _conn() as con:
-        con.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
+        con.execute("DELETE FROM jobs WHERE id = ? AND status IN ('done', 'error')", (job_id,))
+
+
+def clear_completed():
+    with _conn() as con:
+        con.execute("DELETE FROM jobs WHERE status IN ('done', 'error')")
 
 
 # ------------------------------------------------------------------

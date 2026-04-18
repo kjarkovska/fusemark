@@ -107,7 +107,7 @@ Sections are ordered by implementation priority.
 
 ## 4. UI Revamp
 
-**Status: In progress — main dashboard done, settings screen next**
+**Status: Implemented**
 
 **Goal:** Cleaner visual design and improved UX across the main window and settings page. Design system: "Nocturnal Precision" — deep obsidian surfaces, Inter font, no-border layout hierarchy via background color shifts, gradient CTAs.
 
@@ -120,16 +120,16 @@ Reference files: `stitch/` folder — each screen has `screen_v1.png`, `screen_v
 - `static/app.js` — `renderJob()` updated for new card structure; `clearCompleted()` stub added
 - Brand name "ObsiNote" split: "Obsi" bold, "Note" normal weight — applies everywhere the brand appears
 
-### Remaining
-- **Settings screen** — review `stitch/obsinote_settings_screen/code.html` and implement any differences vs current `settings.html`
-- **Active recording view** — review `stitch/obsinote_active_recording_view/` for any differences vs current CSS-only active state
-- Import Transcript modal — deferred (future feature, item 10)
-- Template dropdown — deferred (future feature, item 9)
-- `clearCompleted()` backend — deferred (item 5)
+### Deferred
+- Import Transcript modal — future feature, item 10
+- Template dropdown — future feature, item 9
+- `clearCompleted()` backend — item 5
 
 ---
 
 ## 5. Clear History in UI
+
+**Status: Implemented**
 
 **Goal:** Users can remove completed and failed jobs from the jobs panel without restarting the app.
 
@@ -151,6 +151,8 @@ Reference files: `stitch/` folder — each screen has `screen_v1.png`, `screen_v
 ---
 
 ## 6. Tray Icon Hover — Status Tooltip
+
+**Status: Implemented**
 
 **Goal:** Hovering over the tray icon shows a tooltip with the current app status, including transcription progress.
 

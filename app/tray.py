@@ -92,6 +92,7 @@ class TrayIcon:
     def set_recording(self, recording):
         self._recording = recording
         if self._icon:
+            self._icon.icon = ICON_RECORDING if recording else ICON_IDLE
             self._icon.menu = self._menu()
 
     def set_transcribing(self, transcribing):
@@ -99,6 +100,10 @@ class TrayIcon:
         if self._icon:
             self._icon.icon = ICON_TRANSCRIBING if transcribing else ICON_IDLE
             self._icon.menu = self._menu()
+
+    def set_tooltip(self, text):
+        if self._icon:
+            self._icon.title = text[:127]
 
     # ------------------------------------------------------------------
     # Lifecycle

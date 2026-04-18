@@ -208,6 +208,7 @@ def main():
     )
     server.set_tray(tray)
     worker.on_transcribing = _on_transcribing
+    worker.on_tooltip = tray.set_tooltip
 
     # Start Flask in a background thread
     flask_thread = threading.Thread(

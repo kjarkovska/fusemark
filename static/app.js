@@ -127,20 +127,35 @@ async function refreshJobs() {
 }
 
 function renderJob(job) {
-  const date = job.created_at ? job.created_at.slice(0, 16).replace('T', ' ') : '';
+  const date = formatLocalDate(job.created_at);
   const progress = progressFromJob(job);
   const isActive = job.status === 'transcribing' || job.status === 'generating';
-  const isError = job.status === 'error';
-  const pill = `<span class="job-status status-${job.status}">${statusLabel(job.status)}</span>`;
+  const isDeletable = job.status === 'done' || job.status === 'error';
 
-  // Active/error: label+date on left, pill right-aligned; done/queued: stacked
-  const header = (isActive || isError)
+  const errorTitle = (job.status === 'error' && job.error_message && !job.error_message.startsWith('['))
+    ? ` title="${esc(job.error_message)}"` : '';
+  const pill = `<span class="job-status status-${job.status}"${errorTitle}>${statusLabel(job.status)}</span>`;
+
+  const deleteBtn = isDeletable
+    ? `<button class="btn-delete" onclick="deleteJob('${job.id}')" title="Smazat">&#10005;</button>`
+    : '';
+
+  // done/error: header-row with pill+X on right; active: header-row pill only; queued: stacked
+  const header = (isActive)
     ? `<div class="job-header-row">
          <div>
            <div class="job-label">${esc(job.label || 'Porada')}</div>
            <div class="job-date">${date}</div>
          </div>
          ${pill}
+       </div>`
+    : isDeletable
+    ? `<div class="job-header-row">
+         <div>
+           <div class="job-label">${esc(job.label || 'Porada')}</div>
+           <div class="job-date">${date}</div>
+         </div>
+         <div style="display:flex;align-items:center;gap:6px">${pill}${deleteBtn}</div>
        </div>`
     : `<div class="job-label">${esc(job.label || 'Porada')}</div>
        <div class="job-date">${date}</div>
@@ -153,7 +168,7 @@ function renderJob(job) {
        </div>`
     : '';
 
-  const contextField = (job.status !== 'done' && job.status !== 'error')
+  const contextField = !isDeletable
     ? `<div class="job-context">
          <input type="text" id="ctx-${job.id}" value="${esc(job.extra_context || '')}" placeholder="Kontext, účastníci...">
          <button class="btn-secondary" onclick="saveContext('${job.id}')">Uložit</button>
@@ -168,22 +183,12 @@ function renderJob(job) {
        </div>`
     : '';
 
-  const noteLink = job.output_note_path
-    ? `<span class="job-note-link">${esc(job.output_note_path)}</span>`
-    : '';
-
-  const errorMsg = job.error_message && !job.error_message.startsWith('[')
-    ? `<div class="job-error">${esc(job.error_message)}</div>`
-    : '';
-
   return `
     <div class="job">
       ${header}
       ${progressBar}
       ${contextField}
       ${audioDecision}
-      ${noteLink}
-      ${errorMsg}
     </div>`;
 }
 
@@ -223,8 +228,21 @@ async function audioDecision(jobId, keep) {
   refreshJobs();
 }
 
-function clearCompleted() {
-  // Stub — backend route not yet implemented
+async function clearCompleted() {
+  await fetch('/jobs', {method: 'DELETE'});
+  refreshJobs();
+}
+
+async function deleteJob(jobId) {
+  await fetch(`/jobs/${jobId}`, {method: 'DELETE'});
+  refreshJobs();
+}
+
+function formatLocalDate(isoStr) {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function esc(str) {

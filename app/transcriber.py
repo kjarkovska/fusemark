@@ -41,7 +41,7 @@ def _load_model(model_size):
     return MODEL_CACHE[model_size]
 
 
-def transcribe(audio_path, model_size="large-v3", job_id=None):
+def transcribe(audio_path, model_size="large-v3", job_id=None, on_progress=None):
     """
     Transcribe audio_path and return the full transcript as a string.
 
@@ -88,6 +88,8 @@ def transcribe(audio_path, model_size="large-v3", job_id=None):
                 job_id,
                 extra_context=f"transcribing:{progress_pct}%:eta:{eta_seconds}s",
             )
+            if on_progress:
+                on_progress(progress_pct)
 
     elapsed_total = time.time() - start
     transcript = "\n".join(transcript_parts)

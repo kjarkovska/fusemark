@@ -33,6 +33,7 @@ class Worker:
         self._thread = None
         self._stop_event = threading.Event()
         self.on_transcribing = None  # optional callback(bool) — wired to tray in main.py
+        self.on_tooltip = None       # optional callback(str) — wired to tray.set_tooltip in main.py
 
     def start(self):
         self._stop_event.clear()
@@ -69,6 +70,8 @@ class Worker:
         except Exception as exc:
             q.update_job(job_id, status="error", error_message=f"Transcription failed: {exc}")
             logger.error("Job %s transcription error: %s", job_id, exc)
+            if self.on_tooltip:
+                self.on_tooltip("ObsiNote")
             return
 
         job = q.get_job(job_id)  # re-fetch to pick up transcript
@@ -88,33 +91,50 @@ class Worker:
             else:
                 q.update_job(job_id, status="error", error_message=f"Generation failed after {MAX_RETRIES} retries: {exc}")
                 logger.error("Job %s exceeded max retries: %s", job_id, exc)
+            if self.on_tooltip:
+                self.on_tooltip("ObsiNote")
             return
         except Exception as exc:
             q.update_job(job_id, status="error", error_message=f"Generation failed: {exc}")
             logger.error("Job %s generation error: %s", job_id, exc)
+            if self.on_tooltip:
+                self.on_tooltip("ObsiNote")
             return
 
         q.set_status(job_id, "done")
         logger.info("Job %s done", job_id)
+        if self.on_tooltip:
+            self.on_tooltip("ObsiNote")
 
     def _transcribe(self, job_id, job):
+        label = job.get("label") or "Porada"
         q.set_status(job_id, "transcribing")
         if self.on_transcribing:
             self.on_transcribing(True)
+        if self.on_tooltip:
+            self.on_tooltip(f"ObsiNote — Přepisuji: {label}")
         try:
             audio_path = job.get("audio_path") or job.get("recording_path")
             if not audio_path:
                 raise ValueError("Job has no audio_path to transcribe.")
             config = cfg.load()
             model_size = config.get("whisper_model", "large-v3")
-            transcript = transcribe(audio_path, model_size=model_size, job_id=job_id)
+
+            def _progress(pct):
+                if self.on_tooltip:
+                    self.on_tooltip(f"ObsiNote — Přepisuji: {label} ({pct}%)")
+
+            transcript = transcribe(audio_path, model_size=model_size, job_id=job_id, on_progress=_progress)
             q.update_job(job_id, transcript=transcript)
         finally:
             if self.on_transcribing:
                 self.on_transcribing(False)
 
     def _generate(self, job_id, job):
+        label = job.get("label") or "Porada"
         q.set_status(job_id, "generating")
+        if self.on_tooltip:
+            self.on_tooltip(f"ObsiNote — Generuji poznámky: {label}")
         config = cfg.load()
         vault_path = config.get("vault_path", "")
         if not vault_path:

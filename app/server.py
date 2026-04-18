@@ -6,9 +6,11 @@ Routes:
   GET  /settings      — settings page
   POST /start         — start recording
   POST /stop          — stop recording
-  GET  /jobs          — job list as JSON
-  POST /jobs/<id>/context   — update extra_context on a job
-  POST /jobs/<id>/audio     — set keep_audio decision
+  GET    /jobs                — job list as JSON
+  DELETE /jobs                — delete all done/error jobs
+  DELETE /jobs/<id>           — delete a single done/error job
+  POST   /jobs/<id>/context   — update extra_context on a job
+  POST   /jobs/<id>/audio     — set keep_audio decision
   GET  /status        — current recorder state as JSON
   POST /settings/save — save config
   POST /api-key       — store API key in keyring
@@ -65,6 +67,7 @@ def start_recording(label="", folder=""):
 
     if _tray:
         _tray.set_recording(True)
+        _tray.set_tooltip("ObsiNote — Nahrávám")
 
     return {"job_id": job_id}
 
@@ -95,6 +98,7 @@ def stop_recording():
 
     if _tray:
         _tray.set_recording(False)
+        _tray.set_tooltip("ObsiNote")
 
     return {"job_id": job_id, "audio_path": audio_path}
 
@@ -145,6 +149,18 @@ def route_stop():
 def route_jobs():
     jobs = q.list_jobs()
     return jsonify(jobs)
+
+
+@app.route("/jobs", methods=["DELETE"])
+def route_jobs_clear():
+    q.clear_completed()
+    return jsonify({"ok": True})
+
+
+@app.route("/jobs/<job_id>", methods=["DELETE"])
+def route_job_delete(job_id):
+    q.delete_job(job_id)
+    return jsonify({"ok": True})
 
 
 @app.route("/jobs/<job_id>/context", methods=["POST"])

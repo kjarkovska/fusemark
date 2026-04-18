@@ -372,7 +372,7 @@ button {
 .status-transcribing { background: rgba(66,123,179,0.2); color: var(--blue-text); border: 1px solid rgba(66,123,179,0.3); }
 .status-generating   { background: rgba(66,123,179,0.2); color: var(--blue-text); border: 1px solid rgba(66,123,179,0.3); }
 .status-done         { background: rgba(67,142,94,0.2);  color: var(--green-text);border: 1px solid rgba(67,142,94,0.3); }
-.status-error        { background: rgba(179,66,66,0.2);  color: var(--red-text);  border: 1px solid rgba(179,66,66,0.3); }
+.status-error        { background: rgba(179,66,66,0.2);  color: var(--red-text);  border: 1px solid rgba(179,66,66,0.3); cursor: help; }
 
 /* Progress bar */
 .job-progress-row {
@@ -435,6 +435,19 @@ button {
   margin-top: 6px;
   line-height: 1.4;
 }
+
+.btn-delete {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 2px 4px;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 1;
+  border-radius: 3px;
+}
+.btn-delete:hover { color: var(--red-text); background: rgba(179,66,66,0.15); }
 
 /* ── Settings page ─────────────────────────────────────────────────── */
 body.settings-page {
