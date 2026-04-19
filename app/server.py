@@ -226,8 +226,8 @@ def route_autostart_set():
 
 @app.route("/open-glossary", methods=["POST"])
 def route_open_glossary():
-    from app.glossary import open_in_vscode
-    open_in_vscode()
+    from app.glossary import open_in_obsidian
+    open_in_obsidian()
     return jsonify({"ok": True})
 
 
@@ -276,10 +276,10 @@ def _get_devices():
 
 
 def _get_vault_folders(vault_path):
-    """Return existing subfolders under vault/Meetings/ for the dropdown."""
+    """Return existing subfolders under vault/ObsiNote/Meetings/ for the dropdown."""
     if not vault_path:
         return ["Other"]
-    meetings_dir = os.path.join(vault_path, "Meetings")
+    meetings_dir = os.path.join(vault_path, "ObsiNote", "Meetings")
     if not os.path.isdir(meetings_dir):
         return ["Other"]
     folders = [

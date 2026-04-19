@@ -183,6 +183,8 @@ Reference files: `stitch/` folder — each screen has `screen_v1.png`, `screen_v
 
 ## 7. Glossary in Obsidian Vault (Markdown format)
 
+**Status: Implemented**
+
 **Goal:** Move the glossary into the Obsidian vault as a Markdown file so it renders natively in Obsidian and can be edited there directly — no VSCode needed.
 
 ### File location and format
@@ -223,6 +225,8 @@ No extra library needed — parse the table with stdlib `str.split('|')`, skip h
 ---
 
 ## 8. Transcript Files in Vault
+
+**Status: Implemented**
 
 **Goal:** Save each transcript as a Markdown file in the vault under a dedicated `Transcripts/` folder, so they are searchable and readable in Obsidian independently of the meeting notes.
 

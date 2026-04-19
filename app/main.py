@@ -148,6 +148,9 @@ def main():
     q.init_db()
     q.recover_interrupted_jobs()
 
+    from app import glossary
+    glossary.migrate_if_needed()
+
     # Start background worker
     worker = Worker()
     worker.start()

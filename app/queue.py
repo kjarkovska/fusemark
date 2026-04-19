@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     status           TEXT NOT NULL,
     transcript       TEXT,
     output_note_path TEXT,
+    transcript_path  TEXT,
     keep_audio       INTEGER,
     error_message    TEXT,
     updated_at       TEXT NOT NULL
@@ -71,9 +72,13 @@ def _conn():
 # ------------------------------------------------------------------
 
 def init_db():
-    """Create the jobs table if it doesn't exist."""
+    """Create the jobs table if it doesn't exist, and apply any pending column migrations."""
     with _conn() as con:
         con.execute(CREATE_TABLE)
+        existing_cols = {row[1] for row in con.execute("PRAGMA table_info(jobs)").fetchall()}
+        if "transcript_path" not in existing_cols:
+            con.execute("ALTER TABLE jobs ADD COLUMN transcript_path TEXT")
+            logger.info("Migrated jobs table: added transcript_path column")
 
 
 # ------------------------------------------------------------------

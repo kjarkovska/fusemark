@@ -11,6 +11,7 @@ Error strategy:
 
 import json
 import logging
+import os
 import threading
 import time
 
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 from app import queue as q
 from app import config as cfg
 from app.transcriber import transcribe
-from app.notemaker import generate_notes, suggest_glossary_terms, save_note
+from app.notemaker import generate_notes, suggest_glossary_terms, save_note, save_transcript
 
 
 POLL_INTERVAL = 5   # seconds between queue checks
@@ -141,6 +142,15 @@ class Worker:
             raise _RetryableError("vault_path not set — configure it in Settings")
 
         transcript = job.get("transcript") or ""
+
+        transcript_path = save_transcript(transcript, job.get("label", ""), vault_path)
+        if transcript_path:
+            q.update_job(job_id, transcript_path=transcript_path)
+            link_stem = os.path.splitext(os.path.basename(transcript_path))[0]
+            transcript_link = f"[[ObsiNote/Transcripts/{link_stem}]]"
+        else:
+            transcript_link = ""
+
         try:
             note = generate_notes(
                 transcript=transcript,
@@ -148,6 +158,7 @@ class Worker:
                 folder=job.get("folder", "Other"),
                 scratch_notes=job.get("scratch_notes", "") or "",
                 extra_context=job.get("extra_context", "") or "",
+                transcript_link=transcript_link,
             )
         except (anthropic.APIConnectionError, anthropic.RateLimitError, anthropic.APIStatusError) as exc:
             raise _RetryableError(str(exc)) from exc

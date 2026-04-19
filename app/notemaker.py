@@ -52,12 +52,8 @@ tags: [meeting]
 ## Notes
 
 ---
-<details>
-<summary>Transcript</summary>
-
-{transcript}
-
-</details>"""
+## Transcript
+{transcript_link}"""
 
 SYSTEM_PROMPT = """\
 Jsi asistent pro zápisy z porad. Píšeš výhradně česky.
@@ -123,9 +119,11 @@ def set_api_key(key):
 # Note generation
 # ------------------------------------------------------------------
 
-def generate_notes(transcript, label="", folder="", scratch_notes="", extra_context=""):
+def generate_notes(transcript, label="", folder="", scratch_notes="", extra_context="", transcript_link=""):
     """
     Generate a structured Czech meeting note from a transcript.
+    transcript_link: Obsidian wikilink to embed (e.g. "[[ObsiNote/Transcripts/2026-04-19 Standup]]").
+                     If empty, falls back to embedding the transcript in a <details> block.
     Returns the full markdown string.
     """
     client = anthropic.Anthropic(api_key=get_api_key())
@@ -133,10 +131,15 @@ def generate_notes(transcript, label="", folder="", scratch_notes="", extra_cont
     today = date.today().isoformat()
     title = label or "Porada"
 
+    if transcript_link:
+        t_section = transcript_link
+    else:
+        t_section = "<details>\n<summary>Transcript</summary>\n\n[přepis bude vložen sem]\n\n</details>"
+
     template = NOTE_TEMPLATE.format(
         date=today,
         title=title,
-        transcript="[přepis bude vložen sem]",
+        transcript_link=t_section,
     )
 
     system = SYSTEM_PROMPT.format(
@@ -163,8 +166,8 @@ def generate_notes(transcript, label="", folder="", scratch_notes="", extra_cont
 
     note = message.content[0].text.strip()
 
-    # Append the full transcript inside the collapsible section
-    if "<details>" in note:
+    # If using the <details> fallback, inject the real transcript text
+    if not transcript_link and "<details>" in note:
         note = note.replace("[přepis bude vložen sem]", transcript)
 
     return note
@@ -207,15 +210,14 @@ def suggest_glossary_terms(transcript):
 
 def save_note(note_md, label, folder, vault_path):
     """
-    Write the note markdown to the correct folder inside the Obsidian vault.
+    Write the note markdown to {vault}/ObsiNote/Meetings/{folder}/.
     Returns the path of the created file.
     """
     today = date.today().isoformat()
     filename = f"{today} {label or 'Porada'}.md"
-    # Sanitise filename
     filename = "".join(c for c in filename if c not in r'\/:*?"<>|')
 
-    target_dir = os.path.join(vault_path, "Meetings", folder or "Other")
+    target_dir = os.path.join(vault_path, "ObsiNote", "Meetings", folder or "Other")
     os.makedirs(target_dir, exist_ok=True)
 
     out_path = os.path.join(target_dir, filename)
@@ -223,6 +225,30 @@ def save_note(note_md, label, folder, vault_path):
         f.write(note_md)
 
     logger.info("Note saved: %s", out_path)
+    return out_path
+
+
+def save_transcript(transcript_text, label, vault_path):
+    """
+    Save the raw transcript to {vault}/ObsiNote/Transcripts/{date} {label}.md.
+    Returns the saved path, or None if vault_path is not set.
+    """
+    if not vault_path:
+        logger.warning("vault_path not set — transcript not saved to vault")
+        return None
+
+    today = date.today().isoformat()
+    label_clean = label or "Porada"
+    filename = "".join(c for c in f"{today} {label_clean}.md" if c not in r'\/:*?"<>|')
+
+    target_dir = os.path.join(vault_path, "ObsiNote", "Transcripts")
+    os.makedirs(target_dir, exist_ok=True)
+
+    out_path = os.path.join(target_dir, filename)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(f"# {today} {label_clean}\n\n{transcript_text}\n")
+
+    logger.info("Transcript saved: %s", out_path)
     return out_path
 
 
