@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     created_at       TEXT NOT NULL,
     label            TEXT,
     folder           TEXT,
+    template         TEXT,
     recording_path   TEXT,
     audio_path       TEXT,
     scratch_notes    TEXT,
@@ -79,6 +80,9 @@ def init_db():
         if "transcript_path" not in existing_cols:
             con.execute("ALTER TABLE jobs ADD COLUMN transcript_path TEXT")
             logger.info("Migrated jobs table: added transcript_path column")
+        if "template" not in existing_cols:
+            con.execute("ALTER TABLE jobs ADD COLUMN template TEXT")
+            logger.info("Migrated jobs table: added template column")
 
 
 # ------------------------------------------------------------------

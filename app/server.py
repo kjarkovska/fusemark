@@ -48,7 +48,7 @@ def set_tray(tray):
 # Recording control
 # ------------------------------------------------------------------
 
-def start_recording(label="", folder=""):
+def start_recording(label="", folder="", template=""):
     global _recorder, _current_job_id
     with _recorder_lock:
         if _recorder is not None:
@@ -63,6 +63,8 @@ def start_recording(label="", folder=""):
         _recorder = r
 
         job_id = q.create_job(label=label, folder=folder)
+        if template:
+            q.update_job(job_id, template=template)
         _current_job_id = job_id
 
     if _tray:
@@ -110,8 +112,11 @@ def stop_recording():
 @app.route("/")
 def index():
     config = cfg.load()
-    folders = _get_vault_folders(config.get("vault_path", ""))
-    return render_template("index.html", config=config, folders=folders)
+    vault_path = config.get("vault_path", "")
+    folders = _get_vault_folders(vault_path)
+    from app.notemaker import list_templates
+    templates = list_templates(vault_path)
+    return render_template("index.html", config=config, folders=folders, templates=templates)
 
 
 @app.route("/settings")
@@ -127,6 +132,7 @@ def route_start():
     result = start_recording(
         label=data.get("label", ""),
         folder=data.get("folder", "Other"),
+        template=data.get("template", ""),
     )
     if isinstance(result, tuple):
         return jsonify(result[0]), result[1]
@@ -197,7 +203,7 @@ def route_status():
 def route_settings_save():
     data = request.get_json(silent=True) or {}
     config = cfg.load()
-    for key in ("vault_path", "whisper_model", "log_level"):
+    for key in ("vault_path", "whisper_model", "log_level", "default_template"):
         if key in data:
             config[key] = data[key]
     for key in ("output_device", "input_device"):
@@ -222,6 +228,13 @@ def route_autostart_set():
     else:
         disable()
     return jsonify({"ok": True})
+
+
+@app.route("/api/templates")
+def route_templates():
+    config = cfg.load()
+    from app.notemaker import list_templates
+    return jsonify(list_templates(config.get("vault_path", "")))
 
 
 @app.route("/open-glossary", methods=["POST"])

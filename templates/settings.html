@@ -102,6 +102,13 @@
             </select>
           </div>
           <div class="field">
+            <label>Výchozí šablona</label>
+            <select id="default_template">
+              <option value="">— vestavěná šablona —</option>
+            </select>
+            <p class="field-hint">Šablony jsou .md soubory ve složce <code>ObsiNote/Templates/</code> ve vaultu.</p>
+          </div>
+          <div class="field">
             <label>Anthropic API klíč</label>
             <div class="input-action-row">
               <input type="password" id="api_key" placeholder="sk-ant-...">
@@ -158,6 +165,19 @@
 
   <script src="/static/app.js"></script>
   <script>
+    const _currentDefaultTemplate = '{{ config.default_template or "" }}';
+
+    fetch('/api/templates').then(r => r.json()).then(templates => {
+      const sel = document.getElementById('default_template');
+      templates.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        if (t === _currentDefaultTemplate) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    });
+
     async function saveSettings() {
       const res = await fetch('/settings/save', {
         method: 'POST',
@@ -168,6 +188,7 @@
           output_device: document.getElementById('output_device').value,
           input_device: document.getElementById('input_device').value,
           log_level: document.getElementById('log_level').value,
+          default_template: document.getElementById('default_template').value,
         })
       });
       const data = await res.json();

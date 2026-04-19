@@ -257,6 +257,15 @@ body:has(#recorder.is-recording) .left-panel {
   gap: 6px;
 }
 
+.field-row {
+  display: flex;
+  gap: 12px;
+}
+.field-row .field-group {
+  flex: 1;
+  min-width: 0;
+}
+
 .field-label {
   font-size: 13px;
   color: var(--text);

@@ -9,6 +9,7 @@ DEFAULTS = {
     "input_device": None,    # None = system default input (microphone)
     "whisper_model": "large-v3",
     "log_level": "DEBUG",
+    "default_template": "",  # filename stem, e.g. "Meeting" — empty = built-in
 }
 
 

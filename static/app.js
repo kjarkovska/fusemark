@@ -20,11 +20,12 @@ async function toggleRecording() {
 async function startRecording() {
   const label = document.getElementById('label')?.value || '';
   const folder = document.getElementById('folder')?.value || 'Other';
+  const template = document.getElementById('template')?.value || '';
 
   const res = await fetch('/start', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({label, folder}),
+    body: JSON.stringify({label, folder, template}),
   });
 
   if (!res.ok) {

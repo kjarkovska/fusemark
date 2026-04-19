@@ -29,13 +29,26 @@
             <label class="field-label">Název porady</label>
             <input type="text" id="label" placeholder="Název porady" autocomplete="off">
           </div>
-          <div class="field-group">
-            <label class="field-label">Složka</label>
-            <select id="folder">
-              {% for f in folders %}
-              <option value="{{ f }}">{{ f }}</option>
-              {% endfor %}
-            </select>
+          <div class="field-row">
+            <div class="field-group">
+              <label class="field-label">Složka</label>
+              <select id="folder">
+                {% for f in folders %}
+                <option value="{{ f }}">{{ f }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% if templates %}
+            <div class="field-group">
+              <label class="field-label">Šablona</label>
+              <select id="template">
+                <option value="">— výchozí —</option>
+                {% for t in templates %}
+                <option value="{{ t }}" {% if config.default_template == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
           </div>
         </div>
 

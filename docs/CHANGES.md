@@ -262,6 +262,8 @@ This keeps notes clean while making the transcript one click away in Obsidian.
 
 ## 9. Templates from Vault
 
+**Status: Implemented**
+
 **Goal:** Note output structure is driven by Markdown templates stored in the Obsidian vault under a `Templates/` folder, editable directly in Obsidian. Replaces the hardcoded template in `notemaker.py`.
 
 ### Approach

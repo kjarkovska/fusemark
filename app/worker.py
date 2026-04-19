@@ -159,6 +159,8 @@ class Worker:
                 scratch_notes=job.get("scratch_notes", "") or "",
                 extra_context=job.get("extra_context", "") or "",
                 transcript_link=transcript_link,
+                vault_path=vault_path,
+                template_name=job.get("template", "") or "",
             )
         except (anthropic.APIConnectionError, anthropic.RateLimitError, anthropic.APIStatusError) as exc:
             raise _RetryableError(str(exc)) from exc

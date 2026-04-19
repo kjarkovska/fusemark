@@ -119,11 +119,38 @@ def set_api_key(key):
 # Note generation
 # ------------------------------------------------------------------
 
-def generate_notes(transcript, label="", folder="", scratch_notes="", extra_context="", transcript_link=""):
+def list_templates(vault_path):
+    """Return sorted list of template name stems from {vault}/ObsiNote/Templates/."""
+    if not vault_path:
+        return []
+    tdir = os.path.join(vault_path, "ObsiNote", "Templates")
+    if not os.path.isdir(tdir):
+        return []
+    return sorted(
+        os.path.splitext(f)[0]
+        for f in os.listdir(tdir)
+        if f.endswith(".md")
+    )
+
+
+def load_template(vault_path, template_name):
+    """Load a template file; return None if not found (caller falls back to NOTE_TEMPLATE)."""
+    if not vault_path or not template_name:
+        return None
+    path = os.path.join(vault_path, "ObsiNote", "Templates", f"{template_name}.md")
+    if not os.path.exists(path):
+        logger.warning("Template '%s' not found — using built-in", template_name)
+        return None
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def generate_notes(transcript, label="", folder="", scratch_notes="", extra_context="", transcript_link="", vault_path="", template_name=""):
     """
     Generate a structured Czech meeting note from a transcript.
     transcript_link: Obsidian wikilink to embed (e.g. "[[ObsiNote/Transcripts/2026-04-19 Standup]]").
                      If empty, falls back to embedding the transcript in a <details> block.
+    vault_path/template_name: load a custom template from vault; falls back to NOTE_TEMPLATE.
     Returns the full markdown string.
     """
     client = anthropic.Anthropic(api_key=get_api_key())
@@ -136,11 +163,18 @@ def generate_notes(transcript, label="", folder="", scratch_notes="", extra_cont
     else:
         t_section = "<details>\n<summary>Transcript</summary>\n\n[přepis bude vložen sem]\n\n</details>"
 
-    template = NOTE_TEMPLATE.format(
-        date=today,
-        title=title,
-        transcript_link=t_section,
-    )
+    raw_template = load_template(vault_path, template_name)
+    if raw_template:
+        # Custom vault template — uses {{date}}, {{title}}, {{transcript}} placeholders
+        template = (
+            raw_template
+            .replace("{{date}}", today)
+            .replace("{{title}}", title)
+            .replace("{{transcript}}", t_section)
+        )
+    else:
+        # Built-in template — uses Python .format() style
+        template = NOTE_TEMPLATE.format(date=today, title=title, transcript_link=t_section)
 
     system = SYSTEM_PROMPT.format(
         template=template,
@@ -166,8 +200,8 @@ def generate_notes(transcript, label="", folder="", scratch_notes="", extra_cont
 
     note = message.content[0].text.strip()
 
-    # If using the <details> fallback, inject the real transcript text
-    if not transcript_link and "<details>" in note:
+    # If using the built-in <details> fallback, inject the real transcript text
+    if not transcript_link and not raw_template and "<details>" in note:
         note = note.replace("[přepis bude vložen sem]", transcript)
 
     return note
