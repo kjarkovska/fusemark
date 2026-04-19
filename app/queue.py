@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     label            TEXT,
     folder           TEXT,
     template         TEXT,
+    meeting_date     TEXT,
     recording_path   TEXT,
     audio_path       TEXT,
     scratch_notes    TEXT,
@@ -83,6 +84,9 @@ def init_db():
         if "template" not in existing_cols:
             con.execute("ALTER TABLE jobs ADD COLUMN template TEXT")
             logger.info("Migrated jobs table: added template column")
+        if "meeting_date" not in existing_cols:
+            con.execute("ALTER TABLE jobs ADD COLUMN meeting_date TEXT")
+            logger.info("Migrated jobs table: added meeting_date column")
 
 
 # ------------------------------------------------------------------

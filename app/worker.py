@@ -65,17 +65,18 @@ class Worker:
         job_id = job["id"]
         logger.info("Processing job %s — '%s'", job_id, job.get('label', ''))
 
-        # Transcription errors → error state (audio preserved, needs human action)
-        try:
-            self._transcribe(job_id, job)
-        except Exception as exc:
-            q.update_job(job_id, status="error", error_message=f"Transcription failed: {exc}")
-            logger.error("Job %s transcription error: %s", job_id, exc)
-            if self.on_tooltip:
-                self.on_tooltip("ObsiNote")
-            return
-
-        job = q.get_job(job_id)  # re-fetch to pick up transcript
+        if not job.get("transcript"):
+            # Normal flow — transcribe from audio
+            try:
+                self._transcribe(job_id, job)
+            except Exception as exc:
+                q.update_job(job_id, status="error", error_message=f"Transcription failed: {exc}")
+                logger.error("Job %s transcription error: %s", job_id, exc)
+                if self.on_tooltip:
+                    self.on_tooltip("ObsiNote")
+                return
+            job = q.get_job(job_id)  # re-fetch to pick up transcript
+        # else: transcript pre-populated (imported) — skip directly to generation
 
         # Generation errors → retry up to MAX_RETRIES, then error
         try:
@@ -142,8 +143,9 @@ class Worker:
             raise _RetryableError("vault_path not set — configure it in Settings")
 
         transcript = job.get("transcript") or ""
+        date_str = job.get("meeting_date", "") or ""
 
-        transcript_path = save_transcript(transcript, job.get("label", ""), vault_path)
+        transcript_path = save_transcript(transcript, job.get("label", ""), vault_path, date_str=date_str)
         if transcript_path:
             q.update_job(job_id, transcript_path=transcript_path)
             link_stem = os.path.splitext(os.path.basename(transcript_path))[0]
@@ -161,11 +163,12 @@ class Worker:
                 transcript_link=transcript_link,
                 vault_path=vault_path,
                 template_name=job.get("template", "") or "",
+                date_str=date_str,
             )
         except (anthropic.APIConnectionError, anthropic.RateLimitError, anthropic.APIStatusError) as exc:
             raise _RetryableError(str(exc)) from exc
 
-        out_path = save_note(note, job.get("label", ""), job.get("folder", "Other"), vault_path)
+        out_path = save_note(note, job.get("label", ""), job.get("folder", "Other"), vault_path, date_str=date_str)
         q.update_job(job_id, output_note_path=out_path)
 
         try:

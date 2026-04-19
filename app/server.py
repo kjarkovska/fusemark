@@ -139,6 +139,31 @@ def route_start():
     return jsonify(result)
 
 
+@app.route("/import-transcript", methods=["POST"])
+def route_import_transcript():
+    data = request.get_json(silent=True) or {}
+    transcript = (data.get("transcript") or "").strip()
+    if not transcript:
+        return jsonify({"error": "transcript required"}), 400
+
+    job_id = q.create_job(
+        label=data.get("label", ""),
+        folder=data.get("folder", "Other"),
+    )
+    q.update_job(
+        job_id,
+        transcript=transcript,
+        template=data.get("template", "") or None,
+        meeting_date=data.get("meeting_date", "") or None,
+    )
+    q.set_status(job_id, "queued")
+
+    if _tray:
+        _tray.set_tooltip("ObsiNote — Zpracovávám import")
+
+    return jsonify({"job_id": job_id})
+
+
 @app.route("/stop", methods=["POST"])
 def route_stop():
     data = request.get_json(silent=True) or {}

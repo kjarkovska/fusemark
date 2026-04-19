@@ -271,4 +271,77 @@ document.addEventListener('DOMContentLoaded', async () => {
     refreshJobs();
     jobsPollInterval = setInterval(refreshJobs, 3000);
   }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeImportModal();
+  });
 });
+
+// ------------------------------------------------------------------
+// Import Transcript Modal
+// ------------------------------------------------------------------
+
+function openImportModal() {
+  const today = new Date().toISOString().slice(0, 10);
+  document.getElementById('import-date').value = today;
+  document.getElementById('import-modal').style.display = 'flex';
+  document.getElementById('import-label').focus();
+}
+
+function closeImportModal(event) {
+  if (event && event.target !== document.getElementById('import-modal')) return;
+  document.getElementById('import-modal').style.display = 'none';
+  document.getElementById('import-transcript').value = '';
+  document.getElementById('import-label').value = '';
+  document.getElementById('import-msg').textContent = '';
+}
+
+function stripVtt(text) {
+  return text
+    .split('\n')
+    .filter(l => !/^WEBVTT/.test(l) && !/^\d{2}:\d{2}/.test(l))
+    .map(l => l.replace(/<v [^>]+>/g, '').replace(/<\/v>/g, '').trim())
+    .filter((l, i, arr) => l || (arr[i - 1] && arr[i - 1] !== ''))
+    .join('\n')
+    .trim();
+}
+
+function handleImportFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    let text = e.target.result;
+    if (file.name.endsWith('.vtt')) text = stripVtt(text);
+    document.getElementById('import-transcript').value = text;
+  };
+  reader.readAsText(file, 'utf-8');
+  event.target.value = '';
+}
+
+async function submitImport() {
+  const transcript = document.getElementById('import-transcript').value.trim();
+  if (!transcript) {
+    document.getElementById('import-msg').textContent = 'Přepis je prázdný.';
+    return;
+  }
+  const label = document.getElementById('import-label')?.value || '';
+  const folder = document.getElementById('import-folder')?.value || 'Other';
+  const template = document.getElementById('import-template')?.value || '';
+  const meeting_date = document.getElementById('import-date')?.value || '';
+
+  const res = await fetch('/import-transcript', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({transcript, label, folder, template, meeting_date}),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    document.getElementById('import-msg').textContent = 'Chyba: ' + (err.error || res.status);
+    return;
+  }
+  document.getElementById('import-modal').style.display = 'none';
+  document.getElementById('import-transcript').value = '';
+  document.getElementById('import-label').value = '';
+  document.getElementById('import-msg').textContent = '';
+}

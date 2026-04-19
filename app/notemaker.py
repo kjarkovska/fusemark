@@ -145,7 +145,7 @@ def load_template(vault_path, template_name):
         return f.read()
 
 
-def generate_notes(transcript, label="", folder="", scratch_notes="", extra_context="", transcript_link="", vault_path="", template_name=""):
+def generate_notes(transcript, label="", folder="", scratch_notes="", extra_context="", transcript_link="", vault_path="", template_name="", date_str=""):
     """
     Generate a structured Czech meeting note from a transcript.
     transcript_link: Obsidian wikilink to embed (e.g. "[[ObsiNote/Transcripts/2026-04-19 Standup]]").
@@ -155,7 +155,7 @@ def generate_notes(transcript, label="", folder="", scratch_notes="", extra_cont
     """
     client = anthropic.Anthropic(api_key=get_api_key())
     glossary = load_glossary()
-    today = date.today().isoformat()
+    today = date_str or date.today().isoformat()
     title = label or "Porada"
 
     if transcript_link:
@@ -242,12 +242,12 @@ def suggest_glossary_terms(transcript):
         return []
 
 
-def save_note(note_md, label, folder, vault_path):
+def save_note(note_md, label, folder, vault_path, date_str=""):
     """
     Write the note markdown to {vault}/ObsiNote/Meetings/{folder}/.
     Returns the path of the created file.
     """
-    today = date.today().isoformat()
+    today = date_str or date.today().isoformat()
     filename = f"{today} {label or 'Porada'}.md"
     filename = "".join(c for c in filename if c not in r'\/:*?"<>|')
 
@@ -262,7 +262,7 @@ def save_note(note_md, label, folder, vault_path):
     return out_path
 
 
-def save_transcript(transcript_text, label, vault_path):
+def save_transcript(transcript_text, label, vault_path, date_str=""):
     """
     Save the raw transcript to {vault}/ObsiNote/Transcripts/{date} {label}.md.
     Returns the saved path, or None if vault_path is not set.
@@ -271,7 +271,7 @@ def save_transcript(transcript_text, label, vault_path):
         logger.warning("vault_path not set — transcript not saved to vault")
         return None
 
-    today = date.today().isoformat()
+    today = date_str or date.today().isoformat()
     label_clean = label or "Porada"
     filename = "".join(c for c in f"{today} {label_clean}.md" if c not in r'\/:*?"<>|')
 
