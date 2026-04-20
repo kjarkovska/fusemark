@@ -4,5 +4,22 @@
       "Bash(venv/Scripts/pip install:*)",
       "Bash(venv/Scripts/python -c \"from app.notemaker import generate_notes, suggest_glossary_terms, save_note, get_api_key, set_api_key; print\\(''imports OK''\\)\")"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "output=$(venv/Scripts/python -m pytest tests/ -x -q 2>&1); rc=$?; echo \"$output\"; [ $rc -eq 0 ] || exit 2",
+            "timeout": 30,
+            "statusMessage": "Running tests...",
+            "asyncRewake": true,
+            "rewakeMessage": "Tests failed after your last edit. Output:"
+          }
+        ]
+      }
+    ]
   }
 }
