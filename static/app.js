@@ -42,11 +42,21 @@ async function startRecording() {
 async function stopRecording() {
   const scratch = document.getElementById('scratch')?.value || '';
 
+  // Update UI immediately — ffmpeg encoding on the server can take several seconds
+  recording = false;
+  stopTimer();
+  setRecorderUI('stopping');
+  if (document.getElementById('scratch')) {
+    document.getElementById('scratch').value = '';
+  }
+
   const res = await fetch('/stop', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({scratch_notes: scratch}),
   });
+
+  setRecorderUI(false);
 
   if (!res.ok) {
     const err = await res.json();
@@ -54,30 +64,28 @@ async function stopRecording() {
     return;
   }
 
-  recording = false;
-  setRecorderUI(false);
-  stopTimer();
-  if (document.getElementById('scratch')) {
-    document.getElementById('scratch').value = '';
-  }
   refreshJobs();
 }
 
-function setRecorderUI(isRecording) {
+function setRecorderUI(state) {
   const btn = document.getElementById('rec-btn');
+  const panel = document.getElementById('recorder');
   if (!btn) return;
-  if (isRecording) {
+  if (state === true) {
     btn.textContent = 'Zastavit nahrávání';
     btn.className = 'btn-stop';
-    if (document.getElementById('recorder')) {
-      document.getElementById('recorder').classList.add('is-recording');
-    }
+    btn.disabled = false;
+    panel?.classList.add('is-recording');
+  } else if (state === 'stopping') {
+    btn.textContent = 'Ukládám...';
+    btn.className = 'btn-stop';
+    btn.disabled = true;
+    panel?.classList.remove('is-recording');
   } else {
     btn.textContent = 'Spustit nahrávání';
     btn.className = 'btn-start';
-    if (document.getElementById('recorder')) {
-      document.getElementById('recorder').classList.remove('is-recording');
-    }
+    btn.disabled = false;
+    panel?.classList.remove('is-recording');
   }
 }
 
@@ -162,14 +170,19 @@ function renderJob(job) {
        <div class="job-date">${date}</div>
        <div class="job-pill-bottom">${pill}</div>`;
 
+  const eta = etaFromJob(job);
+  const progressLabel = job.status === 'transcribing'
+    ? (eta ? `${progress}%, zbývá ${eta}` : `${progress}%`)
+    : '';
+
   const progressBar = isActive
     ? `<div class="job-progress-row">
          <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
-         <span class="progress-pct">${progress}%</span>
-       </div>`
+       </div>
+       ${progressLabel ? `<div class="job-eta">${progressLabel}</div>` : ''}`
     : '';
 
-  const contextField = !isDeletable
+  const contextField = (!isDeletable && !isActive)
     ? `<div class="job-context">
          <input type="text" id="ctx-${job.id}" value="${esc(job.extra_context || '')}" placeholder="Kontext, účastníci...">
          <button class="btn-secondary" onclick="saveContext('${job.id}')">Uložit</button>
@@ -197,6 +210,16 @@ function progressFromJob(job) {
   if (!job.extra_context) return 0;
   const m = job.extra_context.match(/transcribing:(\d+)%/);
   return m ? parseInt(m[1]) : 0;
+}
+
+function etaFromJob(job) {
+  if (!job.extra_context) return null;
+  const m = job.extra_context.match(/transcribing:\d+%:eta:(\d+)s/);
+  if (!m) return null;
+  const secs = parseInt(m[1]);
+  const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+  const ss = String(secs % 60).padStart(2, '0');
+  return `${mm}:${ss}`;
 }
 
 function statusLabel(status) {

@@ -206,6 +206,7 @@ class Recorder:
                 ],
                 capture_output=True,
                 text=True,
+                creationflags=subprocess.CREATE_NO_WINDOW,
             )
             if result.returncode != 0:
                 raise RuntimeError(f"ffmpeg failed:\n{result.stderr}")

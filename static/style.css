@@ -408,6 +408,11 @@ button {
   border-radius: 9999px;
   transition: width 0.4s;
 }
+.job-eta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
 .progress-pct {
   font-size: 12px;
   color: var(--muted);
