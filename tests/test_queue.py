@@ -125,3 +125,10 @@ def test_meeting_date_field(db_path):
     job = q.get_job(job_id)
     assert job["meeting_date"] == "2025-06-01"
     assert job["template"] == "Meeting"
+
+
+def test_init_db_creates_glossary_terms_column(db_path):
+    import sqlite3
+    with sqlite3.connect(db_path) as con:
+        cols = {row[1] for row in con.execute("PRAGMA table_info(jobs)").fetchall()}
+    assert "glossary_terms" in cols

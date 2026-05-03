@@ -44,3 +44,25 @@ def test_user_values_override_defaults(tmp_path, monkeypatch):
     # "large-v3" is silently upgraded to "large-v3-turbo" (P1 migration)
     assert result["whisper_model"] == "large-v3-turbo"
     assert result["log_level"] == "INFO"
+
+
+def test_non_large_v3_model_not_upgraded(tmp_path, monkeypatch):
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    (tmp_path / "config.json").write_text(
+        json.dumps({"whisper_model": "large-v3-turbo"}), encoding="utf-8"
+    )
+    result = cfg.load()
+    assert result["whisper_model"] == "large-v3-turbo"
+
+
+def test_defaults_contain_p1_keys(tmp_path, monkeypatch):
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    result = cfg.load()
+    p1_keys = [
+        "mode", "transcription_provider", "llm_provider",
+        "language", "language_name", "whisper_model_dir",
+        "auto_delete_recordings", "max_recordings_gb",
+        "check_updates", "setup_complete",
+    ]
+    for key in p1_keys:
+        assert key in result, f"Missing P1 key: {key}"
