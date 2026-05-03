@@ -49,7 +49,7 @@ def _setup_logging():
     level_name = config.get("log_level", "DEBUG").upper()
     file_level = getattr(logging, level_name, logging.DEBUG)
 
-    logs_dir = os.path.join(_PROJECT_ROOT, "logs")
+    logs_dir = os.path.join(cfg.DATA_DIR, "logs")
     os.makedirs(logs_dir, exist_ok=True)
     log_path = os.path.join(logs_dir, "obsinote.log")
 

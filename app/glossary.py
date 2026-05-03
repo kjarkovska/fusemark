@@ -18,6 +18,7 @@ import os
 
 logger = logging.getLogger(__name__)
 
+from app.config import DATA_DIR
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 _LEGACY_JSON_PATH = os.path.join(_PROJECT_ROOT, "glossary.json")
 
@@ -34,10 +35,10 @@ def glossary_path(vault_path=None):
     if vault_path:
         return os.path.join(vault_path, "ObsiNote", "Glossary.md")
     logger.warning(
-        "vault_path not configured — glossary stored at project root. "
+        "vault_path not configured — glossary stored in data directory. "
         "Configure vault path in Settings to move it to the vault."
     )
-    return os.path.join(_PROJECT_ROOT, "Glossary.md")
+    return os.path.join(DATA_DIR, "Glossary.md")
 
 
 # ------------------------------------------------------------------

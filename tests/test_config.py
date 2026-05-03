@@ -41,5 +41,6 @@ def test_user_values_override_defaults(tmp_path, monkeypatch):
         json.dumps({"whisper_model": "large-v3", "log_level": "INFO"}), encoding="utf-8"
     )
     result = cfg.load()
-    assert result["whisper_model"] == "large-v3"
+    # "large-v3" is silently upgraded to "large-v3-turbo" (P1 migration)
+    assert result["whisper_model"] == "large-v3-turbo"
     assert result["log_level"] == "INFO"

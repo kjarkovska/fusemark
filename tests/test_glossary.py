@@ -142,4 +142,4 @@ def test_glossary_path_without_vault(monkeypatch):
     monkeypatch.setattr(cfg, "load", lambda: {"vault_path": ""})
     result = gl.glossary_path(None)
     assert result.endswith("Glossary.md")
-    assert "ObsiNote" not in result  # falls back to project root
+    assert result.startswith(cfg.DATA_DIR)  # falls back to data directory (P1)

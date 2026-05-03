@@ -88,9 +88,7 @@ def stop_recording():
     r.stop()
 
     # Save the audio file and queue the job
-    recordings_dir = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), "recordings"
-    )
+    recordings_dir = os.path.join(cfg.DATA_DIR, "recordings")
     os.makedirs(recordings_dir, exist_ok=True)
     audio_path = os.path.join(recordings_dir, f"{job_id}.mp3")
     r.save(audio_path)
@@ -271,7 +269,7 @@ def route_open_glossary():
 
 @app.route("/open-log", methods=["POST"])
 def route_open_log():
-    log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs", "obsinote.log")
+    log_path = os.path.join(cfg.DATA_DIR, "logs", "obsinote.log")
     if not os.path.exists(log_path):
         return jsonify({"error": "Log file not found"}), 404
     os.startfile(log_path)
@@ -328,4 +326,4 @@ def _get_vault_folders(vault_path):
 
 
 def run(port=5000):
-    app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
+    app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False, threaded=True)

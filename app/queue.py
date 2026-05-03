@@ -24,7 +24,8 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "jobs.db")
+from app.config import DATA_DIR
+DB_PATH = os.path.join(DATA_DIR, "jobs.db")
 
 STATES = ["recording", "queued", "transcribing", "generating", "done", "error"]
 
@@ -78,15 +79,16 @@ def init_db():
     with _conn() as con:
         con.execute(CREATE_TABLE)
         existing_cols = {row[1] for row in con.execute("PRAGMA table_info(jobs)").fetchall()}
-        if "transcript_path" not in existing_cols:
-            con.execute("ALTER TABLE jobs ADD COLUMN transcript_path TEXT")
-            logger.info("Migrated jobs table: added transcript_path column")
-        if "template" not in existing_cols:
-            con.execute("ALTER TABLE jobs ADD COLUMN template TEXT")
-            logger.info("Migrated jobs table: added template column")
-        if "meeting_date" not in existing_cols:
-            con.execute("ALTER TABLE jobs ADD COLUMN meeting_date TEXT")
-            logger.info("Migrated jobs table: added meeting_date column")
+        migrations = [
+            ("transcript_path", "ALTER TABLE jobs ADD COLUMN transcript_path TEXT"),
+            ("template",        "ALTER TABLE jobs ADD COLUMN template TEXT"),
+            ("meeting_date",    "ALTER TABLE jobs ADD COLUMN meeting_date TEXT"),
+            ("glossary_terms",  "ALTER TABLE jobs ADD COLUMN glossary_terms TEXT"),
+        ]
+        for col, sql in migrations:
+            if col not in existing_cols:
+                con.execute(sql)
+                logger.info("Migrated jobs table: added %s column", col)
 
 
 # ------------------------------------------------------------------

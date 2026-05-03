@@ -20,6 +20,7 @@ APP_NAME = "ObsiNote"
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VBS_PATH = os.path.join(PROJECT_ROOT, "start_obsinote.vbs")
+# TODO P11: when packaged, point VBS to installed ObsiNote.exe, not pythonw -m app.main
 
 
 def _pythonw():

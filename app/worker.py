@@ -120,7 +120,7 @@ class Worker:
             if not audio_path:
                 raise ValueError("Job has no audio_path to transcribe.")
             config = cfg.load()
-            model_size = config.get("whisper_model", "large-v3")
+            model_size = config.get("whisper_model", "large-v3-turbo")
 
             def _progress(pct):
                 if self.on_tooltip:

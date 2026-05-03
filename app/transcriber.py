@@ -41,7 +41,7 @@ def _load_model(model_size):
     return MODEL_CACHE[model_size]
 
 
-def transcribe(audio_path, model_size="large-v3", job_id=None, on_progress=None):
+def transcribe(audio_path, model_size="large-v3-turbo", job_id=None, on_progress=None):
     """
     Transcribe audio_path and return the full transcript as a string.
 
@@ -128,7 +128,7 @@ def main():
     args = parser.parse_args()
 
     config = cfg.load()
-    model_size = args.model or config.get("whisper_model", "large-v3")
+    model_size = args.model or config.get("whisper_model", "large-v3-turbo")
 
     transcript = transcribe(args.file, model_size=model_size)
 
