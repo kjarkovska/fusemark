@@ -96,7 +96,7 @@
           <div class="field">
             <label>Model Whisper</label>
             <select id="whisper_model">
-              {% for size in ['small', 'medium', 'large-v3'] %}
+              {% for size in ['small', 'medium', 'large-v3', 'large-v3-turbo'] %}
               <option value="{{ size }}" {% if config.whisper_model == size %}selected{% endif %}>{{ size }}</option>
               {% endfor %}
             </select>
