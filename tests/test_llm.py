@@ -336,3 +336,261 @@ def test_mistral_auth_error_raises_llm_auth_error():
 
     with pytest.raises(LLMAuthError):
         _handle_mistral_error(exc)
+
+
+def test_mistral_unknown_exception_reraises():
+    from app.llm.mistral_provider import _handle_mistral_error
+
+    exc = RuntimeError("network failure")
+    with pytest.raises(RuntimeError, match="network failure"):
+        _handle_mistral_error(exc)
+
+
+# ------------------------------------------------------------------
+# OpenAI provider — suggest_glossary_terms()
+# ------------------------------------------------------------------
+
+def _make_openai_mock(content):
+    mock_resp = MagicMock()
+    mock_resp.choices = [MagicMock(message=MagicMock(content=content))]
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = mock_resp
+    return mock_client
+
+
+def test_openai_suggest_returns_terms():
+    from app.llm.openai_provider import suggest_glossary_terms
+
+    terms = [{"canonical": "JIRA", "type": "product", "aliases": [], "context": "tracker"}]
+    mock_client = _make_openai_mock(json.dumps(terms))
+    with patch("app.llm.openai_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.openai_provider.load_glossary", return_value={}), \
+         patch("app.llm.openai_provider.OpenAI", return_value=mock_client):
+        result = suggest_glossary_terms("transcript")
+    assert result == terms
+
+
+def test_openai_suggest_invalid_json_returns_empty():
+    from app.llm.openai_provider import suggest_glossary_terms
+
+    mock_client = _make_openai_mock("not json at all")
+    with patch("app.llm.openai_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.openai_provider.load_glossary", return_value={}), \
+         patch("app.llm.openai_provider.OpenAI", return_value=mock_client):
+        result = suggest_glossary_terms("transcript")
+    assert result == []
+
+
+def test_openai_suggest_non_list_json_returns_empty():
+    from app.llm.openai_provider import suggest_glossary_terms
+
+    mock_client = _make_openai_mock('{"key": "value"}')
+    with patch("app.llm.openai_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.openai_provider.load_glossary", return_value={}), \
+         patch("app.llm.openai_provider.OpenAI", return_value=mock_client):
+        result = suggest_glossary_terms("transcript")
+    assert result == []
+
+
+def test_openai_suggest_strips_markdown_fences():
+    from app.llm.openai_provider import suggest_glossary_terms
+
+    terms = [{"canonical": "PR", "type": "abbreviation", "aliases": [], "context": "pull request"}]
+    raw = "```json\n" + json.dumps(terms) + "\n```"
+    mock_client = _make_openai_mock(raw)
+    with patch("app.llm.openai_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.openai_provider.load_glossary", return_value={}), \
+         patch("app.llm.openai_provider.OpenAI", return_value=mock_client):
+        result = suggest_glossary_terms("transcript")
+    assert result == terms
+
+
+def test_openai_suggest_rate_limit_raises():
+    import openai as oai
+    from app.llm.openai_provider import suggest_glossary_terms
+
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.side_effect = oai.RateLimitError(
+        message="rate limited", response=MagicMock(), body={}
+    )
+    with patch("app.llm.openai_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.openai_provider.load_glossary", return_value={}), \
+         patch("app.llm.openai_provider.OpenAI", return_value=mock_client):
+        with pytest.raises(LLMRateLimitError):
+            suggest_glossary_terms("transcript")
+
+
+def test_openai_suggest_auth_error_raises():
+    import openai as oai
+    from app.llm.openai_provider import suggest_glossary_terms
+
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.side_effect = oai.AuthenticationError(
+        message="invalid key", response=MagicMock(), body={}
+    )
+    with patch("app.llm.openai_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.openai_provider.load_glossary", return_value={}), \
+         patch("app.llm.openai_provider.OpenAI", return_value=mock_client):
+        with pytest.raises(LLMAuthError):
+            suggest_glossary_terms("transcript")
+
+
+def test_openai_generate_includes_optional_fields_in_prompt():
+    from app.llm.openai_provider import generate_notes
+
+    mock_client = _make_openai_mock("# Note")
+    with patch("app.llm.openai_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.openai_provider.load_glossary", return_value={}), \
+         patch("app.llm.openai_provider.OpenAI", return_value=mock_client):
+        generate_notes("transcript", scratch_notes="rough", extra_context="ctx",
+                       label="Standup", folder="Eng")
+
+    _, kwargs = mock_client.chat.completions.create.call_args
+    user_msg = kwargs["messages"][1]["content"]
+    assert "rough" in user_msg
+    assert "ctx" in user_msg
+    assert "Standup" in user_msg
+    assert "Eng" in user_msg
+
+
+# ------------------------------------------------------------------
+# Mistral provider — generate_notes() and suggest_glossary_terms()
+# ------------------------------------------------------------------
+
+def _make_mistral_mock(content="# Note"):
+    mock_resp = MagicMock()
+    mock_resp.choices = [MagicMock(message=MagicMock(content=content))]
+    mock_client = MagicMock()
+    mock_client.chat.complete.return_value = mock_resp
+    return mock_client
+
+
+def test_mistral_generate_notes_returns_content():
+    from app.llm.mistral_provider import generate_notes
+
+    mock_client = _make_mistral_mock("# Meeting Note")
+    with patch("app.llm.mistral_provider.keyring.get_password", return_value="ms-key"), \
+         patch("app.llm.mistral_provider.load_glossary", return_value={}), \
+         patch("app.llm.mistral_provider.Mistral", return_value=mock_client):
+        result = generate_notes("transcript", language="Czech")
+    assert result == "# Meeting Note"
+
+
+def test_mistral_generate_auto_detect_language():
+    from app.llm.mistral_provider import generate_notes
+
+    mock_client = _make_mistral_mock()
+    with patch("app.llm.mistral_provider.keyring.get_password", return_value="ms-key"), \
+         patch("app.llm.mistral_provider.load_glossary", return_value={}), \
+         patch("app.llm.mistral_provider.Mistral", return_value=mock_client):
+        generate_notes("transcript", language="Auto-detect")
+
+    _, kwargs = mock_client.chat.complete.call_args
+    system_msg = kwargs["messages"][0]["content"]
+    assert "Match the language of the transcript exactly." in system_msg
+
+
+def test_mistral_generate_includes_optional_fields_in_prompt():
+    from app.llm.mistral_provider import generate_notes
+
+    mock_client = _make_mistral_mock()
+    with patch("app.llm.mistral_provider.keyring.get_password", return_value="ms-key"), \
+         patch("app.llm.mistral_provider.load_glossary", return_value={}), \
+         patch("app.llm.mistral_provider.Mistral", return_value=mock_client):
+        generate_notes("transcript", scratch_notes="rough", extra_context="ctx",
+                       label="Standup", folder="Eng")
+
+    _, kwargs = mock_client.chat.complete.call_args
+    user_msg = kwargs["messages"][1]["content"]
+    assert "rough" in user_msg
+    assert "ctx" in user_msg
+
+
+def test_mistral_generate_rate_limit_raises():
+    from app.llm.mistral_provider import generate_notes
+
+    mock_client = MagicMock()
+    exc = Exception("429 rate limit exceeded")
+    exc.status_code = 429
+    mock_client.chat.complete.side_effect = exc
+    with patch("app.llm.mistral_provider.keyring.get_password", return_value="ms-key"), \
+         patch("app.llm.mistral_provider.load_glossary", return_value={}), \
+         patch("app.llm.mistral_provider.Mistral", return_value=mock_client):
+        with pytest.raises(LLMRateLimitError):
+            generate_notes("transcript", language="Czech")
+
+
+def test_mistral_generate_auth_error_raises():
+    from app.llm.mistral_provider import generate_notes
+
+    mock_client = MagicMock()
+    exc = Exception("401 unauthorized")
+    exc.status_code = 401
+    mock_client.chat.complete.side_effect = exc
+    with patch("app.llm.mistral_provider.keyring.get_password", return_value="ms-key"), \
+         patch("app.llm.mistral_provider.load_glossary", return_value={}), \
+         patch("app.llm.mistral_provider.Mistral", return_value=mock_client):
+        with pytest.raises(LLMAuthError):
+            generate_notes("transcript", language="Czech")
+
+
+def test_mistral_generate_unknown_exception_reraises():
+    from app.llm.mistral_provider import generate_notes
+
+    mock_client = MagicMock()
+    mock_client.chat.complete.side_effect = RuntimeError("network failure")
+    with patch("app.llm.mistral_provider.keyring.get_password", return_value="ms-key"), \
+         patch("app.llm.mistral_provider.load_glossary", return_value={}), \
+         patch("app.llm.mistral_provider.Mistral", return_value=mock_client):
+        with pytest.raises(RuntimeError, match="network failure"):
+            generate_notes("transcript", language="Czech")
+
+
+def test_mistral_suggest_returns_terms():
+    from app.llm.mistral_provider import suggest_glossary_terms
+
+    terms = [{"canonical": "K8s", "type": "abbreviation", "aliases": [], "context": "Kubernetes"}]
+    mock_client = _make_mistral_mock(json.dumps(terms))
+    with patch("app.llm.mistral_provider.keyring.get_password", return_value="ms-key"), \
+         patch("app.llm.mistral_provider.load_glossary", return_value={}), \
+         patch("app.llm.mistral_provider.Mistral", return_value=mock_client):
+        result = suggest_glossary_terms("transcript")
+    assert result == terms
+
+
+def test_mistral_suggest_invalid_json_returns_empty():
+    from app.llm.mistral_provider import suggest_glossary_terms
+
+    mock_client = _make_mistral_mock("not json")
+    with patch("app.llm.mistral_provider.keyring.get_password", return_value="ms-key"), \
+         patch("app.llm.mistral_provider.load_glossary", return_value={}), \
+         patch("app.llm.mistral_provider.Mistral", return_value=mock_client):
+        result = suggest_glossary_terms("transcript")
+    assert result == []
+
+
+def test_mistral_suggest_strips_markdown_fences():
+    from app.llm.mistral_provider import suggest_glossary_terms
+
+    terms = [{"canonical": "CI", "type": "abbreviation", "aliases": [], "context": "Continuous integration"}]
+    raw = "```json\n" + json.dumps(terms) + "\n```"
+    mock_client = _make_mistral_mock(raw)
+    with patch("app.llm.mistral_provider.keyring.get_password", return_value="ms-key"), \
+         patch("app.llm.mistral_provider.load_glossary", return_value={}), \
+         patch("app.llm.mistral_provider.Mistral", return_value=mock_client):
+        result = suggest_glossary_terms("transcript")
+    assert result == terms
+
+
+def test_mistral_suggest_rate_limit_raises():
+    from app.llm.mistral_provider import suggest_glossary_terms
+
+    mock_client = MagicMock()
+    exc = Exception("429 rate limit exceeded")
+    exc.status_code = 429
+    mock_client.chat.complete.side_effect = exc
+    with patch("app.llm.mistral_provider.keyring.get_password", return_value="ms-key"), \
+         patch("app.llm.mistral_provider.load_glossary", return_value={}), \
+         patch("app.llm.mistral_provider.Mistral", return_value=mock_client):
+        with pytest.raises(LLMRateLimitError):
+            suggest_glossary_terms("transcript")

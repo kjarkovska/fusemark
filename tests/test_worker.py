@@ -298,3 +298,118 @@ def test_empty_queue_does_nothing(mocks):
     mocks["transcribe"].assert_not_called()
     mocks["generate"].assert_not_called()
     mocks["q"].set_status.assert_not_called()
+
+
+# ------------------------------------------------------------------
+# Tray callbacks
+# ------------------------------------------------------------------
+
+def test_on_tooltip_called_after_done(mocks):
+    tooltip = MagicMock()
+    w = Worker()
+    w.on_tooltip = tooltip
+    w._process_next()
+    tooltip.assert_called_with("ObsiNote")
+
+
+def test_on_tooltip_called_on_model_not_ready(mocks):
+    from app.exceptions import ModelNotReadyError
+    mocks["transcribe"].side_effect = ModelNotReadyError("model missing")
+    tooltip = MagicMock()
+    w = Worker()
+    w.on_tooltip = tooltip
+    w._process_next()
+    tooltip.assert_called_with("ObsiNote")
+
+
+def test_on_tooltip_called_on_transcription_error(mocks):
+    mocks["transcribe"].side_effect = RuntimeError("audio corrupted")
+    tooltip = MagicMock()
+    w = Worker()
+    w.on_tooltip = tooltip
+    w._process_next()
+    tooltip.assert_called_with("ObsiNote")
+
+
+def test_on_transcribing_callbacks_fired(mocks):
+    on_transcribing = MagicMock()
+    w = Worker()
+    w.on_transcribing = on_transcribing
+    w._process_next()
+    on_transcribing.assert_any_call(True)
+    on_transcribing.assert_any_call(False)
+
+
+def test_on_transcribing_false_called_even_on_error(mocks):
+    mocks["transcribe"].side_effect = RuntimeError("crash")
+    on_transcribing = MagicMock()
+    w = Worker()
+    w.on_transcribing = on_transcribing
+    w._process_next()
+    on_transcribing.assert_any_call(False)
+
+
+# ------------------------------------------------------------------
+# Generation non-retryable exception
+# ------------------------------------------------------------------
+
+def test_generate_non_retryable_exception_marks_error(mocks):
+    mocks["generate"].side_effect = RuntimeError("unexpected failure")
+    w = Worker()
+    w._process_next()
+    update_calls = mocks["q"].update_job.call_args_list
+    error_calls = [c for c in update_calls if c.kwargs.get("status") == "error"]
+    assert len(error_calls) >= 1
+    assert any("Generation failed" in str(c.kwargs.get("error_message", ""))
+               for c in error_calls)
+
+
+# ------------------------------------------------------------------
+# vault_path not set
+# ------------------------------------------------------------------
+
+def test_vault_path_not_set_causes_retry(mocks):
+    job = _make_job({"transcript": "text"})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+    mocks["cfg"].load.return_value = {"vault_path": "", "language_name": "Czech"}
+
+    w = Worker()
+    w._process_next()
+
+    statuses = [c.kwargs.get("status") for c in mocks["q"].update_job.call_args_list
+                if "status" in c.kwargs]
+    assert "queued" in statuses
+
+
+# ------------------------------------------------------------------
+# Job with no audio path
+# ------------------------------------------------------------------
+
+def test_no_audio_path_marks_job_error(mocks):
+    job = _make_job({"audio_path": None, "recording_path": None})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = _make_job({"transcript": "result"})
+
+    w = Worker()
+    w._process_next()
+
+    update_calls = mocks["q"].update_job.call_args_list
+    error_calls = [c for c in update_calls if c.kwargs.get("status") == "error"]
+    assert len(error_calls) >= 1
+
+
+# ------------------------------------------------------------------
+# Glossary suggestion non-fatal
+# ------------------------------------------------------------------
+
+def test_glossary_suggestion_error_is_nonfatal(mocks):
+    job = _make_job({"transcript": "text"})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+    mocks["suggest"].side_effect = RuntimeError("api down")
+
+    w = Worker()
+    w._process_next()
+
+    mocks["q"].set_status.assert_any_call("test-job-id", "done")

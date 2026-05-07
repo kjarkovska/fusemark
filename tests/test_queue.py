@@ -132,3 +132,11 @@ def test_init_db_creates_glossary_terms_column(db_path):
     with sqlite3.connect(db_path) as con:
         cols = {row[1] for row in con.execute("PRAGMA table_info(jobs)").fetchall()}
     assert "glossary_terms" in cols
+
+
+def test_update_job_no_fields_is_noop(db_path):
+    job_id = q.create_job()
+    before = q.get_job(job_id)
+    q.update_job(job_id)  # no fields — early return, updated_at unchanged
+    after = q.get_job(job_id)
+    assert before["updated_at"] == after["updated_at"]

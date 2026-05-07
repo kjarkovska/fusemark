@@ -1,4 +1,6 @@
 import json
+from unittest.mock import MagicMock, patch
+
 import pytest
 import app.queue as q
 
@@ -394,3 +396,165 @@ def test_index_no_vault_warning_when_vault_set(flask_client, tmp_path, monkeypat
     cfg.save({**cfg.DEFAULTS, "setup_complete": True, "vault_path": str(tmp_vault)})
     r = flask_client.get("/")
     assert b"Output folder not configured" not in r.data
+
+
+# ------------------------------------------------------------------
+# POST /start — recording control
+# ------------------------------------------------------------------
+
+def test_start_route_creates_job(flask_client, monkeypatch):
+    import app.server as srv
+    monkeypatch.setattr(srv, "_recorder", None)
+    monkeypatch.setattr(srv, "_current_job_id", None)
+    mock_rec = MagicMock()
+    with patch("app.server.Recorder", return_value=mock_rec):
+        r = flask_client.post(
+            "/start",
+            data=json.dumps({"label": "Stand-up", "folder": "Other"}),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    job_id = r.get_json()["job_id"]
+    assert q.get_job(job_id)["label"] == "Stand-up"
+    mock_rec.start.assert_called_once()
+
+
+def test_start_route_already_recording_returns_400(flask_client, monkeypatch):
+    import app.server as srv
+    monkeypatch.setattr(srv, "_recorder", MagicMock())
+    r = flask_client.post("/start", data=json.dumps({}), content_type="application/json")
+    assert r.status_code == 400
+
+
+def test_start_route_saves_template(flask_client, monkeypatch):
+    import app.server as srv
+    monkeypatch.setattr(srv, "_recorder", None)
+    monkeypatch.setattr(srv, "_current_job_id", None)
+    with patch("app.server.Recorder", return_value=MagicMock()):
+        r = flask_client.post(
+            "/start",
+            data=json.dumps({"label": "x", "template": "Meeting"}),
+            content_type="application/json",
+        )
+    job_id = r.get_json()["job_id"]
+    assert q.get_job(job_id)["template"] == "Meeting"
+
+
+# ------------------------------------------------------------------
+# POST /stop — recording control
+# ------------------------------------------------------------------
+
+def test_stop_route_not_recording_returns_400(flask_client, monkeypatch):
+    import app.server as srv
+    monkeypatch.setattr(srv, "_recorder", None)
+    r = flask_client.post("/stop", data=json.dumps({}), content_type="application/json")
+    assert r.status_code == 400
+
+
+def test_stop_route_success(flask_client, monkeypatch, tmp_path):
+    import app.server as srv
+    import app.config as cfg
+    job_id = q.create_job(label="Stop test")
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(srv, "_recorder", MagicMock())
+    monkeypatch.setattr(srv, "_current_job_id", job_id)
+    r = flask_client.post("/stop", data=json.dumps({}), content_type="application/json")
+    assert r.status_code == 200
+    assert r.get_json()["job_id"] == job_id
+    assert q.get_job(job_id)["status"] == "queued"
+
+
+# ------------------------------------------------------------------
+# GET /settings
+# ------------------------------------------------------------------
+
+def test_settings_route_ok(flask_client, monkeypatch):
+    import app.server as srv
+    monkeypatch.setattr(srv, "_get_devices", lambda: [])
+    r = flask_client.get("/settings")
+    assert r.status_code == 200
+
+
+# ------------------------------------------------------------------
+# Autostart routes
+# ------------------------------------------------------------------
+
+def test_autostart_get_returns_enabled_state(flask_client):
+    with patch("app.autostart.is_enabled", return_value=True):
+        r = flask_client.get("/autostart")
+    assert r.status_code == 200
+    assert r.get_json()["enabled"] is True
+
+
+def test_autostart_post_enable(flask_client):
+    with patch("app.autostart.enable") as mock_en, \
+         patch("app.autostart.disable") as mock_dis:
+        r = flask_client.post(
+            "/autostart",
+            data=json.dumps({"enabled": True}),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    mock_en.assert_called_once()
+    mock_dis.assert_not_called()
+
+
+def test_autostart_post_disable(flask_client):
+    with patch("app.autostart.enable") as mock_en, \
+         patch("app.autostart.disable") as mock_dis:
+        r = flask_client.post(
+            "/autostart",
+            data=json.dumps({"enabled": False}),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    mock_dis.assert_called_once()
+    mock_en.assert_not_called()
+
+
+# ------------------------------------------------------------------
+# Open-glossary and open-log routes
+# ------------------------------------------------------------------
+
+def test_open_glossary_route(flask_client):
+    with patch("app.glossary.open_in_obsidian") as mock_open:
+        r = flask_client.post("/open-glossary")
+    assert r.status_code == 200
+    mock_open.assert_called_once()
+
+
+def test_open_log_not_found_returns_404(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    r = flask_client.post("/open-log")
+    assert r.status_code == 404
+
+
+def test_open_log_found_calls_startfile(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    (log_dir / "obsinote.log").write_text("log content")
+    with patch("app.server.os.startfile") as mock_sf:
+        r = flask_client.post("/open-log")
+    assert r.status_code == 200
+    mock_sf.assert_called_once()
+
+
+# ------------------------------------------------------------------
+# keep_audio=False deletes existing audio file
+# ------------------------------------------------------------------
+
+def test_job_audio_keep_false_deletes_existing_file(flask_client, tmp_path):
+    audio = tmp_path / "rec.mp3"
+    audio.write_bytes(b"audio data")
+    job_id = q.create_job()
+    q.update_job(job_id, audio_path=str(audio))
+    r = flask_client.post(
+        f"/jobs/{job_id}/audio",
+        data=json.dumps({"keep": False}),
+        content_type="application/json",
+    )
+    assert r.status_code == 200
+    assert not audio.exists()
