@@ -4,6 +4,18 @@ import shutil
 
 DATA_DIR = os.path.join(os.environ["APPDATA"], "ObsiNote")
 
+SUPPORTED_LANGUAGES = [
+    {"code": "cs",   "name": "Czech"},
+    {"code": "en",   "name": "English"},
+    {"code": "de",   "name": "German"},
+    {"code": "fr",   "name": "French"},
+    {"code": "pl",   "name": "Polish"},
+    {"code": "sk",   "name": "Slovak"},
+    {"code": "es",   "name": "Spanish"},
+    {"code": "it",   "name": "Italian"},
+    {"code": "auto", "name": "Auto-detect"},
+]
+
 WHISPER_MODEL_SIZES = {
     "large-v3-turbo": {"params": "809M", "disk_mb": 1500},
     "large-v3":       {"params": "1.5B",  "disk_mb": 3100},

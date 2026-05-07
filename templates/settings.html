@@ -92,7 +92,21 @@
 
         <!-- LLM -->
         <section id="llm" class="settings-section">
-          <div class="group-heading">LLM</div>
+          <div class="group-heading">LLM a přepis</div>
+          <div class="field">
+            <label>LLM provider</label>
+            <select id="llm_provider">
+              <option value="anthropic" {% if config.llm_provider == 'anthropic' %}selected{% endif %}>Anthropic (Claude)</option>
+              <option value="openai" {% if config.llm_provider == 'openai' %}selected{% endif %}>OpenAI (GPT-4o mini)</option>
+              <option value="mistral" {% if config.llm_provider == 'mistral' %}selected{% endif %}>Mistral</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Jazyk přepisu a poznámek</label>
+            <select id="language">
+              <!-- populated from /api/languages -->
+            </select>
+          </div>
           <div class="field">
             <label>Model Whisper</label>
             <select id="whisper_model">
@@ -108,13 +122,27 @@
             </select>
             <p class="field-hint">Šablony jsou .md soubory ve složce <code>ObsiNote/Templates/</code> ve vaultu.</p>
           </div>
+          <div class="group-heading" style="margin-top:1.5rem;">API klíče</div>
           <div class="field">
             <label>Anthropic API klíč</label>
             <div class="input-action-row">
-              <input type="password" id="api_key" placeholder="sk-ant-...">
-              <button class="btn-inline" onclick="saveApiKey()">Uložit klíč</button>
+              <input type="password" id="api_key_anthropic" placeholder="sk-ant-...">
+              <button class="btn-inline" onclick="saveApiKey('anthropic')">Uložit</button>
             </div>
-            <p class="field-hint">Klíč je nutný pro generování poznámek z přepisu.</p>
+          </div>
+          <div class="field">
+            <label>OpenAI API klíč</label>
+            <div class="input-action-row">
+              <input type="password" id="api_key_openai" placeholder="sk-...">
+              <button class="btn-inline" onclick="saveApiKey('openai')">Uložit</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Mistral API klíč</label>
+            <div class="input-action-row">
+              <input type="password" id="api_key_mistral" placeholder="...">
+              <button class="btn-inline" onclick="saveApiKey('mistral')">Uložit</button>
+            </div>
           </div>
         </section>
 
@@ -166,6 +194,7 @@
   <script src="/static/app.js"></script>
   <script>
     const _currentDefaultTemplate = '{{ config.default_template or "" }}';
+    const _currentLanguage = '{{ config.language or "cs" }}';
 
     fetch('/api/templates').then(r => r.json()).then(templates => {
       const sel = document.getElementById('default_template');
@@ -174,6 +203,17 @@
         opt.value = t;
         opt.textContent = t;
         if (t === _currentDefaultTemplate) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    });
+
+    fetch('/api/languages').then(r => r.json()).then(langs => {
+      const sel = document.getElementById('language');
+      langs.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l.code;
+        opt.textContent = l.name;
+        if (l.code === _currentLanguage) opt.selected = true;
         sel.appendChild(opt);
       });
     });
@@ -189,23 +229,25 @@
           input_device: document.getElementById('input_device').value,
           log_level: document.getElementById('log_level').value,
           default_template: document.getElementById('default_template').value,
+          llm_provider: document.getElementById('llm_provider').value,
+          language: document.getElementById('language').value,
         })
       });
       const data = await res.json();
       showMsg(data.ok ? 'Uloženo.' : 'Chyba: ' + JSON.stringify(data));
     }
 
-    async function saveApiKey() {
-      const key = document.getElementById('api_key').value.trim();
+    async function saveApiKey(provider) {
+      const key = document.getElementById('api_key_' + provider).value.trim();
       if (!key) return showMsg('Zadej API klíč.');
       const res = await fetch('/api-key', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({key})
+        body: JSON.stringify({key, provider})
       });
       const data = await res.json();
       showMsg(data.ok ? 'API klíč uložen.' : 'Chyba: ' + JSON.stringify(data));
-      document.getElementById('api_key').value = '';
+      document.getElementById('api_key_' + provider).value = '';
     }
 
     fetch('/autostart').then(r => r.json()).then(d => {

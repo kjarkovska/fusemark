@@ -55,6 +55,26 @@ def test_non_large_v3_model_not_upgraded(tmp_path, monkeypatch):
     assert result["whisper_model"] == "large-v3-turbo"
 
 
+def test_supported_languages_contains_required_codes(tmp_path, monkeypatch):
+    from app.config import SUPPORTED_LANGUAGES
+    codes = {l["code"] for l in SUPPORTED_LANGUAGES}
+    for code in ("cs", "en", "de", "fr", "auto"):
+        assert code in codes, f"Missing language code: {code}"
+
+
+def test_supported_languages_have_name_and_code():
+    from app.config import SUPPORTED_LANGUAGES
+    for entry in SUPPORTED_LANGUAGES:
+        assert "code" in entry and "name" in entry
+        assert entry["code"] and entry["name"]
+
+
+def test_supported_languages_auto_detect_name():
+    from app.config import SUPPORTED_LANGUAGES
+    auto = next(l for l in SUPPORTED_LANGUAGES if l["code"] == "auto")
+    assert auto["name"] == "Auto-detect"
+
+
 def test_defaults_contain_p1_keys(tmp_path, monkeypatch):
     monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
     result = cfg.load()

@@ -175,6 +175,116 @@ def test_job_audio_keep_false_no_file(flask_client):
     assert r.get_json()["ok"] is True
 
 
+def test_languages_returns_list(flask_client):
+    r = flask_client.get("/api/languages")
+    assert r.status_code == 200
+    langs = r.get_json()
+    assert isinstance(langs, list)
+    codes = {l["code"] for l in langs}
+    assert "cs" in codes
+    assert "en" in codes
+    assert "auto" in codes
+
+
+def test_languages_entries_have_code_and_name(flask_client):
+    langs = flask_client.get("/api/languages").get_json()
+    for entry in langs:
+        assert "code" in entry and "name" in entry
+
+
+def test_settings_save_llm_provider(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    flask_client.post(
+        "/settings/save",
+        data=json.dumps({"llm_provider": "openai"}),
+        content_type="application/json",
+    )
+    assert cfg.load()["llm_provider"] == "openai"
+
+
+def test_settings_save_language_updates_name(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    flask_client.post(
+        "/settings/save",
+        data=json.dumps({"language": "en"}),
+        content_type="application/json",
+    )
+    loaded = cfg.load()
+    assert loaded["language"] == "en"
+    assert loaded["language_name"] == "English"
+
+
+def test_settings_save_auto_detect_language(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    flask_client.post(
+        "/settings/save",
+        data=json.dumps({"language": "auto"}),
+        content_type="application/json",
+    )
+    loaded = cfg.load()
+    assert loaded["language"] == "auto"
+    assert loaded["language_name"] == "Auto-detect"
+
+
+def test_api_key_unknown_provider_returns_400(flask_client):
+    r = flask_client.post(
+        "/api-key",
+        data=json.dumps({"key": "sk-test", "provider": "grok"}),
+        content_type="application/json",
+    )
+    assert r.status_code == 400
+    assert "Unknown provider" in r.get_json()["error"]
+
+
+def test_api_key_no_key_returns_400(flask_client):
+    r = flask_client.post(
+        "/api-key",
+        data=json.dumps({"key": "", "provider": "anthropic"}),
+        content_type="application/json",
+    )
+    assert r.status_code == 400
+
+
+def test_api_key_anthropic_saved(flask_client):
+    from unittest.mock import patch
+    with patch("app.llm.anthropic_provider.keyring.set_password") as mock_set:
+        r = flask_client.post(
+            "/api-key",
+            data=json.dumps({"key": "sk-ant-test", "provider": "anthropic"}),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    assert r.get_json()["ok"] is True
+    mock_set.assert_called_once_with("ObsiNote-Anthropic", "api_key", "sk-ant-test")
+
+
+def test_api_key_openai_saved(flask_client):
+    from unittest.mock import patch
+    with patch("app.llm.openai_provider.keyring.set_password") as mock_set:
+        r = flask_client.post(
+            "/api-key",
+            data=json.dumps({"key": "sk-openai-test", "provider": "openai"}),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    mock_set.assert_called_once_with("ObsiNote-OpenAI", "api_key", "sk-openai-test")
+
+
+def test_api_key_mistral_saved(flask_client):
+    from unittest.mock import patch
+    with patch("app.llm.mistral_provider.keyring.set_password") as mock_set:
+        r = flask_client.post(
+            "/api-key",
+            data=json.dumps({"key": "ms-test", "provider": "mistral"}),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    mock_set.assert_called_once_with("ObsiNote-Mistral", "api_key", "ms-test")
+
+
 def test_jobs_list_after_import(flask_client):
     flask_client.post(
         "/import-transcript",

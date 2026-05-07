@@ -226,12 +226,18 @@ def route_status():
 def route_settings_save():
     data = request.get_json(silent=True) or {}
     config = cfg.load()
-    for key in ("vault_path", "whisper_model", "log_level", "default_template"):
+    for key in ("vault_path", "whisper_model", "log_level", "default_template", "llm_provider"):
         if key in data:
             config[key] = data[key]
     for key in ("output_device", "input_device"):
         val = data.get(key)
         config[key] = int(val) if val not in (None, "", "null") else None
+    lang_code = data.get("language")
+    if lang_code:
+        config["language"] = lang_code
+        lang_entry = next((l for l in cfg.SUPPORTED_LANGUAGES if l["code"] == lang_code), None)
+        if lang_entry:
+            config["language_name"] = lang_entry["name"]
     cfg.save(config)
     return jsonify({"ok": True})
 
@@ -251,6 +257,11 @@ def route_autostart_set():
     else:
         disable()
     return jsonify({"ok": True})
+
+
+@app.route("/api/languages")
+def route_languages():
+    return jsonify(cfg.SUPPORTED_LANGUAGES)
 
 
 @app.route("/api/templates")
@@ -280,9 +291,17 @@ def route_open_log():
 def route_api_key():
     data = request.get_json(silent=True) or {}
     key = data.get("key", "").strip()
+    provider = data.get("provider", "anthropic")
     if not key:
         return jsonify({"error": "No key provided"}), 400
-    from app.llm.anthropic_provider import set_api_key
+    if provider == "anthropic":
+        from app.llm.anthropic_provider import set_api_key
+    elif provider == "openai":
+        from app.llm.openai_provider import set_api_key
+    elif provider == "mistral":
+        from app.llm.mistral_provider import set_api_key
+    else:
+        return jsonify({"error": f"Unknown provider: {provider}"}), 400
     set_api_key(key)
     return jsonify({"ok": True})
 
