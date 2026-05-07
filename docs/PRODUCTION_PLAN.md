@@ -562,6 +562,10 @@ python -m app.main
 
 ---
 
+## ✅ Phase P4 — Language Selection — DONE (2026-05-07)
+
+Changes: `SUPPORTED_LANGUAGES` in config.py · `/api/languages` route · `/settings/save` persists `llm_provider` + derives `language_name` from code · `/api-key` is now provider-aware · settings.html gains language dropdown, LLM provider dropdown, and per-provider API key fields · Tests: 143 passed.
+
 ## Phase P4 — Language Selection
 
 **Goal:** User can select transcription and note language from a dropdown. No hardcoded Czech anywhere.
