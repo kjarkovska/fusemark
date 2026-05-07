@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 from app import queue as q
 from app import config as cfg
-from app.transcriber import transcribe
+from app.exceptions import ModelNotReadyError
+from app.transcription import transcribe
 from app.notemaker import generate_notes, suggest_glossary_terms, save_note, save_transcript
 
 
@@ -69,6 +70,12 @@ class Worker:
             # Normal flow — transcribe from audio
             try:
                 self._transcribe(job_id, job)
+            except ModelNotReadyError as exc:
+                q.update_job(job_id, status="error", error_message=str(exc))
+                logger.error("Job %s model not ready: %s", job_id, exc)
+                if self.on_tooltip:
+                    self.on_tooltip("ObsiNote")
+                return
             except Exception as exc:
                 q.update_job(job_id, status="error", error_message=f"Transcription failed: {exc}")
                 logger.error("Job %s transcription error: %s", job_id, exc)
@@ -119,14 +126,7 @@ class Worker:
             audio_path = job.get("audio_path") or job.get("recording_path")
             if not audio_path:
                 raise ValueError("Job has no audio_path to transcribe.")
-            config = cfg.load()
-            model_size = config.get("whisper_model", "large-v3-turbo")
-
-            def _progress(pct):
-                if self.on_tooltip:
-                    self.on_tooltip(f"ObsiNote — Přepisuji: {label} ({pct}%)")
-
-            transcript = transcribe(audio_path, model_size=model_size, job_id=job_id, on_progress=_progress)
+            transcript = transcribe(audio_path, job_id=job_id)
             q.update_job(job_id, transcript=transcript)
         finally:
             if self.on_transcribing:

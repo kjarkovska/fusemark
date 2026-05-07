@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, call, patch
 import pytest
 
+from app.exceptions import ModelNotReadyError
 from app.worker import Worker, _parse_retry_count, _RetryableError
 
 
@@ -154,6 +155,22 @@ def test_transcription_error_marks_job_error(mocks):
         "test-job-id",
         status="error",
         error_message="Transcription failed: audio corrupted",
+    )
+    mocks["generate"].assert_not_called()
+
+
+def test_model_not_ready_uses_clean_message(mocks):
+    mocks["transcribe"].side_effect = ModelNotReadyError(
+        "Whisper model not downloaded — go to Settings to download it."
+    )
+
+    w = Worker()
+    w._process_next()
+
+    mocks["q"].update_job.assert_called_with(
+        "test-job-id",
+        status="error",
+        error_message="Whisper model not downloaded — go to Settings to download it.",
     )
     mocks["generate"].assert_not_called()
 

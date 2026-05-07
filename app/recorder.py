@@ -27,6 +27,8 @@ import wave
 
 import pyaudiowpatch as pyaudio
 
+from app.utils import ffmpeg_exe
+
 logger = logging.getLogger(__name__)
 
 CHUNK = 1024
@@ -195,7 +197,7 @@ class Recorder:
             # ffmpeg mixes the two streams, resamples to 16 kHz mono, encodes mp3
             result = subprocess.run(
                 [
-                    "ffmpeg", "-y",
+                    ffmpeg_exe(), "-y",
                     "-i", system_tmp.name,
                     "-i", mic_tmp.name,
                     "-filter_complex", "amix=inputs=2:duration=longest",

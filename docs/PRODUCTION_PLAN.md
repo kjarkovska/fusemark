@@ -295,9 +295,13 @@ by inspecting the HuggingFace cache directory, which varies by `HF_HOME`.
 
 ---
 
-## Phase P1 — Data Directory & Config Migration
+## ✅ Phase P1 — Data Directory & Config Migration — DONE
 
 **Goal:** All user data reads/writes from `%APPDATA%\ObsiNote\`. App must still launch and work.
+
+**Completed:** 2026-05-07. All user data (config, DB, logs, recordings) reads/writes from
+`%APPDATA%\ObsiNote\`. `whisper_model_dir` defaults to `%LOCALAPPDATA%\ObsiNote\models`.
+`glossary_terms` column added to jobs DB. Flask runs with `threaded=True`. Tests: 88 passed.
 
 **Why first:** Every subsequent phase touches config or data paths. Getting this right now prevents double-fixing later.
 
@@ -356,9 +360,17 @@ python -m app.main
 
 ---
 
-## Phase P2 — Provider Abstraction: Transcription
+## ✅ Phase P2 — Provider Abstraction: Transcription — DONE
 
 **Goal:** `transcriber.py` becomes `app/transcription/local.py` behind a clean interface. Worker calls the interface, not the module directly.
+
+**Completed:** 2026-05-07. `app/exceptions.py` (4 exception classes) and `app/utils.py`
+(`ffmpeg_exe()`) created. `app/transcription/` package created: `local.py` holds
+`transcribe_local(audio_path, language, job_id, glossary_prompt)` with `ModelNotReadyError`
+guard; `__init__.py` holds the `transcribe(audio_path, job_id)` dispatcher. `recorder.py`
+uses `ffmpeg_exe()`. Worker imports `transcribe` from `app.transcription` and catches
+`ModelNotReadyError` separately for a clean error message. `transcriber.py` kept as-is
+(legacy CLI only — not imported by any production code). Tests: 88 passed.
 
 ### Tasks
 
