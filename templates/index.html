@@ -18,6 +18,13 @@
     </a>
   </nav>
 
+  {% if show_vault_warning %}
+  <div class="warning-banner">
+    Output folder not configured — notes cannot be saved.
+    <a href="/settings" class="warning-link">Configure in Settings</a>
+  </div>
+  {% endif %}
+
   <div class="main-content">
 
     <!-- Left panel: recorder -->

@@ -450,9 +450,21 @@ button {
 .job-error {
   font-size: 12px;
   color: var(--red-text);
+  background: rgba(179,66,66,0.1);
+  border: 1px solid rgba(179,66,66,0.25);
+  border-radius: 4px;
+  padding: 6px 10px;
   margin-top: 6px;
   line-height: 1.4;
 }
+
+.job-error-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.job-error-actions button { padding: 4px 12px; font-size: 12px; width: auto; }
+.btn-retry:disabled { opacity: 0.4; cursor: default; }
 
 .btn-delete {
   background: transparent;
@@ -795,3 +807,22 @@ hr { display: none; }
   font-size: 12px;
   color: var(--muted);
 }
+
+/* ── Warning banner ────────────────────────────────────────────────── */
+.warning-banner {
+  background: rgba(180, 120, 40, 0.15);
+  border-bottom: 1px solid rgba(180, 120, 40, 0.35);
+  color: #f0b86e;
+  font-size: 13px;
+  padding: 8px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.warning-link {
+  color: #f0b86e;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.warning-link:hover { opacity: 0.8; }

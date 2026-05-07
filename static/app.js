@@ -140,13 +140,17 @@ function renderJob(job) {
   const progress = progressFromJob(job);
   const isActive = job.status === 'transcribing' || job.status === 'generating';
   const isDeletable = job.status === 'done' || job.status === 'error';
+  const isError = job.status === 'error';
 
-  const errorTitle = (job.status === 'error' && job.error_message && !job.error_message.startsWith('['))
-    ? ` title="${esc(job.error_message)}"` : '';
-  const pill = `<span class="job-status status-${job.status}"${errorTitle}>${statusLabel(job.status)}</span>`;
+  const pill = `<span class="job-status status-${job.status}">${statusLabel(job.status)}</span>`;
 
   const deleteBtn = isDeletable
     ? `<button class="btn-delete" onclick="deleteJob('${job.id}')" title="Smazat">&#10005;</button>`
+    : '';
+
+  const retryDisabled = isError && !job.audio_exists ? ' disabled title="Recording deleted"' : '';
+  const retryBtn = isError
+    ? `<button class="btn-secondary btn-retry" onclick="retryJob('${job.id}')"${retryDisabled}>Zkusit znovu</button>`
     : '';
 
   // done/error: header-row with pill+X on right; active: header-row pill only; queued: stacked
@@ -170,16 +174,31 @@ function renderJob(job) {
        <div class="job-date">${date}</div>
        <div class="job-pill-bottom">${pill}</div>`;
 
-  const eta = etaFromJob(job);
-  const progressLabel = job.status === 'transcribing'
-    ? (eta ? `${progress}%, zbývá ${eta}` : `${progress}%`)
-    : '';
+  let progressLabel = '';
+  if (job.status === 'transcribing') {
+    if (job.extra_context === 'transcribing:uploading') {
+      progressLabel = 'Uploading audio…';
+    } else if (job.extra_context === 'transcribing:processing') {
+      progressLabel = 'Transcribing via API…';
+    } else {
+      const eta = etaFromJob(job);
+      progressLabel = eta ? `${progress}%, zbývá ${eta}` : `${progress}%`;
+    }
+  }
 
   const progressBar = isActive
     ? `<div class="job-progress-row">
          <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
        </div>
        ${progressLabel ? `<div class="job-eta">${progressLabel}</div>` : ''}`
+    : '';
+
+  const errorCallout = isError && job.error_message
+    ? `<div class="job-error">${esc(job.error_message)}</div>`
+    : '';
+
+  const errorActions = isError
+    ? `<div class="job-error-actions">${retryBtn}</div>`
     : '';
 
   const contextField = (!isDeletable && !isActive)
@@ -201,6 +220,8 @@ function renderJob(job) {
     <div class="job">
       ${header}
       ${progressBar}
+      ${errorCallout}
+      ${errorActions}
       ${contextField}
       ${audioDecision}
     </div>`;
@@ -259,6 +280,16 @@ async function clearCompleted() {
 
 async function deleteJob(jobId) {
   await fetch(`/jobs/${jobId}`, {method: 'DELETE'});
+  refreshJobs();
+}
+
+async function retryJob(jobId) {
+  const res = await fetch(`/jobs/${jobId}/retry`, {method: 'POST'});
+  if (!res.ok) {
+    const err = await res.json();
+    alert(err.error || 'Retry failed');
+    return;
+  }
   refreshJobs();
 }
 

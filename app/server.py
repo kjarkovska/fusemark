@@ -6,9 +6,10 @@ Routes:
   GET  /settings      — settings page
   POST /start         — start recording
   POST /stop          — stop recording
-  GET    /jobs                — job list as JSON
+  GET    /jobs                — job list as JSON (includes audio_exists field)
   DELETE /jobs                — delete all done/error jobs
   DELETE /jobs/<id>           — delete a single done/error job
+  POST   /jobs/<id>/retry     — re-queue an error job (409 if audio file deleted)
   POST   /jobs/<id>/context   — update extra_context on a job
   POST   /jobs/<id>/audio     — set keep_audio decision
   GET  /status        — current recorder state as JSON
@@ -114,7 +115,9 @@ def index():
     folders = _get_vault_folders(vault_path)
     from app.notes import list_templates
     templates = list_templates(vault_path)
-    return render_template("index.html", config=config, folders=folders, templates=templates)
+    show_vault_warning = bool(config.get("setup_complete")) and not vault_path
+    return render_template("index.html", config=config, folders=folders, templates=templates,
+                           show_vault_warning=show_vault_warning)
 
 
 @app.route("/settings")
@@ -177,6 +180,9 @@ def route_stop():
 @app.route("/jobs")
 def route_jobs():
     jobs = q.list_jobs()
+    for job in jobs:
+        audio = job.get("audio_path") or job.get("recording_path")
+        job["audio_exists"] = not audio or os.path.exists(audio)
     return jsonify(jobs)
 
 
@@ -189,6 +195,20 @@ def route_jobs_clear():
 @app.route("/jobs/<job_id>", methods=["DELETE"])
 def route_job_delete(job_id):
     q.delete_job(job_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/jobs/<job_id>/retry", methods=["POST"])
+def route_job_retry(job_id):
+    job = q.get_job(job_id)
+    if job is None:
+        return jsonify({"error": "Job not found"}), 404
+    if job["status"] != "error":
+        return jsonify({"error": "Job is not in error state"}), 400
+    audio = job.get("audio_path") or job.get("recording_path")
+    if audio and not os.path.exists(audio):
+        return jsonify({"error": "Recording file has been deleted. This job cannot be retried."}), 409
+    q.update_job(job_id, status="queued", error_message=None)
     return jsonify({"ok": True})
 
 

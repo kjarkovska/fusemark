@@ -298,3 +298,99 @@ def test_jobs_list_after_import(flask_client):
     )
     jobs = flask_client.get("/jobs").get_json()
     assert len(jobs) == 2
+
+
+# ------------------------------------------------------------------
+# audio_exists field in /jobs
+# ------------------------------------------------------------------
+
+def test_jobs_audio_exists_true_when_no_audio(flask_client):
+    job_id = q.create_job()
+    jobs = flask_client.get("/jobs").get_json()
+    job = next(j for j in jobs if j["id"] == job_id)
+    assert job["audio_exists"] is True
+
+
+def test_jobs_audio_exists_true_when_file_present(flask_client, tmp_path):
+    audio = tmp_path / "rec.mp3"
+    audio.write_bytes(b"")
+    job_id = q.create_job()
+    q.update_job(job_id, audio_path=str(audio))
+    jobs = flask_client.get("/jobs").get_json()
+    job = next(j for j in jobs if j["id"] == job_id)
+    assert job["audio_exists"] is True
+
+
+def test_jobs_audio_exists_false_when_file_missing(flask_client, tmp_path):
+    job_id = q.create_job()
+    q.update_job(job_id, audio_path=str(tmp_path / "gone.mp3"))
+    jobs = flask_client.get("/jobs").get_json()
+    job = next(j for j in jobs if j["id"] == job_id)
+    assert job["audio_exists"] is False
+
+
+# ------------------------------------------------------------------
+# POST /jobs/<id>/retry
+# ------------------------------------------------------------------
+
+def test_retry_unknown_job_returns_404(flask_client):
+    r = flask_client.post("/jobs/nonexistent-id/retry")
+    assert r.status_code == 404
+
+
+def test_retry_non_error_job_returns_400(flask_client):
+    job_id = q.create_job()
+    q.set_status(job_id, "queued")
+    r = flask_client.post(f"/jobs/{job_id}/retry")
+    assert r.status_code == 400
+
+
+def test_retry_missing_audio_returns_409(flask_client, tmp_path):
+    job_id = q.create_job()
+    q.update_job(job_id, status="error", error_message="oops",
+                 audio_path=str(tmp_path / "gone.mp3"))
+    r = flask_client.post(f"/jobs/{job_id}/retry")
+    assert r.status_code == 409
+    assert "deleted" in r.get_json()["error"].lower()
+
+
+def test_retry_success_requeues_job(flask_client, tmp_path):
+    audio = tmp_path / "rec.mp3"
+    audio.write_bytes(b"")
+    job_id = q.create_job()
+    q.update_job(job_id, status="error", error_message="bad key",
+                 audio_path=str(audio))
+    r = flask_client.post(f"/jobs/{job_id}/retry")
+    assert r.status_code == 200
+    assert r.get_json()["ok"] is True
+    refreshed = q.get_job(job_id)
+    assert refreshed["status"] == "queued"
+    assert refreshed["error_message"] is None
+
+
+def test_retry_import_job_no_audio_succeeds(flask_client):
+    job_id = q.create_job()
+    q.update_job(job_id, status="error", error_message="api error")
+    r = flask_client.post(f"/jobs/{job_id}/retry")
+    assert r.status_code == 200
+    assert q.get_job(job_id)["status"] == "queued"
+
+
+# ------------------------------------------------------------------
+# Vault warning on index page
+# ------------------------------------------------------------------
+
+def test_index_shows_vault_warning_when_setup_complete_no_vault(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    cfg.save({**cfg.DEFAULTS, "setup_complete": True, "vault_path": ""})
+    r = flask_client.get("/")
+    assert b"Output folder not configured" in r.data
+
+
+def test_index_no_vault_warning_when_vault_set(flask_client, tmp_path, monkeypatch, tmp_vault):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    cfg.save({**cfg.DEFAULTS, "setup_complete": True, "vault_path": str(tmp_vault)})
+    r = flask_client.get("/")
+    assert b"Output folder not configured" not in r.data
