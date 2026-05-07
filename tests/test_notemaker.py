@@ -1,6 +1,6 @@
 import os
 import pytest
-from app.notemaker import (
+from app.notes import (
     list_templates,
     load_template,
     save_note,

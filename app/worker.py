@@ -11,19 +11,17 @@ Error strategy:
 
 import json
 import logging
-import os
 import threading
 import time
-
-import anthropic
 
 logger = logging.getLogger(__name__)
 
 from app import queue as q
 from app import config as cfg
-from app.exceptions import ModelNotReadyError
+from app.exceptions import ModelNotReadyError, LLMRateLimitError, LLMAuthError
 from app.transcription import transcribe
-from app.notemaker import generate_notes, suggest_glossary_terms, save_note, save_transcript
+from app.llm import generate_notes, suggest_glossary_terms
+from app.notes import save_note, save_transcript
 
 
 POLL_INTERVAL = 5   # seconds between queue checks
@@ -148,10 +146,6 @@ class Worker:
         transcript_path = save_transcript(transcript, job.get("label", ""), vault_path, date_str=date_str)
         if transcript_path:
             q.update_job(job_id, transcript_path=transcript_path)
-            link_stem = os.path.splitext(os.path.basename(transcript_path))[0]
-            transcript_link = f"[[ObsiNote/Transcripts/{link_stem}]]"
-        else:
-            transcript_link = ""
 
         try:
             note = generate_notes(
@@ -160,12 +154,9 @@ class Worker:
                 folder=job.get("folder", "Other"),
                 scratch_notes=job.get("scratch_notes", "") or "",
                 extra_context=job.get("extra_context", "") or "",
-                transcript_link=transcript_link,
-                vault_path=vault_path,
-                template_name=job.get("template", "") or "",
-                date_str=date_str,
+                language=config.get("language_name", "Czech"),
             )
-        except (anthropic.APIConnectionError, anthropic.RateLimitError, anthropic.APIStatusError) as exc:
+        except LLMRateLimitError as exc:
             raise _RetryableError(str(exc)) from exc
 
         out_path = save_note(note, job.get("label", ""), job.get("folder", "Other"), vault_path, date_str=date_str)
@@ -174,7 +165,7 @@ class Worker:
         try:
             terms = suggest_glossary_terms(transcript)
             if terms:
-                q.update_job(job_id, error_message=json.dumps(terms, ensure_ascii=False))
+                q.update_job(job_id, glossary_terms=json.dumps(terms, ensure_ascii=False))
         except Exception as exc:
             logger.debug("Glossary suggestion failed (non-fatal): %s", exc)
 

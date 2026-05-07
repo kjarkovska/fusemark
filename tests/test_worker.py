@@ -242,16 +242,47 @@ def test_meeting_date_threads_to_save_functions(mocks):
     assert save_note_kwargs.get("date_str") == "2025-06-01"
 
 
-def test_generate_notes_receives_date_str(mocks):
-    job = _make_job({"transcript": "text", "meeting_date": "2025-11-20"})
+def test_generate_notes_receives_language_from_config(mocks):
+    job = _make_job({"transcript": "text"})
     mocks["q"].list_jobs.return_value = [job]
     mocks["q"].get_job.return_value = job
+    mocks["cfg"].load.return_value = {"vault_path": "/vault", "language_name": "German"}
 
     w = Worker()
     w._process_next()
 
     _, generate_kwargs = mocks["generate"].call_args
-    assert generate_kwargs.get("date_str") == "2025-11-20"
+    assert generate_kwargs.get("language") == "German"
+
+
+def test_glossary_terms_stored_in_glossary_terms_column(mocks):
+    job = _make_job({"transcript": "text"})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+    mocks["suggest"].return_value = [{"canonical": "JIRA", "type": "product", "aliases": [], "context": "Issue tracker"}]
+
+    w = Worker()
+    w._process_next()
+
+    update_calls = mocks["q"].update_job.call_args_list
+    glossary_calls = [c for c in update_calls if "glossary_terms" in c.kwargs]
+    assert len(glossary_calls) == 1
+    assert "error_message" not in glossary_calls[0].kwargs
+
+
+def test_llm_rate_limit_error_causes_retry(mocks):
+    from app.exceptions import LLMRateLimitError
+
+    job = _make_job({"transcript": "text"})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+    mocks["generate"].side_effect = LLMRateLimitError("rate limit hit")
+
+    w = Worker()
+    w._process_next()
+
+    statuses = [c.kwargs.get("status") for c in mocks["q"].update_job.call_args_list if "status" in c.kwargs]
+    assert "queued" in statuses
 
 
 # ------------------------------------------------------------------

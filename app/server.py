@@ -112,7 +112,7 @@ def index():
     config = cfg.load()
     vault_path = config.get("vault_path", "")
     folders = _get_vault_folders(vault_path)
-    from app.notemaker import list_templates
+    from app.notes import list_templates
     templates = list_templates(vault_path)
     return render_template("index.html", config=config, folders=folders, templates=templates)
 
@@ -256,7 +256,7 @@ def route_autostart_set():
 @app.route("/api/templates")
 def route_templates():
     config = cfg.load()
-    from app.notemaker import list_templates
+    from app.notes import list_templates
     return jsonify(list_templates(config.get("vault_path", "")))
 
 
@@ -282,7 +282,7 @@ def route_api_key():
     key = data.get("key", "").strip()
     if not key:
         return jsonify({"error": "No key provided"}), 400
-    from app.notemaker import set_api_key
+    from app.llm.anthropic_provider import set_api_key
     set_api_key(key)
     return jsonify({"ok": True})
 

@@ -439,9 +439,11 @@ python -m app.main
 
 ---
 
-## Phase P3 — Provider Abstraction: LLM
+## ✅ Phase P3 — Provider Abstraction: LLM — DONE
 
 **Goal:** `notemaker.py` becomes `app/llm/anthropic_provider.py` behind a clean interface. Add OpenAI and Mistral providers. File-writing moves to `app/notes.py`.
+
+**Completed:** 2026-05-07. `app/notes.py` created with `save_note`, `save_transcript`, `list_templates`, `load_template` (moved verbatim from `notemaker.py`). `app/llm/` package created: `anthropic_provider.py`, `openai_provider.py`, `mistral_provider.py` each implement `generate_notes(transcript, label, folder, scratch_notes, extra_context, language)` and `suggest_glossary_terms(transcript)`. Keyring services: `ObsiNote-Anthropic`, `ObsiNote-OpenAI`, `ObsiNote-Mistral`. `app/llm/__init__.py` dispatches based on `llm_provider` config. Worker updated: uses `app.llm` and `app.notes`, catches `LLMRateLimitError` for retry, writes glossary terms to `glossary_terms` column (not `error_message`). `notemaker.py` deleted. Server updated. `openai` and `mistralai` added to `requirements.txt`. Tests: 130 passed.
 
 ### Tasks
 

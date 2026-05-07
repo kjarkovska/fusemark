@@ -10,6 +10,8 @@ faster-whisper
 
 # Phase 4 — Note Generation
 anthropic
+openai
+mistralai
 keyring
 
 # Phase 5 — UI & Tray
