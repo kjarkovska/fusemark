@@ -11,8 +11,6 @@ import logging
 import os
 import time
 
-from faster_whisper import WhisperModel
-
 from app import config as cfg
 from app import queue as q
 from app.exceptions import ModelNotReadyError
@@ -29,13 +27,14 @@ def _model_is_downloaded(model_dir: str, model_name: str) -> bool:
     return os.path.isdir(path) and any(os.scandir(path))
 
 
-def _load_model(model_size: str, model_dir: str) -> WhisperModel:
+def _load_model(model_size: str, model_dir: str):
     key = (model_size, model_dir)
     if key not in MODEL_CACHE:
         if not _model_is_downloaded(model_dir, model_size):
             raise ModelNotReadyError(
                 "Whisper model not downloaded — go to Settings to download it."
             )
+        from faster_whisper import WhisperModel
         logger.info("Loading model '%s'...", model_size)
         MODEL_CACHE[key] = WhisperModel(
             model_size,
