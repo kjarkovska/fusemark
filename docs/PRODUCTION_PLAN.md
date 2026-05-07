@@ -627,7 +627,9 @@ python -m app.main
 
 ---
 
-## Phase P5 — Error UX
+## ✅ Phase P5 — Error UX — DONE (2026-05-07)
+
+Changes: `GET /jobs` includes `audio_exists` boolean · `POST /jobs/<id>/retry` re-queues error jobs (409 if audio deleted) · error jobs show `error_message` in a red callout box · Retry button disabled when recording deleted · cloud transcribing status text mapped from `extra_context` · index page shows warning banner when `setup_complete` but no `vault_path` · 10 new tests, 137 passing.
 
 **Goal:** Every failure mode surfaces a visible, human-readable message in the UI. No silent errors.
 
