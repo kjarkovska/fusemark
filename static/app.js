@@ -4,6 +4,8 @@ let recording = false;
 let timerInterval = null;
 let timerSeconds = 0;
 let jobsPollInterval = null;
+let levelMeterInterval = null;
+const METER_BARS = 14;
 
 // ------------------------------------------------------------------
 // Recording
@@ -37,6 +39,7 @@ async function startRecording() {
   recording = true;
   setRecorderUI(true);
   startTimer();
+  startLevelMeter();
 }
 
 async function stopRecording() {
@@ -45,6 +48,7 @@ async function stopRecording() {
   // Update UI immediately — ffmpeg encoding on the server can take several seconds
   recording = false;
   stopTimer();
+  stopLevelMeter();
   setRecorderUI('stopping');
   if (document.getElementById('scratch')) {
     document.getElementById('scratch').value = '';
@@ -90,6 +94,35 @@ function setRecorderUI(state) {
 }
 
 // ------------------------------------------------------------------
+// Level meter
+// ------------------------------------------------------------------
+
+function startLevelMeter() {
+  const meter = document.getElementById('level-meter');
+  if (!meter) return;
+  meter.innerHTML = Array(METER_BARS).fill(null)
+    .map(() => '<span class="level-bar"></span>').join('');
+  levelMeterInterval = setInterval(() => {
+    meter.querySelectorAll('.level-bar').forEach(bar => {
+      const l = 0.25 + Math.random() * 0.75;
+      bar.style.height = `${Math.round(l * 16)}px`;
+      bar.style.opacity = String(0.6 + l * 0.4);
+    });
+  }, 110);
+}
+
+function stopLevelMeter() {
+  clearInterval(levelMeterInterval);
+  levelMeterInterval = null;
+  const meter = document.getElementById('level-meter');
+  if (!meter) return;
+  meter.querySelectorAll('.level-bar').forEach(bar => {
+    bar.style.height = '3px';
+    bar.style.opacity = '0.15';
+  });
+}
+
+// ------------------------------------------------------------------
 // Timer
 // ------------------------------------------------------------------
 
@@ -128,7 +161,12 @@ async function refreshJobs() {
   const jobs = await res.json();
 
   if (!jobs.length) {
-    el.innerHTML = '<p style="color:#666; font-size:13px;">Zatím žádné záznamy.</p>';
+    el.innerHTML = `
+      <div class="jobs-empty-state">
+        <img src="/static/img/logo-mark.svg" class="jobs-empty-logo" alt="">
+        <div class="jobs-empty-title">Zatím žádné záznamy</div>
+        <div class="jobs-empty-hint">Spusťte nahrávání nebo importujte přepis. Zpracované porady se objeví zde.</div>
+      </div>`;
     return;
   }
 
@@ -216,6 +254,10 @@ function renderJob(job) {
        </div>`
     : '';
 
+  const noteLink = (job.status === 'done' && job.output_note_path)
+    ? `<a class="job-note-link">${esc(job.output_note_path)}</a>`
+    : '';
+
   return `
     <div class="job">
       ${header}
@@ -224,6 +266,7 @@ function renderJob(job) {
       ${errorActions}
       ${contextField}
       ${audioDecision}
+      ${noteLink}
     </div>`;
 }
 
@@ -319,6 +362,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     recording = true;
     setRecorderUI(true);
     startTimer();
+    startLevelMeter();
   }
 
   if (document.getElementById('jobs-list')) {
