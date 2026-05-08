@@ -37,30 +37,35 @@ def test_ffmpeg_exe_frozen(tmp_path):
 # _model_is_downloaded()
 # ------------------------------------------------------------------
 
-def test_model_not_downloaded_missing_dir(tmp_path):
-    assert _model_is_downloaded(str(tmp_path), "large-v3-turbo") is False
+def test_model_not_downloaded_when_download_model_raises(tmp_path):
+    with patch("faster_whisper.utils.download_model", side_effect=Exception("not cached")):
+        assert _model_is_downloaded(str(tmp_path), "large-v3-turbo") is False
 
 
-def test_model_not_downloaded_empty_cache_dir(tmp_path):
-    # large-v3-turbo maps to mobiuslabsgmbh/faster-whisper-large-v3-turbo
-    (tmp_path / "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo").mkdir()
-    assert _model_is_downloaded(str(tmp_path), "large-v3-turbo") is False
+def test_model_downloaded_when_download_model_succeeds(tmp_path):
+    with patch("faster_whisper.utils.download_model", return_value="/fake/path"):
+        assert _model_is_downloaded(str(tmp_path), "large-v3-turbo") is True
 
 
-def test_model_downloaded_non_empty_cache_dir(tmp_path):
+def test_model_not_downloaded_hf_skeleton_dirs_not_enough(tmp_path):
+    # HF cache creates blobs/refs/snapshots dirs immediately at download start —
+    # a non-empty top-level dir must NOT count as downloaded.
     cache = tmp_path / "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo"
-    cache.mkdir()
-    (cache / "config.json").write_text("{}", encoding="utf-8")
-    assert _model_is_downloaded(str(tmp_path), "large-v3-turbo") is True
+    (cache / "blobs").mkdir(parents=True)
+    (cache / "snapshots").mkdir()
+    with patch("faster_whisper.utils.download_model", side_effect=Exception("incomplete")):
+        assert _model_is_downloaded(str(tmp_path), "large-v3-turbo") is False
 
 
-def test_model_downloaded_checks_correct_model_name(tmp_path):
-    # large-v3 is present but large-v3-turbo is not
-    cache = tmp_path / "models--Systran--faster-whisper-large-v3"
-    cache.mkdir()
-    (cache / "config.json").write_text("{}", encoding="utf-8")
-    assert _model_is_downloaded(str(tmp_path), "large-v3-turbo") is False
-    assert _model_is_downloaded(str(tmp_path), "large-v3") is True
+def test_model_downloaded_checks_model_name_via_download_model(tmp_path):
+    def fake_download(model, **kwargs):
+        if model == "large-v3":
+            return "/fake/path"
+        raise Exception("not found")
+
+    with patch("faster_whisper.utils.download_model", side_effect=fake_download):
+        assert _model_is_downloaded(str(tmp_path), "large-v3-turbo") is False
+        assert _model_is_downloaded(str(tmp_path), "large-v3") is True
 
 
 # ------------------------------------------------------------------

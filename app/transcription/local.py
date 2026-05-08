@@ -26,10 +26,18 @@ def _repo_id(model_name: str) -> str:
 
 
 def _model_is_downloaded(model_dir: str, model_name: str) -> bool:
-    """Check if the model exists in the HuggingFace cache under model_dir."""
-    cache_name = "models--" + _repo_id(model_name).replace("/", "--")
-    path = os.path.join(model_dir, cache_name)
-    return os.path.isdir(path) and any(os.scandir(path))
+    """Check if all required model files are present locally.
+
+    Uses faster-whisper's own download_model(local_files_only=True) so the
+    check mirrors exactly what model loading requires — avoids false positives
+    from HuggingFace cache skeleton directories created at download start.
+    """
+    try:
+        from faster_whisper.utils import download_model
+        download_model(model_name, cache_dir=model_dir, local_files_only=True)
+        return True
+    except Exception:
+        return False
 
 
 def _load_model(model_size: str, model_dir: str):
