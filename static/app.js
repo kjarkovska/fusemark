@@ -254,10 +254,6 @@ function renderJob(job) {
        </div>`
     : '';
 
-  const noteLink = (job.status === 'done' && job.output_note_path)
-    ? `<a class="job-note-link">${esc(job.output_note_path)}</a>`
-    : '';
-
   return `
     <div class="job">
       ${header}
@@ -266,7 +262,6 @@ function renderJob(job) {
       ${errorActions}
       ${contextField}
       ${audioDecision}
-      ${noteLink}
     </div>`;
 }
 

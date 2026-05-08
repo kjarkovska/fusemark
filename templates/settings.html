@@ -120,11 +120,15 @@
           </div>
           <div class="field">
             <label>Model Whisper</label>
-            <select id="whisper_model">
-              {% for size in ['small', 'medium', 'large-v3', 'large-v3-turbo'] %}
+            <select id="whisper_model" onchange="loadModelStatus()">
+              {% for size in ['large-v3-turbo', 'large-v3'] %}
               <option value="{{ size }}" {% if config.whisper_model == size %}selected{% endif %}>{{ size }}</option>
               {% endfor %}
             </select>
+            <div class="model-dl-row" id="model-dl-row">
+              <span class="model-dl-msg" id="model-dl-msg"></span>
+              <button class="btn-secondary" id="model-dl-btn" onclick="downloadModel()" style="display:none">Stáhnout model</button>
+            </div>
           </div>
           <div class="field">
             <label>Výchozí šablona</label>
@@ -272,6 +276,44 @@
     function showMsg(msg) {
       document.getElementById('settings-msg').textContent = msg;
     }
+
+    async function loadModelStatus() {
+      const model = document.getElementById('whisper_model').value;
+      const msg = document.getElementById('model-dl-msg');
+      const btn = document.getElementById('model-dl-btn');
+      const res = await fetch('/api/model-status');
+      const data = await res.json();
+      const info = data[model];
+      if (!info) { msg.textContent = ''; btn.style.display = 'none'; return; }
+      if (info.downloaded) {
+        msg.textContent = 'Model stažen';
+        msg.className = 'model-dl-msg status-ok';
+        btn.style.display = 'none';
+      } else if (info.downloading) {
+        msg.textContent = 'Stahuji model… (může trvat několik minut)';
+        msg.className = 'model-dl-msg status-busy';
+        btn.style.display = 'none';
+        setTimeout(loadModelStatus, 4000);
+      } else {
+        msg.textContent = `Model není stažen (~${info.disk_mb} MB)`;
+        msg.className = 'model-dl-msg status-warn';
+        btn.style.display = '';
+      }
+    }
+
+    async function downloadModel() {
+      const model = document.getElementById('whisper_model').value;
+      document.getElementById('model-dl-btn').style.display = 'none';
+      document.getElementById('model-dl-msg').textContent = 'Spouštím stahování…';
+      await fetch('/api/download-model', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({model}),
+      });
+      setTimeout(loadModelStatus, 2000);
+    }
+
+    loadModelStatus();
 
     // Tab switching
     (function () {

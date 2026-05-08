@@ -704,6 +704,17 @@ body.settings-page {
   color: var(--muted);
 }
 
+.model-dl-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.model-dl-msg { font-size: var(--t-11); color: var(--muted); }
+.model-dl-msg.status-ok   { color: var(--green-text); }
+.model-dl-msg.status-warn { color: var(--warn); }
+.model-dl-msg.status-busy { color: var(--muted); }
+
 .field-hint {
   font-size: var(--t-11);
   color: var(--muted);

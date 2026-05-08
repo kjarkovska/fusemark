@@ -175,7 +175,11 @@ def main():
         if not _hwnd:
             ctypes.windll.user32.FindWindowW.restype = ctypes.c_void_p
             _hwnd = ctypes.windll.user32.FindWindowW(None, "ObsiNote")
-        _win32_set_icons(small_path=icons["white"], big_path=icons["idle"])
+        # Remove title-bar icon; set taskbar icon only
+        user32 = ctypes.windll.user32
+        user32.SendMessageW.restype = ctypes.c_long
+        user32.SendMessageW(_hwnd, 0x0080, 0, 0)  # WM_SETICON ICON_SMALL = null
+        _win32_set_icons(big_path=icons["idle"])
 
     def _on_closing():
         """Hide window instead of closing it. Only Quit destroys it."""
@@ -202,6 +206,7 @@ def main():
         worker.stop()
         tray.stop()
         window.destroy()
+        os._exit(0)
 
     tray = TrayIcon(
         on_start=_on_start,

@@ -279,6 +279,57 @@ def route_autostart_set():
     return jsonify({"ok": True})
 
 
+_dl: dict = {}  # model_name -> {"downloading": bool, "error": str|None}
+
+
+@app.route("/api/model-status")
+def route_model_status():
+    from app.transcription.local import _model_is_downloaded
+    config = cfg.load()
+    model_dir = config.get("whisper_model_dir", "")
+    out = {}
+    for name, info in cfg.WHISPER_MODEL_SIZES.items():
+        dl = _dl.get(name, {})
+        downloaded = _model_is_downloaded(model_dir, name)
+        if downloaded:
+            _dl.pop(name, None)
+        out[name] = {
+            "downloaded": downloaded,
+            "downloading": dl.get("downloading", False) and not downloaded,
+            "error": dl.get("error"),
+            "disk_mb": info["disk_mb"],
+        }
+    return jsonify(out)
+
+
+@app.route("/api/download-model", methods=["POST"])
+def route_download_model():
+    from app.transcription.local import _model_is_downloaded
+    data = request.get_json(silent=True) or {}
+    name = data.get("model")
+    if name not in cfg.WHISPER_MODEL_SIZES:
+        return jsonify({"ok": False, "error": "Unknown model"}), 400
+    config = cfg.load()
+    model_dir = config.get("whisper_model_dir", "")
+    if _model_is_downloaded(model_dir, name):
+        return jsonify({"ok": True})
+    if _dl.get(name, {}).get("downloading"):
+        return jsonify({"ok": True})
+    _dl[name] = {"downloading": True, "error": None}
+
+    def _run():
+        try:
+            os.makedirs(model_dir, exist_ok=True)
+            from huggingface_hub import snapshot_download
+            snapshot_download(repo_id=f"Systran/faster-whisper-{name}", cache_dir=model_dir)
+            _dl[name] = {"downloading": False, "error": None}
+        except Exception as exc:
+            _dl[name] = {"downloading": False, "error": str(exc)}
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True})
+
+
 @app.route("/api/languages")
 def route_languages():
     return jsonify(cfg.SUPPORTED_LANGUAGES)
