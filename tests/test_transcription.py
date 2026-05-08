@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.exceptions import ModelNotReadyError
-from app.transcription.local import MODEL_CACHE, _model_is_downloaded, transcribe_local
+from app.transcription.local import MODEL_CACHE, _model_is_downloaded, _repo_id, transcribe_local
 from app.utils import ffmpeg_exe
 
 
@@ -61,6 +61,22 @@ def test_model_downloaded_checks_correct_model_name(tmp_path):
     (cache / "config.json").write_text("{}", encoding="utf-8")
     assert _model_is_downloaded(str(tmp_path), "large-v3-turbo") is False
     assert _model_is_downloaded(str(tmp_path), "large-v3") is True
+
+
+# ------------------------------------------------------------------
+# _repo_id() — HuggingFace repo mapping
+# ------------------------------------------------------------------
+
+def test_repo_id_large_v3_turbo():
+    assert _repo_id("large-v3-turbo") == "mobiuslabsgmbh/faster-whisper-large-v3-turbo"
+
+
+def test_repo_id_large_v3():
+    assert _repo_id("large-v3") == "Systran/faster-whisper-large-v3"
+
+
+def test_repo_id_unknown_falls_back_to_systran():
+    assert _repo_id("no-such-model") == "Systran/faster-whisper-no-such-model"
 
 
 # ------------------------------------------------------------------

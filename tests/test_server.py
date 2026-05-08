@@ -1,4 +1,5 @@
 import json
+import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -558,3 +559,103 @@ def test_job_audio_keep_false_deletes_existing_file(flask_client, tmp_path):
     )
     assert r.status_code == 200
     assert not audio.exists()
+
+
+# ------------------------------------------------------------------
+# /api/model-status
+# ------------------------------------------------------------------
+
+def test_model_status_not_downloaded(flask_client, monkeypatch):
+    import app.server as srv
+    monkeypatch.setattr(srv, "_dl", {})
+    with patch("app.transcription.local._model_is_downloaded", return_value=False):
+        r = flask_client.get("/api/model-status")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert "large-v3-turbo" in data
+    entry = data["large-v3-turbo"]
+    assert entry["downloaded"] is False
+    assert entry["downloading"] is False
+    assert entry["error"] is None
+    assert "disk_mb" in entry
+
+
+def test_model_status_downloaded(flask_client, monkeypatch):
+    import app.server as srv
+    monkeypatch.setattr(srv, "_dl", {})
+    with patch("app.transcription.local._model_is_downloaded", return_value=True):
+        r = flask_client.get("/api/model-status")
+    data = r.get_json()
+    assert data["large-v3-turbo"]["downloaded"] is True
+    assert data["large-v3-turbo"]["downloading"] is False
+
+
+def test_model_status_downloading_shows_mb(flask_client, monkeypatch):
+    import app.server as srv
+    monkeypatch.setattr(srv, "_dl", {
+        "large-v3-turbo": {"downloading": True, "downloaded_mb": 0, "error": None},
+    })
+    monkeypatch.setattr(srv, "_dir_size_mb", lambda path: 350.0)
+    with patch("app.transcription.local._model_is_downloaded", return_value=False):
+        r = flask_client.get("/api/model-status")
+    entry = r.get_json()["large-v3-turbo"]
+    assert entry["downloading"] is True
+    assert entry["downloaded_mb"] == 350
+
+
+def test_model_status_clears_dl_when_downloaded(flask_client, monkeypatch):
+    import app.server as srv
+    dl = {"large-v3-turbo": {"downloading": False, "downloaded_mb": 0, "error": None}}
+    monkeypatch.setattr(srv, "_dl", dl)
+    with patch("app.transcription.local._model_is_downloaded", return_value=True):
+        flask_client.get("/api/model-status")
+    assert "large-v3-turbo" not in dl
+
+
+# ------------------------------------------------------------------
+# /api/download-model
+# ------------------------------------------------------------------
+
+def test_download_model_unknown_returns_400(flask_client):
+    r = flask_client.post(
+        "/api/download-model",
+        data=json.dumps({"model": "nonexistent"}),
+        content_type="application/json",
+    )
+    assert r.status_code == 400
+    assert "error" in r.get_json()
+
+
+def test_download_model_already_downloading_is_idempotent(flask_client, monkeypatch):
+    import app.server as srv
+    dl = {"large-v3-turbo": {"downloading": True, "downloaded_mb": 0, "error": None}}
+    monkeypatch.setattr(srv, "_dl", dl)
+    with patch("app.transcription.local._model_is_downloaded", return_value=False):
+        r = flask_client.post(
+            "/api/download-model",
+            data=json.dumps({"model": "large-v3-turbo"}),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    assert r.get_json()["ok"] is True
+    assert dl["large-v3-turbo"]["downloading"] is True  # untouched
+
+
+def test_download_model_starts_background_download(flask_client, monkeypatch):
+    import app.server as srv
+    monkeypatch.setattr(srv, "_dl", {})
+    called = threading.Event()
+
+    def fake_download(*args, **kwargs):
+        called.set()
+
+    with patch("app.transcription.local._model_is_downloaded", return_value=False), \
+         patch("faster_whisper.utils.download_model", side_effect=fake_download):
+        r = flask_client.post(
+            "/api/download-model",
+            data=json.dumps({"model": "large-v3-turbo"}),
+            content_type="application/json",
+        )
+        assert r.status_code == 200
+        assert r.get_json()["ok"] is True
+        assert called.wait(timeout=3), "download_model was never called in background thread"
