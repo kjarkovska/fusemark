@@ -42,12 +42,13 @@ def test_model_not_downloaded_missing_dir(tmp_path):
 
 
 def test_model_not_downloaded_empty_cache_dir(tmp_path):
-    (tmp_path / "models--Systran--faster-whisper-large-v3-turbo").mkdir()
+    # large-v3-turbo maps to mobiuslabsgmbh/faster-whisper-large-v3-turbo
+    (tmp_path / "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo").mkdir()
     assert _model_is_downloaded(str(tmp_path), "large-v3-turbo") is False
 
 
 def test_model_downloaded_non_empty_cache_dir(tmp_path):
-    cache = tmp_path / "models--Systran--faster-whisper-large-v3-turbo"
+    cache = tmp_path / "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo"
     cache.mkdir()
     (cache / "config.json").write_text("{}", encoding="utf-8")
     assert _model_is_downloaded(str(tmp_path), "large-v3-turbo") is True

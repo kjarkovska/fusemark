@@ -310,7 +310,9 @@ def route_model_status():
         is_downloading = dl.get("downloading", False) and not downloaded
         downloaded_mb = 0
         if is_downloading:
-            cache_path = os.path.join(model_dir, f"models--Systran--faster-whisper-{name}")
+            from app.transcription.local import _repo_id
+            cache_name = "models--" + _repo_id(name).replace("/", "--")
+            cache_path = os.path.join(model_dir, cache_name)
             downloaded_mb = round(_dir_size_mb(cache_path))
         out[name] = {
             "downloaded": downloaded,
@@ -340,8 +342,8 @@ def route_download_model():
     def _run():
         try:
             os.makedirs(model_dir, exist_ok=True)
-            from huggingface_hub import snapshot_download
-            snapshot_download(repo_id=f"Systran/faster-whisper-{name}", cache_dir=model_dir)
+            from faster_whisper.utils import download_model
+            download_model(name, cache_dir=model_dir)
             _dl[name] = {"downloading": False, "downloaded_mb": 0, "error": None}
         except Exception as exc:
             _dl[name] = {"downloading": False, "downloaded_mb": 0, "error": str(exc)}

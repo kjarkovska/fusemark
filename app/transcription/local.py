@@ -2,7 +2,7 @@
 app/transcription/local.py — faster-whisper local transcription provider
 
 Transcribes an audio file using a local faster-whisper model stored in
-whisper_model_dir (defaults to %LOCALAPPDATA%\ObsiNote\models).
+whisper_model_dir (defaults to %LOCALAPPDATA%/ObsiNote/models).
 
 Raises ModelNotReadyError if the model has not been downloaded yet.
 """
@@ -20,9 +20,14 @@ logger = logging.getLogger(__name__)
 MODEL_CACHE: dict = {}
 
 
+def _repo_id(model_name: str) -> str:
+    from faster_whisper.utils import _MODELS
+    return _MODELS.get(model_name, f"Systran/faster-whisper-{model_name}")
+
+
 def _model_is_downloaded(model_dir: str, model_name: str) -> bool:
     """Check if the model exists in the HuggingFace cache under model_dir."""
-    cache_name = f"models--Systran--faster-whisper-{model_name}"
+    cache_name = "models--" + _repo_id(model_name).replace("/", "--")
     path = os.path.join(model_dir, cache_name)
     return os.path.isdir(path) and any(os.scandir(path))
 
