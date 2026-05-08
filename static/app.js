@@ -220,7 +220,7 @@ function renderJob(job) {
       progressLabel = 'Transcribing via API…';
     } else {
       const eta = etaFromJob(job);
-      progressLabel = eta ? `${progress}%, zbývá ${eta}` : `${progress}%`;
+      progressLabel = eta || `${progress}%`;
     }
   }
 
