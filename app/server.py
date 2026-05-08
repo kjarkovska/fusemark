@@ -279,7 +279,21 @@ def route_autostart_set():
     return jsonify({"ok": True})
 
 
-_dl: dict = {}  # model_name -> {"downloading": bool, "error": str|None}
+_dl: dict = {}  # model_name -> {"downloading": bool, "downloaded_mb": float, "error": str|None}
+
+
+def _dir_size_mb(path: str) -> float:
+    """Return total size of a directory tree in MB."""
+    if not os.path.isdir(path):
+        return 0.0
+    total = 0
+    for dirpath, _, filenames in os.walk(path):
+        for f in filenames:
+            try:
+                total += os.path.getsize(os.path.join(dirpath, f))
+            except OSError:
+                pass
+    return total / (1024 * 1024)
 
 
 @app.route("/api/model-status")
@@ -293,9 +307,15 @@ def route_model_status():
         downloaded = _model_is_downloaded(model_dir, name)
         if downloaded:
             _dl.pop(name, None)
+        is_downloading = dl.get("downloading", False) and not downloaded
+        downloaded_mb = 0
+        if is_downloading:
+            cache_path = os.path.join(model_dir, f"models--Systran--faster-whisper-{name}")
+            downloaded_mb = round(_dir_size_mb(cache_path))
         out[name] = {
             "downloaded": downloaded,
-            "downloading": dl.get("downloading", False) and not downloaded,
+            "downloading": is_downloading,
+            "downloaded_mb": downloaded_mb,
             "error": dl.get("error"),
             "disk_mb": info["disk_mb"],
         }
@@ -315,16 +335,16 @@ def route_download_model():
         return jsonify({"ok": True})
     if _dl.get(name, {}).get("downloading"):
         return jsonify({"ok": True})
-    _dl[name] = {"downloading": True, "error": None}
+    _dl[name] = {"downloading": True, "downloaded_mb": 0, "error": None}
 
     def _run():
         try:
             os.makedirs(model_dir, exist_ok=True)
             from huggingface_hub import snapshot_download
             snapshot_download(repo_id=f"Systran/faster-whisper-{name}", cache_dir=model_dir)
-            _dl[name] = {"downloading": False, "error": None}
+            _dl[name] = {"downloading": False, "downloaded_mb": 0, "error": None}
         except Exception as exc:
-            _dl[name] = {"downloading": False, "error": str(exc)}
+            _dl[name] = {"downloading": False, "downloaded_mb": 0, "error": str(exc)}
 
     threading.Thread(target=_run, daemon=True).start()
     return jsonify({"ok": True})

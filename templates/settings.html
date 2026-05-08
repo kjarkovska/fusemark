@@ -277,12 +277,19 @@
       document.getElementById('settings-msg').textContent = msg;
     }
 
+    let _modelPollVersion = 0;
+
     async function loadModelStatus() {
+      const version = ++_modelPollVersion;
       const model = document.getElementById('whisper_model').value;
       const msg = document.getElementById('model-dl-msg');
       const btn = document.getElementById('model-dl-btn');
-      const res = await fetch('/api/model-status');
-      const data = await res.json();
+      let data;
+      try {
+        const res = await fetch('/api/model-status');
+        data = await res.json();
+      } catch(e) { return; }
+      if (version !== _modelPollVersion) return; // superseded by newer call
       const info = data[model];
       if (!info) { msg.textContent = ''; btn.style.display = 'none'; return; }
       if (info.downloaded) {
@@ -290,10 +297,15 @@
         msg.className = 'model-dl-msg status-ok';
         btn.style.display = 'none';
       } else if (info.downloading) {
-        msg.textContent = 'Stahuji model… (může trvat několik minut)';
+        const dlMb = info.downloaded_mb || 0;
+        msg.textContent = `Stahuji… ${dlMb} MB / ${info.disk_mb} MB`;
         msg.className = 'model-dl-msg status-busy';
         btn.style.display = 'none';
-        setTimeout(loadModelStatus, 4000);
+        setTimeout(loadModelStatus, 3000);
+      } else if (info.error) {
+        msg.textContent = `Chyba: ${info.error}`;
+        msg.className = 'model-dl-msg status-warn';
+        btn.style.display = '';
       } else {
         msg.textContent = `Model není stažen (~${info.disk_mb} MB)`;
         msg.className = 'model-dl-msg status-warn';
@@ -302,14 +314,25 @@
     }
 
     async function downloadModel() {
+      ++_modelPollVersion; // cancel any in-flight poll
       const model = document.getElementById('whisper_model').value;
-      document.getElementById('model-dl-btn').style.display = 'none';
-      document.getElementById('model-dl-msg').textContent = 'Spouštím stahování…';
-      await fetch('/api/download-model', {
+      const msg = document.getElementById('model-dl-msg');
+      const btn = document.getElementById('model-dl-btn');
+      btn.style.display = 'none';
+      msg.textContent = 'Spouštím stahování…';
+      msg.className = 'model-dl-msg status-busy';
+      const res = await fetch('/api/download-model', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({model}),
       });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        msg.textContent = `Chyba: ${data.error || res.status}`;
+        msg.className = 'model-dl-msg status-warn';
+        btn.style.display = '';
+        return;
+      }
       setTimeout(loadModelStatus, 2000);
     }
 
