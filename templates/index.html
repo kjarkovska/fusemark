@@ -79,6 +79,7 @@
             <span class="notes-label-idle">Hrubé poznámky</span>
             <span class="notes-label-active">Rychlé poznámky</span>
             <button class="btn-ghost" onclick="openImportModal()">Importovat přepis</button>
+            <button class="btn-ghost" onclick="openAudioModal()">Importovat audio</button>
           </div>
           <textarea id="scratch" placeholder="Hrubé poznámky během porady..."></textarea>
         </div>
@@ -157,6 +158,69 @@
         <span id="import-msg" class="import-msg"></span>
         <button class="btn-ghost" onclick="closeImportModal()">Zrušit</button>
         <button class="btn-save-primary" onclick="submitImport()">Importovat a zpracovat</button>
+      </div>
+    </div>
+  </div>
+  <!-- Import Audio Modal -->
+  <div id="audio-modal" class="modal-overlay" style="display:none" onclick="closeAudioModal(event)">
+    <div class="modal-dialog" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title">Importovat audio</h2>
+        <button class="modal-close" onclick="closeAudioModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="field-row">
+          <div class="field-group">
+            <label class="field-label">Název porady</label>
+            <input type="text" id="audio-label" placeholder="Např. Týdenní porada" autocomplete="off">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Datum porady</label>
+            <input type="date" id="audio-date" class="import-date">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label class="field-label">Složka</label>
+            <select id="audio-folder">
+              {% for f in folders %}
+              <option value="{{ f }}">{{ f }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Šablona</label>
+            <select id="audio-template">
+              <option value="">— výchozí —</option>
+              {% if templates %}
+              {% for t in templates %}
+              <option value="{{ t }}" {% if config.default_template == t %}selected{% endif %}>{{ t }}</option>
+              {% endfor %}
+              {% endif %}
+            </select>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Audio soubor</label>
+          <div class="import-upload-row">
+            <label class="btn-secondary import-file-btn">
+              Vybrat soubor
+              <input type="file" id="audio-file" accept=".mp3,.wav,.m4a,.ogg,.flac"
+                     style="display:none" onchange="handleAudioFile(event)">
+            </label>
+            <span class="import-file-hint" id="audio-file-hint">Podporované formáty: .mp3, .wav, .m4a, .ogg, .flac</span>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Hrubé poznámky / kontext (volitelné)</label>
+          <textarea id="audio-scratch" class="import-textarea"
+                    placeholder="Poznámky k záznamu, účastníci, kontext..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <span id="audio-msg" class="import-msg"></span>
+        <button class="btn-ghost" onclick="closeAudioModal()">Zrušit</button>
+        <button class="btn-save-primary" onclick="submitAudioImport()">Importovat a zpracovat</button>
       </div>
     </div>
   </div>

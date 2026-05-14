@@ -165,6 +165,46 @@ def route_import_transcript():
     return jsonify({"job_id": job_id})
 
 
+@app.route("/import-audio", methods=["POST"])
+def route_import_audio():
+    if "audio" not in request.files:
+        return jsonify({"error": "audio file required"}), 400
+    file = request.files["audio"]
+    if not file or file.filename == "":
+        return jsonify({"error": "no file selected"}), 400
+
+    allowed = {".mp3", ".wav", ".m4a", ".ogg", ".flac"}
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in allowed:
+        return jsonify({"error": f"nepodporovaný formát (povoleno: {', '.join(sorted(allowed))})"}), 400
+
+    data = request.form
+    job_id = q.create_job(
+        label=data.get("label", ""),
+        folder=data.get("folder", "Other"),
+    )
+
+    recordings_dir = os.path.join(cfg.DATA_DIR, "recordings")
+    os.makedirs(recordings_dir, exist_ok=True)
+    audio_path = os.path.join(recordings_dir, f"{job_id}{ext}")
+    file.save(audio_path)
+
+    q.update_job(
+        job_id,
+        audio_path=audio_path,
+        recording_path=audio_path,
+        template=data.get("template") or None,
+        meeting_date=data.get("meeting_date") or None,
+        scratch_notes=data.get("scratch_notes") or None,
+    )
+    q.set_status(job_id, "queued")
+
+    if _tray:
+        _tray.set_tooltip("ObsiNote — Zpracovávám import")
+
+    return jsonify({"job_id": job_id})
+
+
 @app.route("/stop", methods=["POST"])
 def route_stop():
     data = request.get_json(silent=True) or {}

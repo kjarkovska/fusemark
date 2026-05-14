@@ -1,3 +1,4 @@
+import io
 import json
 import threading
 from unittest.mock import MagicMock, patch
@@ -114,6 +115,50 @@ def test_import_empty_template_stored_as_null(flask_client):
     )
     job = q.get_job(r.get_json()["job_id"])
     assert job["template"] is None
+
+
+# ------------------------------------------------------------------
+# Import audio
+# ------------------------------------------------------------------
+
+def test_import_audio_missing_file(flask_client):
+    r = flask_client.post("/import-audio", data={})
+    assert r.status_code == 400
+    assert "audio file required" in r.get_json()["error"]
+
+
+def test_import_audio_bad_extension(flask_client):
+    data = {"audio": (io.BytesIO(b"data"), "recording.exe")}
+    r = flask_client.post("/import-audio", data=data, content_type="multipart/form-data")
+    assert r.status_code == 400
+    assert "nepodporovaný formát" in r.get_json()["error"]
+
+
+def test_import_audio_success(flask_client, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.config.DATA_DIR", str(tmp_path))
+    audio_bytes = io.BytesIO(b"\xff\xfb\x90\x00" * 100)
+    data = {
+        "audio": (audio_bytes, "meeting.mp3"),
+        "label": "Standup",
+        "scratch_notes": "Discussed roadmap",
+    }
+    r = flask_client.post("/import-audio", data=data, content_type="multipart/form-data")
+    assert r.status_code == 200
+    job_id = r.get_json()["job_id"]
+    job = q.get_job(job_id)
+    assert job["status"] == "queued"
+    assert job["audio_path"].endswith(".mp3")
+    assert job["scratch_notes"] == "Discussed roadmap"
+    assert job["label"] == "Standup"
+
+
+def test_import_audio_no_scratch_notes(flask_client, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.config.DATA_DIR", str(tmp_path))
+    data = {"audio": (io.BytesIO(b"\x00" * 16), "clip.wav")}
+    r = flask_client.post("/import-audio", data=data, content_type="multipart/form-data")
+    assert r.status_code == 200
+    job = q.get_job(r.get_json()["job_id"])
+    assert not job["scratch_notes"]
 
 
 # ------------------------------------------------------------------

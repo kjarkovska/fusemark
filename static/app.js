@@ -389,6 +389,51 @@ function closeImportModal(event) {
   document.getElementById('import-msg').textContent = '';
 }
 
+let _audioFile = null;
+
+function openAudioModal() {
+  document.getElementById('audio-modal').style.display = 'flex';
+  document.getElementById('audio-label').focus();
+}
+
+function closeAudioModal(event) {
+  if (event && event.target !== document.getElementById('audio-modal')) return;
+  document.getElementById('audio-modal').style.display = 'none';
+  _audioFile = null;
+  document.getElementById('audio-file-hint').textContent =
+    'Podporované formáty: .mp3, .wav, .m4a, .ogg, .flac';
+  document.getElementById('audio-label').value = '';
+  document.getElementById('audio-scratch').value = '';
+  document.getElementById('audio-msg').textContent = '';
+}
+
+function handleAudioFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  _audioFile = file;
+  document.getElementById('audio-file-hint').textContent = file.name;
+  event.target.value = '';
+}
+
+async function submitAudioImport() {
+  const msgEl = document.getElementById('audio-msg');
+  if (!_audioFile) { msgEl.textContent = 'Vyberte audio soubor.'; return; }
+  const fd = new FormData();
+  fd.append('audio', _audioFile);
+  fd.append('label', document.getElementById('audio-label').value || '');
+  fd.append('folder', document.getElementById('audio-folder').value || 'Other');
+  fd.append('template', document.getElementById('audio-template').value || '');
+  fd.append('meeting_date', document.getElementById('audio-date').value || '');
+  fd.append('scratch_notes', document.getElementById('audio-scratch').value.trim());
+  const res = await fetch('/import-audio', {method: 'POST', body: fd});
+  if (!res.ok) {
+    const err = await res.json();
+    msgEl.textContent = 'Chyba: ' + (err.error || res.status);
+    return;
+  }
+  closeAudioModal();
+}
+
 function stripVtt(text) {
   return text
     .split('\n')
@@ -422,7 +467,6 @@ async function submitImport() {
   const folder = document.getElementById('import-folder')?.value || 'Other';
   const template = document.getElementById('import-template')?.value || '';
   const meeting_date = document.getElementById('import-date')?.value || '';
-
   const res = await fetch('/import-transcript', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
