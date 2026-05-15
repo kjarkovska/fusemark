@@ -885,3 +885,140 @@ def test_wizard_reset_sets_setup_complete_false(flask_client, tmp_path, monkeypa
     assert r.status_code == 200
     assert r.get_json()["ok"] is True
     assert cfg.load()["setup_complete"] is False
+
+
+# ------------------------------------------------------------------
+# P7 — Recordings size + cleanup
+# ------------------------------------------------------------------
+
+def test_recordings_size_no_dir_returns_zero(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    r = flask_client.get("/recordings/size")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["size_mb"] == 0
+
+
+def test_recordings_size_sums_mp3s(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    rdir = tmp_path / "recordings"
+    rdir.mkdir()
+    (rdir / "a.mp3").write_bytes(b"x" * 1024 * 512)  # 0.5 MB
+    (rdir / "b.mp3").write_bytes(b"x" * 1024 * 512)  # 0.5 MB
+    (rdir / "c.txt").write_bytes(b"x" * 1024 * 1024)  # ignored
+    r = flask_client.get("/recordings/size")
+    data = r.get_json()
+    assert data["size_mb"] == 1.0
+
+
+def test_recordings_cleanup_deletes_done_job_files(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    rdir = tmp_path / "recordings"
+    rdir.mkdir()
+    mp3 = rdir / "done_job.mp3"
+    mp3.write_bytes(b"audio")
+    job_id = q.create_job(label="test")
+    q.update_job(job_id, audio_path=str(mp3))
+    q.set_status(job_id, "queued")
+    q.set_status(job_id, "done")
+    r = flask_client.post("/recordings/cleanup")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["deleted"] == 1
+    assert not mp3.exists()
+
+
+def test_recordings_cleanup_keeps_active_job_files(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    rdir = tmp_path / "recordings"
+    rdir.mkdir()
+    mp3 = rdir / "active_job.mp3"
+    mp3.write_bytes(b"audio")
+    job_id = q.create_job(label="active")
+    q.update_job(job_id, audio_path=str(mp3))
+    q.set_status(job_id, "queued")
+    r = flask_client.post("/recordings/cleanup")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["deleted"] == 0
+    assert mp3.exists()
+
+
+# ------------------------------------------------------------------
+# P7 — settings/save accepts new fields
+# ------------------------------------------------------------------
+
+def test_settings_save_accepts_auto_delete(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    cfg.save({**cfg.DEFAULTS, "setup_complete": True})
+    r = flask_client.post(
+        "/settings/save",
+        data=json.dumps({"auto_delete_recordings": True, "max_recordings_gb": 3.0}),
+        content_type="application/json",
+    )
+    assert r.status_code == 200
+    assert r.get_json()["ok"] is True
+    saved = cfg.load()
+    assert saved["auto_delete_recordings"] is True
+    assert saved["max_recordings_gb"] == 3.0
+
+
+def test_settings_save_accepts_check_updates(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    cfg.save({**cfg.DEFAULTS, "setup_complete": True})
+    r = flask_client.post(
+        "/settings/save",
+        data=json.dumps({"check_updates": False}),
+        content_type="application/json",
+    )
+    assert r.status_code == 200
+    assert cfg.load()["check_updates"] is False
+
+
+# ------------------------------------------------------------------
+# P7 — test-llm-stored
+# ------------------------------------------------------------------
+
+def test_test_llm_stored_no_key_returns_false(flask_client, monkeypatch):
+    with patch("app.llm.anthropic_provider._get_api_key", return_value=""):
+        r = flask_client.post(
+            "/api/test-llm-stored",
+            data=json.dumps({"provider": "anthropic"}),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["ok"] is False
+    assert "key" in data["error"].lower() or "klíč" in data["error"].lower()
+
+
+# ------------------------------------------------------------------
+# P7 — update-check
+# ------------------------------------------------------------------
+
+def test_update_check_mocked_response(flask_client, tmp_path, monkeypatch):
+    import io
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    cfg.save({**cfg.DEFAULTS, "setup_complete": True})
+
+    fake_release = json.dumps({"tag_name": "v9.9.9", "html_url": "https://github.com/kjarkovska/note-taker/releases/tag/v9.9.9"}).encode()
+
+    class _FakeResp:
+        def read(self): return fake_release
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+
+    with patch("urllib.request.urlopen", return_value=_FakeResp()):
+        r = flask_client.post("/update-check")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["ok"] is True
+    assert data["update_available"] is True
+    assert data["version"] == "9.9.9"

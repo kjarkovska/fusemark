@@ -7,6 +7,21 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .model-table { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+    .model-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: border-color 0.15s; }
+    .model-row:hover { border-color: var(--accent); }
+    .model-row.selected { border-color: var(--accent); background: rgba(99,102,241,0.06); }
+    .model-row-name { font-weight: 500; flex: 1; }
+    .model-row-meta { color: var(--text-muted); font-size: 0.8rem; }
+    .model-badge { font-size: 0.72rem; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+    .model-badge.ok { background: rgba(34,197,94,0.15); color: #22c55e; }
+    .model-badge.warn { background: rgba(156,163,175,0.2); color: var(--text-muted); }
+    .model-recommended { font-size: 0.72rem; padding: 2px 7px; border-radius: 99px; background: rgba(99,102,241,0.15); color: var(--accent); margin-left: 6px; }
+    .model-progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+    .model-progress-fill { height: 100%; background: var(--accent); transition: width 0.5s; }
+    .model-dir-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; word-break: break-all; }
+  </style>
 </head>
 <body class="settings-page">
   <div class="settings-shell">
@@ -79,6 +94,43 @@
           <div class="field">
             <button class="btn-secondary btn-full" onclick="rerunWizard()">{{ t.wizard_rerun_btn }}</button>
           </div>
+          <div class="group-heading" style="margin-top: 8px;">{{ t.group_recordings }}</div>
+          <div class="field">
+            <label>{{ t.label_recordings_size }}</label>
+            <span id="recordings-size" style="color:var(--text-muted);font-size:0.875rem;">{{ recordings_size_mb }} MB</span>
+          </div>
+          <div class="field">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="auto_delete_recordings" {% if config.auto_delete_recordings %}checked{% endif %}>
+              {{ t.label_auto_delete }}
+            </label>
+          </div>
+          <div class="field" id="max-gb-row" {% if config.auto_delete_recordings %}style="display:none"{% endif %}>
+            <label>{{ t.label_max_recordings_gb }}</label>
+            <input type="number" id="max_recordings_gb" min="1" max="100" step="0.5" value="{{ config.max_recordings_gb }}" style="width:80px;">
+          </div>
+          <div class="field">
+            <button type="button" class="btn-secondary btn-full" onclick="deleteRecordings()">{{ t.btn_delete_recordings }}</button>
+          </div>
+          <div class="group-heading" style="margin-top: 8px;">{{ t.group_updates }}</div>
+          <div class="field">
+            <span style="color:var(--text-muted);font-size:0.8rem;">{{ t.label_current_version }}: {{ version }}</span>
+          </div>
+          <div class="field">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="check_updates" {% if config.check_updates %}checked{% endif %}>
+              {{ t.label_check_updates }}
+            </label>
+          </div>
+          <div class="field">
+            <span style="color:var(--text-muted);font-size:0.8rem;">{{ t.label_last_checked }}:
+              <span id="last-checked-display">{% if config.last_update_check %}{{ config.last_update_check[:10] }}{% else %}{{ t.msg_never_checked }}{% endif %}</span>
+            </span>
+          </div>
+          <div class="field">
+            <button type="button" class="btn-secondary" id="check-update-btn" onclick="checkForUpdates()">{{ t.btn_check_updates_now }}</button>
+          </div>
+          <div id="update-result" style="display:none;font-size:0.875rem;margin-top:4px;"></div>
         </section>
 
         <!-- Audio -->
@@ -129,18 +181,32 @@
               <!-- populated from /api/languages -->
             </select>
           </div>
-          <div class="field">
-            <label>{{ t.label_whisper_model }}</label>
-            <select id="whisper_model" onchange="loadModelStatus()">
-              {% for size in ['large-v3-turbo', 'large-v3'] %}
-              <option value="{{ size }}" {% if config.whisper_model == size %}selected{% endif %}>{{ size }}</option>
-              {% endfor %}
-            </select>
-            <div class="model-dl-row" id="model-dl-row">
-              <span class="model-dl-msg" id="model-dl-msg"></span>
-              <button class="btn-secondary" id="model-dl-btn" onclick="downloadModel()" style="display:none">{{ t.btn_download_model }}</button>
+          <div class="group-heading" style="margin-top: 8px;">{{ t.group_whisper_model }}</div>
+          <input type="hidden" id="whisper_model" value="{{ config.whisper_model }}">
+          <div class="model-table">
+            {% for model_name, model_info in [('large-v3-turbo', {'disk_mb': 1500, 'params': '809M'}), ('large-v3', {'disk_mb': 3100, 'params': '1.5B'})] %}
+            <div class="model-row {% if config.whisper_model == model_name %}selected{% endif %}"
+                 data-model="{{ model_name }}" onclick="selectModel('{{ model_name }}')">
+              <div class="model-row-name">
+                {{ model_name }}
+                {% if model_name == 'large-v3-turbo' %}<span class="model-recommended">{{ t.wizard_model_recommended }}</span>{% endif %}
+              </div>
+              <div class="model-row-meta">{{ model_info.params }} · {{ model_info.disk_mb }} MB</div>
+              <div class="model-badge {% if model_status[model_name].downloaded %}ok{% else %}warn{% endif %}"
+                   id="model-badge-{{ model_name }}">
+                {% if model_status[model_name].downloaded %}{{ t.badge_downloaded }}{% else %}{{ t.badge_not_downloaded }}{% endif %}
+              </div>
             </div>
+            {% endfor %}
           </div>
+          <div id="model-dl-row" style="margin-top:8px;">
+            <div id="model-dl-progress" style="display:none;">
+              <div class="model-progress-bar"><div class="model-progress-fill" id="model-dl-fill" style="width:0%"></div></div>
+              <span class="model-dl-msg status-busy" id="model-dl-msg"></span>
+            </div>
+            <button class="btn-secondary" id="model-dl-btn" onclick="downloadModel()" style="display:none">{{ t.btn_download_model }}</button>
+          </div>
+          <p class="model-dir-hint">{{ t.label_model_dir }}: {{ config.whisper_model_dir }}</p>
           <div class="field">
             <label>{{ t.label_default_template }}</label>
             <select id="default_template">
@@ -149,25 +215,28 @@
             <p class="field-hint">{{ t.hint_templates }}</p>
           </div>
           <div class="group-heading" style="margin-top: 8px;">{{ t.group_api_keys }}</div>
-          <div class="field">
+          <div id="key-row-anthropic" class="field">
             <label>{{ t.label_anthropic_key }}</label>
             <div class="input-action-row">
               <input type="password" id="api_key_anthropic" placeholder="sk-ant-...">
               <button class="btn-inline" onclick="saveApiKey('anthropic')">{{ t.btn_save_key }}</button>
+              <button class="btn-inline" onclick="testApiKey('anthropic')">{{ t.btn_test_key }}</button>
             </div>
           </div>
-          <div class="field">
+          <div id="key-row-openai" class="field">
             <label>{{ t.label_openai_key }}</label>
             <div class="input-action-row">
               <input type="password" id="api_key_openai" placeholder="sk-...">
               <button class="btn-inline" onclick="saveApiKey('openai')">{{ t.btn_save_key }}</button>
+              <button class="btn-inline" onclick="testApiKey('openai')">{{ t.btn_test_key }}</button>
             </div>
           </div>
-          <div class="field">
+          <div id="key-row-mistral" class="field">
             <label>{{ t.label_mistral_key }}</label>
             <div class="input-action-row">
               <input type="password" id="api_key_mistral" placeholder="...">
               <button class="btn-inline" onclick="saveApiKey('mistral')">{{ t.btn_save_key }}</button>
+              <button class="btn-inline" onclick="testApiKey('mistral')">{{ t.btn_test_key }}</button>
             </div>
           </div>
         </section>
@@ -244,6 +313,9 @@
           llm_provider: document.getElementById('llm_provider').value,
           language: document.getElementById('language').value,
           ui_language: document.getElementById('ui_language').value,
+          auto_delete_recordings: document.getElementById('auto_delete_recordings').checked,
+          max_recordings_gb: parseFloat(document.getElementById('max_recordings_gb').value) || 5.0,
+          check_updates: document.getElementById('check_updates').checked,
         })
       });
       const data = await res.json();
@@ -265,6 +337,59 @@
       const data = await res.json();
       showMsg(data.ok ? window.STRINGS.msg_api_key_saved : window.STRINGS.msg_error_prefix + JSON.stringify(data));
       document.getElementById('api_key_' + provider).value = '';
+    }
+
+    async function testApiKey(provider) {
+      const input = document.getElementById('api_key_' + provider);
+      const key = input.value.trim();
+      const url = key ? '/wizard/test-llm' : '/api/test-llm-stored';
+      const body = key ? {provider, key} : {provider};
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      showMsg(data.ok ? window.STRINGS.msg_key_ok : (data.error || window.STRINGS.msg_key_err));
+    }
+
+    function syncProviderVisibility() {
+      const p = document.getElementById('llm_provider').value;
+      ['anthropic', 'openai', 'mistral'].forEach(name => {
+        document.getElementById('key-row-' + name).style.display = (name === p) ? '' : 'none';
+      });
+    }
+    document.getElementById('llm_provider').addEventListener('change', syncProviderVisibility);
+    syncProviderVisibility();
+
+    document.getElementById('auto_delete_recordings').addEventListener('change', e => {
+      document.getElementById('max-gb-row').style.display = e.target.checked ? 'none' : '';
+    });
+
+    async function deleteRecordings() {
+      if (!confirm(window.STRINGS.msg_confirm_delete_recs)) return;
+      const data = await fetch('/recordings/cleanup', {method: 'POST'}).then(r => r.json());
+      showMsg(window.STRINGS.msg_recordings_deleted
+        .replace('{n}', data.deleted).replace('{mb}', data.freed_mb));
+      const s = await fetch('/recordings/size').then(r => r.json());
+      document.getElementById('recordings-size').textContent = s.size_mb + ' MB';
+    }
+
+    async function checkForUpdates() {
+      const btn = document.getElementById('check-update-btn');
+      btn.disabled = true;
+      const data = await fetch('/update-check', {method: 'POST'}).then(r => r.json());
+      btn.disabled = false;
+      const el = document.getElementById('update-result');
+      el.style.display = '';
+      if (!data.ok) { el.textContent = data.error; return; }
+      if (data.update_available) {
+        el.innerHTML = window.STRINGS.msg_update_available.replace('{version}', data.version)
+          + ' — <a href="' + data.url + '" target="_blank">GitHub</a>';
+      } else {
+        el.textContent = window.STRINGS.msg_up_to_date;
+      }
+      document.getElementById('last-checked-display').textContent = data.checked_at.slice(0, 10);
     }
 
     fetch('/autostart').then(r => r.json()).then(d => {
@@ -301,48 +426,75 @@
 
     let _modelPollVersion = 0;
 
+    function _refreshModelBadges(statusData) {
+      Object.entries(statusData).forEach(([name, info]) => {
+        const badge = document.getElementById('model-badge-' + name);
+        if (!badge) return;
+        badge.className = 'model-badge ' + (info.downloaded ? 'ok' : 'warn');
+        badge.textContent = info.downloaded
+          ? window.STRINGS.badge_downloaded
+          : window.STRINGS.badge_not_downloaded;
+      });
+    }
+
+    function selectModel(name) {
+      document.getElementById('whisper_model').value = name;
+      document.querySelectorAll('.model-row').forEach(el => {
+        el.classList.toggle('selected', el.dataset.model === name);
+      });
+      loadModelStatus();
+    }
+
     async function loadModelStatus() {
       const version = ++_modelPollVersion;
       const model = document.getElementById('whisper_model').value;
       const msg = document.getElementById('model-dl-msg');
       const btn = document.getElementById('model-dl-btn');
+      const progressDiv = document.getElementById('model-dl-progress');
+      const fill = document.getElementById('model-dl-fill');
       let data;
       try {
         const res = await fetch('/api/model-status');
         data = await res.json();
       } catch(e) { return; }
-      if (version !== _modelPollVersion) return; // superseded by newer call
+      if (version !== _modelPollVersion) return;
+      _refreshModelBadges(data);
       const info = data[model];
-      if (!info) { msg.textContent = ''; btn.style.display = 'none'; return; }
+      if (!info) { btn.style.display = 'none'; progressDiv.style.display = 'none'; return; }
       if (info.downloaded) {
-        msg.textContent = window.STRINGS.msg_model_downloaded;
-        msg.className = 'model-dl-msg status-ok';
+        progressDiv.style.display = 'none';
         btn.style.display = 'none';
       } else if (info.downloading) {
         const dlMb = info.downloaded_mb || 0;
+        const pct = info.disk_mb ? Math.round(dlMb / info.disk_mb * 100) : 0;
+        fill.style.width = pct + '%';
         msg.textContent = `${window.STRINGS.msg_downloading} ${dlMb} MB / ${info.disk_mb} MB`;
-        msg.className = 'model-dl-msg status-busy';
+        progressDiv.style.display = '';
         btn.style.display = 'none';
-        setTimeout(loadModelStatus, 3000);
+        setTimeout(loadModelStatus, 2000);
       } else if (info.error) {
-        msg.textContent = window.STRINGS.msg_error_prefix + info.error;
-        msg.className = 'model-dl-msg status-warn';
+        progressDiv.style.display = 'none';
+        btn.textContent = window.STRINGS.btn_change_model;
         btn.style.display = '';
+        showMsg(window.STRINGS.msg_error_prefix + info.error);
       } else {
-        msg.textContent = window.STRINGS.msg_model_not_downloaded_pre + info.disk_mb + ' MB)';
-        msg.className = 'model-dl-msg status-warn';
+        progressDiv.style.display = 'none';
+        btn.textContent = window.STRINGS.btn_download_model || '{{ t.btn_download_model }}';
         btn.style.display = '';
       }
     }
 
     async function downloadModel() {
-      ++_modelPollVersion; // cancel any in-flight poll
+      ++_modelPollVersion;
       const model = document.getElementById('whisper_model').value;
-      const msg = document.getElementById('model-dl-msg');
       const btn = document.getElementById('model-dl-btn');
+      const progressDiv = document.getElementById('model-dl-progress');
+      const fill = document.getElementById('model-dl-fill');
+      const msg = document.getElementById('model-dl-msg');
       btn.style.display = 'none';
+      fill.style.width = '0%';
       msg.textContent = window.STRINGS.msg_starting_download;
-      msg.className = 'model-dl-msg status-busy';
+      progressDiv.style.display = '';
       const res = await fetch('/api/download-model', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -350,9 +502,9 @@
       });
       const data = await res.json();
       if (!res.ok || data.error) {
-        msg.textContent = window.STRINGS.msg_error_prefix + (data.error || res.status);
-        msg.className = 'model-dl-msg status-warn';
+        progressDiv.style.display = 'none';
         btn.style.display = '';
+        showMsg(window.STRINGS.msg_error_prefix + (data.error || res.status));
         return;
       }
       setTimeout(loadModelStatus, 2000);

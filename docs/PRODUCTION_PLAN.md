@@ -933,6 +933,10 @@ python -m app.main
 
 ---
 
+## ✅ Phase P7 — Settings UI Extension — DONE (2026-05-15)
+
+Changes: `app/version.py` created with `VERSION = "1.0.0"` · Whisper model `<select>` replaced with clickable visual table (per-row Downloaded/Not downloaded badge, download progress bar, `model_dir` path display) · API key section shows only the active provider's row (JS `syncProviderVisibility()` on `llm_provider` change); "Test" button added per provider — tests entered key via `/wizard/test-llm` or stored keyring key via new `/api/test-llm-stored` · Recording housekeeping section added to General tab (size display, auto-delete toggle, max-GB input that hides when auto-delete on, "Delete processed recordings" button → `/recordings/cleanup`) · Update section added (version label, check-updates toggle, last-checked date, "Check now" → `/update-check` calls GitHub releases API and saves result to config) · `GET /settings` now passes `version`, `recordings_size_mb`, `model_status` to template · `POST /settings/save` extended to accept `auto_delete_recordings`, `max_recordings_gb`, `check_updates` · ~25 new i18n strings (en+cs) · 8 new tests; 247 total passing.
+
 ## Phase P7 — Settings UI Extension
 
 **Goal:** All new config options are accessible in Settings without using the wizard.

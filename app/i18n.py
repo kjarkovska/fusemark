@@ -166,6 +166,34 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         # Settings — Re-run wizard
         "wizard_group_setup":  "Setup",
         "wizard_rerun_btn":    "Re-run Setup Wizard",
+        # Settings P7 — API key test
+        "btn_test_key":            "Test",
+        "msg_key_ok":              "Connection OK",
+        "msg_key_err":             "Connection failed",
+        "msg_key_not_set":         "No key stored — enter a key to test.",
+        # Settings P7 — Whisper model table
+        "group_whisper_model":     "Transcription Model",
+        "label_model_dir":         "Model directory",
+        "badge_downloaded":        "Downloaded",
+        "badge_not_downloaded":    "Not downloaded",
+        "btn_change_model":        "Change",
+        # Settings P7 — Recording housekeeping
+        "group_recordings":        "Recordings",
+        "label_recordings_size":   "Total size",
+        "label_auto_delete":       "Auto-delete after processing",
+        "label_max_recordings_gb": "Keep recordings under (GB)",
+        "btn_delete_recordings":   "Delete processed recordings",
+        "msg_confirm_delete_recs": "Delete all recordings for processed jobs? This cannot be undone.",
+        "msg_recordings_deleted":  "Deleted {n} file(s), freed {mb} MB.",
+        # Settings P7 — Updates
+        "group_updates":           "Updates",
+        "label_check_updates":     "Check for updates automatically",
+        "btn_check_updates_now":   "Check now",
+        "label_current_version":   "Current version",
+        "label_last_checked":      "Last checked",
+        "msg_up_to_date":          "You are up to date.",
+        "msg_update_available":    "Update available: {version}",
+        "msg_never_checked":       "Never",
     },
     "cs": {
         # Nav
@@ -334,6 +362,34 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         # Settings — Re-run wizard
         "wizard_group_setup":  "Nastavení",
         "wizard_rerun_btn":    "Znovu spustit průvodce nastavením",
+        # Settings P7 — API key test
+        "btn_test_key":            "Otestovat",
+        "msg_key_ok":              "Připojení OK",
+        "msg_key_err":             "Připojení selhalo",
+        "msg_key_not_set":         "Žádný klíč — zadejte klíč pro test.",
+        # Settings P7 — Whisper model table
+        "group_whisper_model":     "Model přepisu",
+        "label_model_dir":         "Adresář modelů",
+        "badge_downloaded":        "Staženo",
+        "badge_not_downloaded":    "Nestaženo",
+        "btn_change_model":        "Změnit",
+        # Settings P7 — Recording housekeeping
+        "group_recordings":        "Nahrávky",
+        "label_recordings_size":   "Celková velikost",
+        "label_auto_delete":       "Smazat po zpracování",
+        "label_max_recordings_gb": "Zachovat nahrávky do (GB)",
+        "btn_delete_recordings":   "Smazat zpracované nahrávky",
+        "msg_confirm_delete_recs": "Smazat všechny nahrávky zpracovaných úloh? Tuto akci nelze vrátit zpět.",
+        "msg_recordings_deleted":  "Smazáno {n} soubor(ů), uvolněno {mb} MB.",
+        # Settings P7 — Updates
+        "group_updates":           "Aktualizace",
+        "label_check_updates":     "Automaticky kontrolovat aktualizace",
+        "btn_check_updates_now":   "Zkontrolovat teď",
+        "label_current_version":   "Aktuální verze",
+        "label_last_checked":      "Naposledy zkontrolováno",
+        "msg_up_to_date":          "Máte nejnovější verzi.",
+        "msg_update_available":    "Dostupná aktualizace: {version}",
+        "msg_never_checked":       "Nikdy",
     },
 }
 

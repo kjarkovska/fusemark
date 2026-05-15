@@ -29,6 +29,7 @@ from app import queue as q
 from app.exceptions import LLMAuthError, LLMRateLimitError
 from app.i18n import get_strings
 from app.recorder import Recorder, list_devices as list_audio_devices
+from app.version import VERSION
 
 app = Flask(
     __name__,
@@ -131,7 +132,23 @@ def settings():
     config = cfg.load()
     devices = _get_devices()
     t = get_strings(config.get("ui_language", "en"))
-    return render_template("settings.html", config=config, devices=devices, t=t)
+    recordings_dir = os.path.join(cfg.DATA_DIR, "recordings")
+    size_mb = round(_recordings_size_mb(recordings_dir), 1)
+    from app.transcription.local import _model_is_downloaded
+    model_dir = config.get("whisper_model_dir", "")
+    model_status = {
+        name: {"downloaded": _model_is_downloaded(model_dir, name), "disk_mb": info["disk_mb"]}
+        for name, info in cfg.WHISPER_MODEL_SIZES.items()
+    }
+    return render_template(
+        "settings.html",
+        config=config,
+        devices=devices,
+        t=t,
+        version=VERSION,
+        recordings_size_mb=size_mb,
+        model_status=model_status,
+    )
 
 
 @app.route("/start", methods=["POST"])
@@ -305,6 +322,12 @@ def route_settings_save():
         lang_entry = next((l for l in cfg.SUPPORTED_LANGUAGES if l["code"] == lang_code), None)
         if lang_entry:
             config["language_name"] = lang_entry["name"]
+    if "auto_delete_recordings" in data:
+        config["auto_delete_recordings"] = bool(data["auto_delete_recordings"])
+    if "max_recordings_gb" in data:
+        config["max_recordings_gb"] = float(data["max_recordings_gb"])
+    if "check_updates" in data:
+        config["check_updates"] = bool(data["check_updates"])
     cfg.save(config)
     return jsonify({"ok": True})
 
@@ -327,6 +350,17 @@ def route_autostart_set():
 
 
 _dl: dict = {}  # model_name -> {"downloading": bool, "downloaded_mb": float, "error": str|None}
+
+
+def _recordings_size_mb(recordings_dir: str) -> float:
+    if not os.path.isdir(recordings_dir):
+        return 0.0
+    total = sum(
+        os.path.getsize(os.path.join(recordings_dir, f))
+        for f in os.listdir(recordings_dir)
+        if f.endswith(".mp3")
+    )
+    return total / (1024 * 1024)
 
 
 def _dir_size_mb(path: str) -> float:
@@ -409,6 +443,94 @@ def route_templates():
     config = cfg.load()
     from app.notes import list_templates
     return jsonify(list_templates(config.get("vault_path", "")))
+
+
+@app.route("/recordings/size")
+def recordings_size():
+    d = os.path.join(cfg.DATA_DIR, "recordings")
+    mb = round(_recordings_size_mb(d), 1)
+    return jsonify({"size_mb": mb, "size_gb": round(mb / 1024, 2)})
+
+
+@app.route("/recordings/cleanup", methods=["POST"])
+def recordings_cleanup():
+    recordings_dir = os.path.join(cfg.DATA_DIR, "recordings")
+    if not os.path.isdir(recordings_dir):
+        return jsonify({"deleted": 0, "freed_mb": 0.0})
+    active_paths = {
+        j["audio_path"]
+        for j in q.list_jobs()
+        if j.get("status") not in ("done", "error") and j.get("audio_path")
+    }
+    deleted, freed = 0, 0
+    for fname in os.listdir(recordings_dir):
+        if not fname.endswith(".mp3"):
+            continue
+        fpath = os.path.join(recordings_dir, fname)
+        if fpath in active_paths:
+            continue
+        try:
+            freed += os.path.getsize(fpath)
+            os.remove(fpath)
+            deleted += 1
+        except OSError:
+            pass
+    return jsonify({"deleted": deleted, "freed_mb": round(freed / (1024 * 1024), 1)})
+
+
+@app.route("/api/test-llm-stored", methods=["POST"])
+def test_llm_stored():
+    body = request.get_json(silent=True) or {}
+    provider = body.get("provider", "")
+    dispatch = {
+        "anthropic": "app.llm.anthropic_provider",
+        "openai":    "app.llm.openai_provider",
+        "mistral":   "app.llm.mistral_provider",
+    }
+    if provider not in dispatch:
+        return jsonify({"ok": False, "error": "Unknown provider"}), 400
+    import importlib
+    p = importlib.import_module(dispatch[provider])
+    key = p._get_api_key()
+    if not key:
+        t = get_strings(cfg.load().get("ui_language", "en"))
+        return jsonify({"ok": False, "error": t["msg_key_not_set"]})
+    try:
+        p.test_connection(key)
+        return jsonify({"ok": True})
+    except LLMAuthError as exc:
+        return jsonify({"ok": False, "error": str(exc)})
+    except LLMRateLimitError as exc:
+        return jsonify({"ok": False, "error": str(exc)})
+
+
+@app.route("/update-check", methods=["POST"])
+def update_check_route():
+    import urllib.request
+    import datetime
+    RELEASES_URL = "https://api.github.com/repos/kjarkovska/note-taker/releases/latest"
+
+    def _ver(v):
+        return tuple(int(x) for x in v.lstrip("v").split("."))
+
+    try:
+        req = urllib.request.Request(
+            RELEASES_URL, headers={"User-Agent": f"ObsiNote/{VERSION}"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read())
+        latest = data["tag_name"].lstrip("v")
+        update_available = _ver(latest) > _ver(VERSION)
+        url = data.get("html_url", "")
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        config = cfg.load()
+        config["last_update_check"] = now
+        config["latest_known_version"] = latest
+        cfg.save(config)
+        return jsonify({"ok": True, "update_available": update_available,
+                        "version": latest, "url": url, "checked_at": now})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 @app.route("/open-glossary", methods=["POST"])
