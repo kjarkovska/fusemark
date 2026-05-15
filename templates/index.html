@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="{{ config.ui_language or 'en' }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,14 +17,14 @@
     </div>
     <a href="/settings" class="settings-link">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      Nastavení
+      {{ t.nav_settings }}
     </a>
   </nav>
 
   {% if show_vault_warning %}
   <div class="warning-banner">
-    Output folder not configured — notes cannot be saved.
-    <a href="/settings" class="warning-link">Configure in Settings</a>
+    {{ t.warning_vault_not_set }}
+    <a href="/settings" class="warning-link">{{ t.warning_vault_link }}</a>
   </div>
   {% endif %}
 
@@ -36,12 +36,12 @@
 
         <div class="recorder-form">
           <div class="field-group">
-            <label class="field-label">Název porady</label>
-            <input type="text" id="label" placeholder="Název porady" autocomplete="off">
+            <label class="field-label">{{ t.label_meeting_name }}</label>
+            <input type="text" id="label" placeholder="{{ t.placeholder_meeting_name }}" autocomplete="off">
           </div>
           <div class="field-row">
             <div class="field-group">
-              <label class="field-label">Složka</label>
+              <label class="field-label">{{ t.label_folder }}</label>
               <select id="folder">
                 {% for f in folders %}
                 <option value="{{ f }}">{{ f }}</option>
@@ -50,11 +50,11 @@
             </div>
             {% if templates %}
             <div class="field-group">
-              <label class="field-label">Šablona</label>
+              <label class="field-label">{{ t.label_template }}</label>
               <select id="template">
-                <option value="">— výchozí —</option>
-                {% for t in templates %}
-                <option value="{{ t }}" {% if config.default_template == t %}selected{% endif %}>{{ t }}</option>
+                <option value="">{{ t.opt_default_template }}</option>
+                {% for tmpl in templates %}
+                <option value="{{ tmpl }}" {% if config.default_template == tmpl %}selected{% endif %}>{{ tmpl }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -64,24 +64,24 @@
 
         <div class="recorder-status-row">
           <span class="rec-dot"></span>
-          <span class="rec-eyebrow">Nahrávám</span>
+          <span class="rec-eyebrow">{{ t.rec_status_label }}</span>
           <span class="rec-spacer"></span>
           <div class="level-meter" id="level-meter" aria-hidden="true"></div>
         </div>
 
         <div class="timer-row">
           <div id="timer">00:00</div>
-          <button id="rec-btn" class="btn-start" onclick="toggleRecording()">Spustit nahrávání</button>
+          <button id="rec-btn" class="btn-start" onclick="toggleRecording()">{{ t.btn_start_recording }}</button>
         </div>
 
         <div class="notes-section">
           <div class="notes-header">
-            <span class="notes-label-idle">Hrubé poznámky</span>
-            <span class="notes-label-active">Rychlé poznámky</span>
-            <button class="btn-ghost" onclick="openImportModal()">Importovat přepis</button>
-            <button class="btn-ghost" onclick="openAudioModal()">Importovat audio</button>
+            <span class="notes-label-idle">{{ t.notes_label_idle }}</span>
+            <span class="notes-label-active">{{ t.notes_label_active }}</span>
+            <button class="btn-ghost" onclick="openImportModal()">{{ t.btn_import_transcript }}</button>
+            <button class="btn-ghost" onclick="openAudioModal()">{{ t.btn_import_audio }}</button>
           </div>
-          <textarea id="scratch" placeholder="Hrubé poznámky během porady..."></textarea>
+          <textarea id="scratch" placeholder="{{ t.scratch_placeholder }}"></textarea>
         </div>
 
       </section>
@@ -90,37 +90,38 @@
     <!-- Right panel: job queue -->
     <div class="right-panel">
       <div class="right-panel-header">
-        <h2>Fronta zpracování</h2>
-        <button class="btn-ghost" onclick="clearCompleted()">Vymazat historii</button>
+        <h2>{{ t.jobs_panel_title }}</h2>
+        <button class="btn-ghost" onclick="clearCompleted()">{{ t.btn_clear_history }}</button>
       </div>
-      <div class="right-panel-list" id="jobs-list">Načítám...</div>
+      <div class="right-panel-list" id="jobs-list">{{ t.jobs_loading }}</div>
     </div>
 
   </div>
 
+  <script>window.STRINGS = {{ t | tojson }};</script>
   <script src="/static/app.js"></script>
 
   <!-- Import Transcript Modal -->
   <div id="import-modal" class="modal-overlay" style="display:none" onclick="closeImportModal(event)">
     <div class="modal-dialog" onclick="event.stopPropagation()">
       <div class="modal-header">
-        <h2 class="modal-title">Importovat přepis</h2>
+        <h2 class="modal-title">{{ t.modal_import_transcript_title }}</h2>
         <button class="modal-close" onclick="closeImportModal()">&times;</button>
       </div>
       <div class="modal-body">
         <div class="field-row">
           <div class="field-group">
-            <label class="field-label">Název porady</label>
-            <input type="text" id="import-label" placeholder="Např. Týdenní porada" autocomplete="off">
+            <label class="field-label">{{ t.label_meeting_name }}</label>
+            <input type="text" id="import-label" placeholder="{{ t.placeholder_label }}" autocomplete="off">
           </div>
           <div class="field-group">
-            <label class="field-label">Datum porady</label>
+            <label class="field-label">{{ t.label_meeting_date }}</label>
             <input type="date" id="import-date" class="import-date">
           </div>
         </div>
         <div class="field-row">
           <div class="field-group">
-            <label class="field-label">Složka</label>
+            <label class="field-label">{{ t.label_folder }}</label>
             <select id="import-folder">
               {% for f in folders %}
               <option value="{{ f }}">{{ f }}</option>
@@ -128,36 +129,36 @@
             </select>
           </div>
           <div class="field-group">
-            <label class="field-label">Šablona</label>
+            <label class="field-label">{{ t.label_template }}</label>
             <select id="import-template">
-              <option value="">— výchozí —</option>
+              <option value="">{{ t.opt_default_template }}</option>
               {% if templates %}
-              {% for t in templates %}
-              <option value="{{ t }}" {% if config.default_template == t %}selected{% endif %}>{{ t }}</option>
+              {% for tmpl in templates %}
+              <option value="{{ tmpl }}" {% if config.default_template == tmpl %}selected{% endif %}>{{ tmpl }}</option>
               {% endfor %}
               {% endif %}
             </select>
           </div>
         </div>
         <div class="field-group">
-          <label class="field-label">Vložit přepis</label>
-          <textarea id="import-transcript" class="import-textarea" placeholder="Sem vložte text přepisu..."></textarea>
+          <label class="field-label">{{ t.label_paste_transcript }}</label>
+          <textarea id="import-transcript" class="import-textarea" placeholder="{{ t.placeholder_transcript }}"></textarea>
         </div>
         <div class="field-group">
-          <label class="field-label">Nebo nahrajte soubor</label>
+          <label class="field-label">{{ t.label_upload_file }}</label>
           <div class="import-upload-row">
             <label class="btn-secondary import-file-btn">
-              Vybrat soubor
+              {{ t.btn_select_file }}
               <input type="file" id="import-file" accept=".txt,.md,.vtt" style="display:none" onchange="handleImportFile(event)">
             </label>
-            <span class="import-file-hint">Podporované formáty: .txt, .md, .vtt</span>
+            <span class="import-file-hint">{{ t.hint_transcript_formats }}</span>
           </div>
         </div>
       </div>
       <div class="modal-footer">
         <span id="import-msg" class="import-msg"></span>
-        <button class="btn-ghost" onclick="closeImportModal()">Zrušit</button>
-        <button class="btn-save-primary" onclick="submitImport()">Importovat a zpracovat</button>
+        <button class="btn-ghost" onclick="closeImportModal()">{{ t.btn_cancel }}</button>
+        <button class="btn-save-primary" onclick="submitImport()">{{ t.btn_import_process }}</button>
       </div>
     </div>
   </div>
@@ -165,23 +166,23 @@
   <div id="audio-modal" class="modal-overlay" style="display:none" onclick="closeAudioModal(event)">
     <div class="modal-dialog" onclick="event.stopPropagation()">
       <div class="modal-header">
-        <h2 class="modal-title">Importovat audio</h2>
+        <h2 class="modal-title">{{ t.modal_import_audio_title }}</h2>
         <button class="modal-close" onclick="closeAudioModal()">&times;</button>
       </div>
       <div class="modal-body">
         <div class="field-row">
           <div class="field-group">
-            <label class="field-label">Název porady</label>
-            <input type="text" id="audio-label" placeholder="Např. Týdenní porada" autocomplete="off">
+            <label class="field-label">{{ t.label_meeting_name }}</label>
+            <input type="text" id="audio-label" placeholder="{{ t.placeholder_label }}" autocomplete="off">
           </div>
           <div class="field-group">
-            <label class="field-label">Datum porady</label>
+            <label class="field-label">{{ t.label_meeting_date }}</label>
             <input type="date" id="audio-date" class="import-date">
           </div>
         </div>
         <div class="field-row">
           <div class="field-group">
-            <label class="field-label">Složka</label>
+            <label class="field-label">{{ t.label_folder }}</label>
             <select id="audio-folder">
               {% for f in folders %}
               <option value="{{ f }}">{{ f }}</option>
@@ -189,38 +190,38 @@
             </select>
           </div>
           <div class="field-group">
-            <label class="field-label">Šablona</label>
+            <label class="field-label">{{ t.label_template }}</label>
             <select id="audio-template">
-              <option value="">— výchozí —</option>
+              <option value="">{{ t.opt_default_template }}</option>
               {% if templates %}
-              {% for t in templates %}
-              <option value="{{ t }}" {% if config.default_template == t %}selected{% endif %}>{{ t }}</option>
+              {% for tmpl in templates %}
+              <option value="{{ tmpl }}" {% if config.default_template == tmpl %}selected{% endif %}>{{ tmpl }}</option>
               {% endfor %}
               {% endif %}
             </select>
           </div>
         </div>
         <div class="field-group">
-          <label class="field-label">Audio soubor</label>
+          <label class="field-label">{{ t.label_audio_file }}</label>
           <div class="import-upload-row">
             <label class="btn-secondary import-file-btn">
-              Vybrat soubor
+              {{ t.btn_select_file }}
               <input type="file" id="audio-file" accept=".mp3,.wav,.m4a,.ogg,.flac"
                      style="display:none" onchange="handleAudioFile(event)">
             </label>
-            <span class="import-file-hint" id="audio-file-hint">Podporované formáty: .mp3, .wav, .m4a, .ogg, .flac</span>
+            <span class="import-file-hint" id="audio-file-hint">{{ t.hint_audio_formats }}</span>
           </div>
         </div>
         <div class="field-group">
-          <label class="field-label">Hrubé poznámky / kontext (volitelné)</label>
+          <label class="field-label">{{ t.label_scratch_notes }}</label>
           <textarea id="audio-scratch" class="import-textarea"
-                    placeholder="Poznámky k záznamu, účastníci, kontext..."></textarea>
+                    placeholder="{{ t.placeholder_scratch_notes }}"></textarea>
         </div>
       </div>
       <div class="modal-footer">
         <span id="audio-msg" class="import-msg"></span>
-        <button class="btn-ghost" onclick="closeAudioModal()">Zrušit</button>
-        <button class="btn-save-primary" onclick="submitAudioImport()">Importovat a zpracovat</button>
+        <button class="btn-ghost" onclick="closeAudioModal()">{{ t.btn_cancel }}</button>
+        <button class="btn-save-primary" onclick="submitAudioImport()">{{ t.btn_import_process }}</button>
       </div>
     </div>
   </div>

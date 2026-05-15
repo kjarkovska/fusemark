@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="{{ config.ui_language or 'en' }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nastavení — ObsiNote</title>
+  <title>{{ t.settings_title }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
@@ -13,10 +13,10 @@
 
     <!-- Header -->
     <header class="settings-header">
-      <a href="/" class="back-link" aria-label="Zpět">
+      <a href="/" class="back-link" aria-label="{{ t.settings_back_aria }}">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
       </a>
-      <h1>Nastavení</h1>
+      <h1>{{ t.settings_h1 }}</h1>
     </header>
 
     <!-- Two-column body -->
@@ -26,70 +26,77 @@
       <nav class="settings-nav">
         <a data-tab="obecne" class="settings-nav-item settings-nav-active">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 2h9a2 2 0 012 2z"/></svg>
-          Obecné
+          {{ t.tab_general }}
         </a>
         <a data-tab="zvuk" class="settings-nav-item">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-          Zvuk
+          {{ t.tab_audio }}
         </a>
         <a data-tab="llm" class="settings-nav-item">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-          LLM
+          {{ t.tab_llm }}
         </a>
         <a data-tab="nastroje" class="settings-nav-item">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
-          Nástroje
+          {{ t.tab_tools }}
         </a>
       </nav>
 
       <!-- Right scrollable content -->
       <div class="settings-content">
 
-        <!-- Obecné (Cesty + Systém merged) -->
+        <!-- General (Paths + System + UI Language) -->
         <section data-section="obecne" class="settings-section">
-          <div class="group-heading">Cesty</div>
+          <div class="group-heading">{{ t.group_paths }}</div>
           <div class="field">
-            <label>Cesta k Obsidian vaultu</label>
+            <label>{{ t.label_vault_path }}</label>
             <div class="input-action-row">
-              <input type="text" id="vault_path" value="{{ config.vault_path or '' }}" placeholder="C:\Users\...\Obsidian Vault">
-              <button class="btn-icon" title="Procházet" aria-label="Procházet">
+              <input type="text" id="vault_path" value="{{ config.vault_path or '' }}" placeholder="{{ t.placeholder_vault_path }}">
+              <button class="btn-icon" title="{{ t.btn_browse }}" aria-label="{{ t.btn_browse }}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 2h9a2 2 0 012 2z"/></svg>
               </button>
             </div>
           </div>
-          <div class="group-heading" style="margin-top: 8px;">Systém</div>
+          <div class="group-heading" style="margin-top: 8px;">{{ t.group_system }}</div>
           <div class="autostart-row">
             <div class="autostart-label">
-              <span>Spustit automaticky se systémem Windows</span>
-              <span class="field-hint">Aplikace poběží na pozadí v systémové liště.</span>
+              <span>{{ t.label_autostart }}</span>
+              <span class="field-hint">{{ t.hint_autostart }}</span>
             </div>
             <label class="toggle-label">
               <input type="checkbox" id="autostart" onchange="toggleAutostart()">
               <span class="toggle-track"><span class="toggle-thumb"></span></span>
             </label>
           </div>
+          <div class="group-heading" style="margin-top: 8px;">{{ t.group_ui_language }}</div>
+          <div class="field">
+            <select id="ui_language">
+              <option value="en" {% if config.ui_language == 'en' %}selected{% endif %}>{{ t.opt_lang_en }}</option>
+              <option value="cs" {% if config.ui_language == 'cs' %}selected{% endif %}>{{ t.opt_lang_cs }}</option>
+            </select>
+          </div>
         </section>
 
-        <!-- Zvuk -->
+        <!-- Audio -->
         <section data-section="zvuk" class="settings-section">
-          <div class="group-heading">Nastavení zvuku</div>
+          <div class="group-heading">{{ t.group_audio }}</div>
           <div class="field">
-            <label>Výstupní zařízení (loopback — systémový zvuk)</label>
+            <label>{{ t.label_output_device }}</label>
             <select id="output_device">
-              <option value="null">Výchozí</option>
+              <option value="null">{{ t.opt_device_default }}</option>
               {% for d in devices %}
               {% if d.is_output %}
               <option value="{{ d.index }}" {% if config.output_device == d.index %}selected{% endif %}>
-                [{{ d.index }}] {{ d.name }}{% if d.is_loopback %} (loopback){% endif %}
+                [{{ d.index }}] {{ d.name }}{% if d.is_loopback %} {{ t.msg_loopback_hint }}{% endif %}
               </option>
               {% endif %}
               {% endfor %}
             </select>
           </div>
           <div class="field">
-            <label>Vstupní zařízení (mikrofon)</label>
+            <label>{{ t.label_input_device }}</label>
             <select id="input_device">
-              <option value="null">Výchozí</option>
+              <option value="null">{{ t.opt_device_default }}</option>
               {% for d in devices %}
               {% if d.is_input and not d.is_loopback %}
               <option value="{{ d.index }}" {% if config.input_device == d.index %}selected{% endif %}>
@@ -103,9 +110,9 @@
 
         <!-- LLM -->
         <section data-section="llm" class="settings-section">
-          <div class="group-heading">LLM a přepis</div>
+          <div class="group-heading">{{ t.group_llm_transcription }}</div>
           <div class="field">
-            <label>LLM provider</label>
+            <label>{{ t.label_llm_provider }}</label>
             <select id="llm_provider">
               <option value="anthropic" {% if config.llm_provider == 'anthropic' %}selected{% endif %}>Anthropic (Claude)</option>
               <option value="openai" {% if config.llm_provider == 'openai' %}selected{% endif %}>OpenAI (GPT-4o mini)</option>
@@ -113,13 +120,13 @@
             </select>
           </div>
           <div class="field">
-            <label>Jazyk přepisu a poznámek</label>
+            <label>{{ t.label_transcription_language }}</label>
             <select id="language">
               <!-- populated from /api/languages -->
             </select>
           </div>
           <div class="field">
-            <label>Model Whisper</label>
+            <label>{{ t.label_whisper_model }}</label>
             <select id="whisper_model" onchange="loadModelStatus()">
               {% for size in ['large-v3-turbo', 'large-v3'] %}
               <option value="{{ size }}" {% if config.whisper_model == size %}selected{% endif %}>{{ size }}</option>
@@ -127,56 +134,56 @@
             </select>
             <div class="model-dl-row" id="model-dl-row">
               <span class="model-dl-msg" id="model-dl-msg"></span>
-              <button class="btn-secondary" id="model-dl-btn" onclick="downloadModel()" style="display:none">Stáhnout model</button>
+              <button class="btn-secondary" id="model-dl-btn" onclick="downloadModel()" style="display:none">{{ t.btn_download_model }}</button>
             </div>
           </div>
           <div class="field">
-            <label>Výchozí šablona</label>
+            <label>{{ t.label_default_template }}</label>
             <select id="default_template">
-              <option value="">— vestavěná šablona —</option>
+              <option value="">{{ t.opt_default_template }}</option>
             </select>
-            <p class="field-hint">Šablony jsou .md soubory ve složce <code>ObsiNote/Templates/</code> ve vaultu.</p>
+            <p class="field-hint">{{ t.hint_templates }}</p>
           </div>
-          <div class="group-heading" style="margin-top: 8px;">API klíče</div>
+          <div class="group-heading" style="margin-top: 8px;">{{ t.group_api_keys }}</div>
           <div class="field">
-            <label>Anthropic API klíč</label>
+            <label>{{ t.label_anthropic_key }}</label>
             <div class="input-action-row">
               <input type="password" id="api_key_anthropic" placeholder="sk-ant-...">
-              <button class="btn-inline" onclick="saveApiKey('anthropic')">Uložit</button>
+              <button class="btn-inline" onclick="saveApiKey('anthropic')">{{ t.btn_save_key }}</button>
             </div>
           </div>
           <div class="field">
-            <label>OpenAI API klíč</label>
+            <label>{{ t.label_openai_key }}</label>
             <div class="input-action-row">
               <input type="password" id="api_key_openai" placeholder="sk-...">
-              <button class="btn-inline" onclick="saveApiKey('openai')">Uložit</button>
+              <button class="btn-inline" onclick="saveApiKey('openai')">{{ t.btn_save_key }}</button>
             </div>
           </div>
           <div class="field">
-            <label>Mistral API klíč</label>
+            <label>{{ t.label_mistral_key }}</label>
             <div class="input-action-row">
               <input type="password" id="api_key_mistral" placeholder="...">
-              <button class="btn-inline" onclick="saveApiKey('mistral')">Uložit</button>
+              <button class="btn-inline" onclick="saveApiKey('mistral')">{{ t.btn_save_key }}</button>
             </div>
           </div>
         </section>
 
-        <!-- Nástroje -->
+        <!-- Tools -->
         <section data-section="nastroje" class="settings-section">
-          <div class="group-heading">Nástroje</div>
+          <div class="group-heading">{{ t.group_tools }}</div>
           <div class="field">
-            <label>Úroveň logování</label>
+            <label>{{ t.label_log_level }}</label>
             <div class="log-row">
               <select id="log_level">
                 {% for level in ['DEBUG', 'INFO', 'WARNING', 'ERROR'] %}
                 <option value="{{ level }}" {% if config.log_level == level %}selected{% endif %}>{{ level }}</option>
                 {% endfor %}
               </select>
-              <button class="btn-inline" onclick="openLog()">Otevřít log</button>
+              <button class="btn-inline" onclick="openLog()">{{ t.btn_open_log }}</button>
             </div>
           </div>
           <div class="field">
-            <button class="btn-secondary btn-full" onclick="openGlossary()">Otevřít slovník</button>
+            <button class="btn-secondary btn-full" onclick="openGlossary()">{{ t.btn_open_glossary }}</button>
           </div>
         </section>
 
@@ -186,11 +193,12 @@
     <!-- Sticky footer -->
     <footer class="settings-footer">
       <div id="settings-msg"></div>
-      <button class="btn-save-primary" onclick="saveSettings()">Uložit nastavení</button>
+      <button class="btn-save-primary" onclick="saveSettings()">{{ t.btn_save_settings }}</button>
     </footer>
 
   </div>
 
+  <script>window.STRINGS = {{ t | tojson }};</script>
   <script src="/static/app.js"></script>
   <script>
     const _currentDefaultTemplate = '{{ config.default_template or "" }}';
@@ -198,11 +206,11 @@
 
     fetch('/api/templates').then(r => r.json()).then(templates => {
       const sel = document.getElementById('default_template');
-      templates.forEach(t => {
+      templates.forEach(tmpl => {
         const opt = document.createElement('option');
-        opt.value = t;
-        opt.textContent = t;
-        if (t === _currentDefaultTemplate) opt.selected = true;
+        opt.value = tmpl;
+        opt.textContent = tmpl;
+        if (tmpl === _currentDefaultTemplate) opt.selected = true;
         sel.appendChild(opt);
       });
     });
@@ -231,22 +239,27 @@
           default_template: document.getElementById('default_template').value,
           llm_provider: document.getElementById('llm_provider').value,
           language: document.getElementById('language').value,
+          ui_language: document.getElementById('ui_language').value,
         })
       });
       const data = await res.json();
-      showMsg(data.ok ? 'Uloženo.' : 'Chyba: ' + JSON.stringify(data));
+      if (data.ok) {
+        location.reload();
+      } else {
+        showMsg(window.STRINGS.msg_error_prefix + JSON.stringify(data));
+      }
     }
 
     async function saveApiKey(provider) {
       const key = document.getElementById('api_key_' + provider).value.trim();
-      if (!key) return showMsg('Zadej API klíč.');
+      if (!key) return showMsg(window.STRINGS.msg_enter_api_key);
       const res = await fetch('/api-key', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({key, provider})
       });
       const data = await res.json();
-      showMsg(data.ok ? 'API klíč uložen.' : 'Chyba: ' + JSON.stringify(data));
+      showMsg(data.ok ? window.STRINGS.msg_api_key_saved : window.STRINGS.msg_error_prefix + JSON.stringify(data));
       document.getElementById('api_key_' + provider).value = '';
     }
 
@@ -261,7 +274,7 @@
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({enabled}),
       });
-      showMsg(enabled ? 'Autostart povolen.' : 'Autostart vypnut.');
+      showMsg(enabled ? window.STRINGS.msg_autostart_enabled : window.STRINGS.msg_autostart_disabled);
     }
 
     async function openGlossary() {
@@ -270,7 +283,7 @@
 
     async function openLog() {
       const res = await fetch('/open-log', {method: 'POST'});
-      if (!res.ok) showMsg('Log soubor nenalezen — zatím žádná aktivita.');
+      if (!res.ok) showMsg(window.STRINGS.msg_log_not_found);
     }
 
     function showMsg(msg) {
@@ -293,21 +306,21 @@
       const info = data[model];
       if (!info) { msg.textContent = ''; btn.style.display = 'none'; return; }
       if (info.downloaded) {
-        msg.textContent = 'Model stažen';
+        msg.textContent = window.STRINGS.msg_model_downloaded;
         msg.className = 'model-dl-msg status-ok';
         btn.style.display = 'none';
       } else if (info.downloading) {
         const dlMb = info.downloaded_mb || 0;
-        msg.textContent = `Stahuji… ${dlMb} MB / ${info.disk_mb} MB`;
+        msg.textContent = `${window.STRINGS.msg_downloading} ${dlMb} MB / ${info.disk_mb} MB`;
         msg.className = 'model-dl-msg status-busy';
         btn.style.display = 'none';
         setTimeout(loadModelStatus, 3000);
       } else if (info.error) {
-        msg.textContent = `Chyba: ${info.error}`;
+        msg.textContent = window.STRINGS.msg_error_prefix + info.error;
         msg.className = 'model-dl-msg status-warn';
         btn.style.display = '';
       } else {
-        msg.textContent = `Model není stažen (~${info.disk_mb} MB)`;
+        msg.textContent = window.STRINGS.msg_model_not_downloaded_pre + info.disk_mb + ' MB)';
         msg.className = 'model-dl-msg status-warn';
         btn.style.display = '';
       }
@@ -319,7 +332,7 @@
       const msg = document.getElementById('model-dl-msg');
       const btn = document.getElementById('model-dl-btn');
       btn.style.display = 'none';
-      msg.textContent = 'Spouštím stahování…';
+      msg.textContent = window.STRINGS.msg_starting_download;
       msg.className = 'model-dl-msg status-busy';
       const res = await fetch('/api/download-model', {
         method: 'POST',
@@ -328,7 +341,7 @@
       });
       const data = await res.json();
       if (!res.ok || data.error) {
-        msg.textContent = `Chyba: ${data.error || res.status}`;
+        msg.textContent = window.STRINGS.msg_error_prefix + (data.error || res.status);
         msg.className = 'model-dl-msg status-warn';
         btn.style.display = '';
         return;

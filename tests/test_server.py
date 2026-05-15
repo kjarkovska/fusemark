@@ -441,7 +441,7 @@ def test_index_no_vault_warning_when_vault_set(flask_client, tmp_path, monkeypat
     monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
     cfg.save({**cfg.DEFAULTS, "setup_complete": True, "vault_path": str(tmp_vault)})
     r = flask_client.get("/")
-    assert b"Output folder not configured" not in r.data
+    assert b'class="warning-banner"' not in r.data
 
 
 # ------------------------------------------------------------------
@@ -704,3 +704,26 @@ def test_download_model_starts_background_download(flask_client, monkeypatch):
         assert r.status_code == 200
         assert r.get_json()["ok"] is True
         assert called.wait(timeout=3), "download_model was never called in background thread"
+
+
+# ------------------------------------------------------------------
+# ui_language — P5.5
+# ------------------------------------------------------------------
+
+def test_default_config_has_ui_language_en():
+    from app.config import DEFAULTS
+    assert DEFAULTS.get("ui_language") == "en"
+
+
+def test_settings_save_ui_language(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    r = flask_client.post(
+        "/settings/save",
+        data=json.dumps({"ui_language": "cs"}),
+        content_type="application/json",
+    )
+    assert r.status_code == 200
+    assert r.get_json()["ok"] is True
+    config = cfg.load()
+    assert config["ui_language"] == "cs"

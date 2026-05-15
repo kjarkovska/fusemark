@@ -39,6 +39,7 @@ DEFAULTS = {
     "max_recordings_gb": 5.0,
     "check_updates": True,
     "setup_complete": False,
+    "ui_language": "en",
 }
 
 CONFIG_PATH = os.path.join(DATA_DIR, "config.json")

@@ -32,7 +32,7 @@ async function startRecording() {
 
   if (!res.ok) {
     const err = await res.json();
-    alert('Chyba: ' + (err.error || res.status));
+    alert(window.STRINGS.msg_error_prefix + (err.error || res.status));
     return;
   }
 
@@ -64,7 +64,7 @@ async function stopRecording() {
 
   if (!res.ok) {
     const err = await res.json();
-    alert('Chyba: ' + (err.error || res.status));
+    alert(window.STRINGS.msg_error_prefix + (err.error || res.status));
     return;
   }
 
@@ -76,17 +76,17 @@ function setRecorderUI(state) {
   const panel = document.getElementById('recorder');
   if (!btn) return;
   if (state === true) {
-    btn.textContent = 'Zastavit nahrávání';
+    btn.textContent = window.STRINGS.btn_stop_recording;
     btn.className = 'btn-stop';
     btn.disabled = false;
     panel?.classList.add('is-recording');
   } else if (state === 'stopping') {
-    btn.textContent = 'Ukládám...';
+    btn.textContent = window.STRINGS.btn_saving;
     btn.className = 'btn-stop';
     btn.disabled = true;
     panel?.classList.remove('is-recording');
   } else {
-    btn.textContent = 'Spustit nahrávání';
+    btn.textContent = window.STRINGS.btn_start_recording;
     btn.className = 'btn-start';
     btn.disabled = false;
     panel?.classList.remove('is-recording');
@@ -164,8 +164,8 @@ async function refreshJobs() {
     el.innerHTML = `
       <div class="jobs-empty-state">
         <img src="/static/img/logo-mark.svg" class="jobs-empty-logo" alt="">
-        <div class="jobs-empty-title">Zatím žádné záznamy</div>
-        <div class="jobs-empty-hint">Spusťte nahrávání nebo importujte přepis. Zpracované porady se objeví zde.</div>
+        <div class="jobs-empty-title">${window.STRINGS.jobs_empty_title}</div>
+        <div class="jobs-empty-hint">${window.STRINGS.jobs_empty_hint}</div>
       </div>`;
     return;
   }
@@ -183,19 +183,19 @@ function renderJob(job) {
   const pill = `<span class="job-status status-${job.status}">${statusLabel(job.status)}</span>`;
 
   const deleteBtn = isDeletable
-    ? `<button class="btn-delete" onclick="deleteJob('${job.id}')" title="Smazat">&#10005;</button>`
+    ? `<button class="btn-delete" onclick="deleteJob('${job.id}')" title="${window.STRINGS.btn_delete}">&#10005;</button>`
     : '';
 
   const retryDisabled = isError && !job.audio_exists ? ' disabled title="Recording deleted"' : '';
   const retryBtn = isError
-    ? `<button class="btn-secondary btn-retry" onclick="retryJob('${job.id}')"${retryDisabled}>Zkusit znovu</button>`
+    ? `<button class="btn-secondary btn-retry" onclick="retryJob('${job.id}')"${retryDisabled}>${window.STRINGS.btn_retry}</button>`
     : '';
 
   // done/error: header-row with pill+X on right; active: header-row pill only; queued: stacked
   const header = (isActive)
     ? `<div class="job-header-row">
          <div>
-           <div class="job-label">${esc(job.label || 'Porada')}</div>
+           <div class="job-label">${esc(job.label || window.STRINGS.job_default_label)}</div>
            <div class="job-date">${date}</div>
          </div>
          ${pill}
@@ -203,21 +203,21 @@ function renderJob(job) {
     : isDeletable
     ? `<div class="job-header-row">
          <div>
-           <div class="job-label">${esc(job.label || 'Porada')}</div>
+           <div class="job-label">${esc(job.label || window.STRINGS.job_default_label)}</div>
            <div class="job-date">${date}</div>
          </div>
          <div style="display:flex;align-items:center;gap:6px">${pill}${deleteBtn}</div>
        </div>`
-    : `<div class="job-label">${esc(job.label || 'Porada')}</div>
+    : `<div class="job-label">${esc(job.label || window.STRINGS.job_default_label)}</div>
        <div class="job-date">${date}</div>
        <div class="job-pill-bottom">${pill}</div>`;
 
   let progressLabel = '';
   if (job.status === 'transcribing') {
     if (job.extra_context === 'transcribing:uploading') {
-      progressLabel = 'Uploading audio…';
+      progressLabel = window.STRINGS.progress_uploading;
     } else if (job.extra_context === 'transcribing:processing') {
-      progressLabel = 'Transcribing via API…';
+      progressLabel = window.STRINGS.progress_transcribing_api;
     } else {
       const eta = etaFromJob(job);
       progressLabel = eta ? `${progress}%, ${eta}` : `${progress}%`;
@@ -241,16 +241,16 @@ function renderJob(job) {
 
   const contextField = (!isDeletable && !isActive)
     ? `<div class="job-context">
-         <input type="text" id="ctx-${job.id}" value="${esc(job.extra_context || '')}" placeholder="Kontext, účastníci...">
-         <button class="btn-secondary" onclick="saveContext('${job.id}')">Uložit</button>
+         <input type="text" id="ctx-${job.id}" value="${esc(job.extra_context || '')}" placeholder="${window.STRINGS.placeholder_context}">
+         <button class="btn-secondary" onclick="saveContext('${job.id}')">${window.STRINGS.btn_save_context}</button>
        </div>`
     : '';
 
   const audioDecision = (job.status === 'done' && job.keep_audio === null)
     ? `<div class="job-audio">
-         Audio:
-         <button class="btn-secondary" onclick="audioDecision('${job.id}', true)">Archivovat</button>
-         <button class="btn-secondary" onclick="audioDecision('${job.id}', false)">Smazat</button>
+         ${window.STRINGS.label_audio}
+         <button class="btn-secondary" onclick="audioDecision('${job.id}', true)">${window.STRINGS.btn_archive_audio}</button>
+         <button class="btn-secondary" onclick="audioDecision('${job.id}', false)">${window.STRINGS.btn_delete_audio}</button>
        </div>`
     : '';
 
@@ -283,12 +283,12 @@ function etaFromJob(job) {
 
 function statusLabel(status) {
   const labels = {
-    recording: 'Nahrávám',
-    queued: 'Ve frontě',
-    transcribing: 'Přepisuji',
-    generating: 'Generuji',
-    done: 'Hotovo',
-    error: 'Chyba',
+    recording: window.STRINGS.status_recording,
+    queued: window.STRINGS.status_queued,
+    transcribing: window.STRINGS.status_transcribing,
+    generating: window.STRINGS.status_generating,
+    done: window.STRINGS.status_done,
+    error: window.STRINGS.status_error,
   };
   return labels[status] || status;
 }
@@ -325,7 +325,7 @@ async function retryJob(jobId) {
   const res = await fetch(`/jobs/${jobId}/retry`, {method: 'POST'});
   if (!res.ok) {
     const err = await res.json();
-    alert(err.error || 'Retry failed');
+    alert(err.error || window.STRINGS.msg_retry_failed);
     return;
   }
   refreshJobs();
@@ -400,8 +400,7 @@ function closeAudioModal(event) {
   if (event && event.target !== document.getElementById('audio-modal')) return;
   document.getElementById('audio-modal').style.display = 'none';
   _audioFile = null;
-  document.getElementById('audio-file-hint').textContent =
-    'Podporované formáty: .mp3, .wav, .m4a, .ogg, .flac';
+  document.getElementById('audio-file-hint').textContent = window.STRINGS.hint_audio_formats;
   document.getElementById('audio-label').value = '';
   document.getElementById('audio-scratch').value = '';
   document.getElementById('audio-msg').textContent = '';
@@ -417,7 +416,7 @@ function handleAudioFile(event) {
 
 async function submitAudioImport() {
   const msgEl = document.getElementById('audio-msg');
-  if (!_audioFile) { msgEl.textContent = 'Vyberte audio soubor.'; return; }
+  if (!_audioFile) { msgEl.textContent = window.STRINGS.err_audio_required; return; }
   const fd = new FormData();
   fd.append('audio', _audioFile);
   fd.append('label', document.getElementById('audio-label').value || '');
@@ -428,7 +427,7 @@ async function submitAudioImport() {
   const res = await fetch('/import-audio', {method: 'POST', body: fd});
   if (!res.ok) {
     const err = await res.json();
-    msgEl.textContent = 'Chyba: ' + (err.error || res.status);
+    msgEl.textContent = window.STRINGS.msg_error_prefix + (err.error || res.status);
     return;
   }
   closeAudioModal();
@@ -460,7 +459,7 @@ function handleImportFile(event) {
 async function submitImport() {
   const transcript = document.getElementById('import-transcript').value.trim();
   if (!transcript) {
-    document.getElementById('import-msg').textContent = 'Přepis je prázdný.';
+    document.getElementById('import-msg').textContent = window.STRINGS.err_transcript_empty;
     return;
   }
   const label = document.getElementById('import-label')?.value || '';
@@ -474,7 +473,7 @@ async function submitImport() {
   });
   if (!res.ok) {
     const err = await res.json();
-    document.getElementById('import-msg').textContent = 'Chyba: ' + (err.error || res.status);
+    document.getElementById('import-msg').textContent = window.STRINGS.msg_error_prefix + (err.error || res.status);
     return;
   }
   document.getElementById('import-modal').style.display = 'none';

@@ -25,6 +25,7 @@ from flask import Flask, jsonify, render_template, request
 
 from app import config as cfg
 from app import queue as q
+from app.i18n import get_strings
 from app.recorder import Recorder, list_devices as list_audio_devices
 
 app = Flask(
@@ -116,15 +117,17 @@ def index():
     from app.notes import list_templates
     templates = list_templates(vault_path)
     show_vault_warning = bool(config.get("setup_complete")) and not vault_path
+    t = get_strings(config.get("ui_language", "en"))
     return render_template("index.html", config=config, folders=folders, templates=templates,
-                           show_vault_warning=show_vault_warning)
+                           show_vault_warning=show_vault_warning, t=t)
 
 
 @app.route("/settings")
 def settings():
     config = cfg.load()
     devices = _get_devices()
-    return render_template("settings.html", config=config, devices=devices)
+    t = get_strings(config.get("ui_language", "en"))
+    return render_template("settings.html", config=config, devices=devices, t=t)
 
 
 @app.route("/start", methods=["POST"])
@@ -286,7 +289,7 @@ def route_status():
 def route_settings_save():
     data = request.get_json(silent=True) or {}
     config = cfg.load()
-    for key in ("vault_path", "whisper_model", "log_level", "default_template", "llm_provider"):
+    for key in ("vault_path", "whisper_model", "log_level", "default_template", "llm_provider", "ui_language"):
         if key in data:
             config[key] = data[key]
     for key in ("output_device", "input_device"):
