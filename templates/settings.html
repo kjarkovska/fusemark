@@ -43,6 +43,10 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 2h9a2 2 0 012 2z"/></svg>
           {{ t.tab_general }}
         </a>
+        <a data-tab="data" class="settings-nav-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          {{ t.tab_data }}
+        </a>
         <a data-tab="zvuk" class="settings-nav-item">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
           {{ t.tab_audio }}
@@ -60,19 +64,9 @@
       <!-- Right scrollable content -->
       <div class="settings-content">
 
-        <!-- General (Paths + System + UI Language) -->
+        <!-- General (System + UI Language + Setup + Updates) -->
         <section data-section="obecne" class="settings-section">
-          <div class="group-heading">{{ t.group_paths }}</div>
-          <div class="field">
-            <label>{{ t.label_vault_path }}</label>
-            <div class="input-action-row">
-              <input type="text" id="vault_path" value="{{ config.vault_path or '' }}" placeholder="{{ t.placeholder_vault_path }}">
-              <button class="btn-icon" title="{{ t.btn_browse }}" aria-label="{{ t.btn_browse }}">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 2h9a2 2 0 012 2z"/></svg>
-              </button>
-            </div>
-          </div>
-          <div class="group-heading" style="margin-top: 8px;">{{ t.group_system }}</div>
+          <div class="group-heading">{{ t.group_system }}</div>
           <div class="autostart-row">
             <div class="autostart-label">
               <span>{{ t.label_autostart }}</span>
@@ -94,24 +88,6 @@
           <div class="field">
             <button class="btn-secondary btn-full" onclick="rerunWizard()">{{ t.wizard_rerun_btn }}</button>
           </div>
-          <div class="group-heading" style="margin-top: 8px;">{{ t.group_recordings }}</div>
-          <div class="field">
-            <label>{{ t.label_recordings_size }}</label>
-            <span id="recordings-size" style="color:var(--text-muted);font-size:0.875rem;">{{ recordings_size_mb }} MB</span>
-          </div>
-          <div class="field">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-              <input type="checkbox" id="auto_delete_recordings" {% if config.auto_delete_recordings %}checked{% endif %}>
-              {{ t.label_auto_delete }}
-            </label>
-          </div>
-          <div class="field" id="max-gb-row" {% if config.auto_delete_recordings %}style="display:none"{% endif %}>
-            <label>{{ t.label_max_recordings_gb }}</label>
-            <input type="number" id="max_recordings_gb" min="1" max="100" step="0.5" value="{{ config.max_recordings_gb }}" style="width:80px;">
-          </div>
-          <div class="field">
-            <button type="button" class="btn-secondary btn-full" onclick="deleteRecordings()">{{ t.btn_delete_recordings }}</button>
-          </div>
           <div class="group-heading" style="margin-top: 8px;">{{ t.group_updates }}</div>
           <div class="field">
             <span style="color:var(--text-muted);font-size:0.8rem;">{{ t.label_current_version }}: {{ version }}</span>
@@ -131,6 +107,38 @@
             <button type="button" class="btn-secondary" id="check-update-btn" onclick="checkForUpdates()">{{ t.btn_check_updates_now }}</button>
           </div>
           <div id="update-result" style="display:none;font-size:0.875rem;margin-top:4px;"></div>
+        </section>
+
+        <!-- Data (Paths + Recordings) -->
+        <section data-section="data" class="settings-section">
+          <div class="group-heading">{{ t.group_paths }}</div>
+          <div class="field">
+            <label>{{ t.label_vault_path }}</label>
+            <div class="input-action-row">
+              <input type="text" id="vault_path" value="{{ config.vault_path or '' }}" placeholder="{{ t.placeholder_vault_path }}">
+              <button class="btn-icon" title="{{ t.btn_browse }}" aria-label="{{ t.btn_browse }}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 2h9a2 2 0 012 2z"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="group-heading" style="margin-top: 8px;">{{ t.group_recordings }}</div>
+          <div class="field">
+            <label>{{ t.label_recordings_size }}</label>
+            <span id="recordings-size" style="color:var(--text-muted);font-size:0.875rem;">{{ recordings_size_mb }} MB</span>
+          </div>
+          <div class="field">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="auto_delete_recordings" {% if config.auto_delete_recordings %}checked{% endif %}>
+              {{ t.label_auto_delete }}
+            </label>
+          </div>
+          <div class="field" id="max-gb-row" {% if config.auto_delete_recordings %}style="display:none"{% endif %}>
+            <label>{{ t.label_max_recordings_gb }}</label>
+            <input type="number" id="max_recordings_gb" min="1" max="100" step="0.5" value="{{ config.max_recordings_gb }}" style="width:80px;">
+          </div>
+          <div class="field">
+            <button type="button" class="btn-secondary btn-full" onclick="deleteRecordings()">{{ t.btn_delete_recordings }}</button>
+          </div>
         </section>
 
         <!-- Audio -->

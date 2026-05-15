@@ -1022,3 +1022,98 @@ def test_update_check_mocked_response(flask_client, tmp_path, monkeypatch):
     assert data["ok"] is True
     assert data["update_available"] is True
     assert data["version"] == "9.9.9"
+
+
+def test_update_check_no_update_available(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    from app.version import VERSION
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    cfg.save({**cfg.DEFAULTS, "setup_complete": True})
+
+    fake_release = json.dumps({"tag_name": f"v{VERSION}", "html_url": "https://github.com/"}).encode()
+
+    class _FakeResp:
+        def read(self): return fake_release
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+
+    with patch("urllib.request.urlopen", return_value=_FakeResp()):
+        r = flask_client.post("/update-check")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["ok"] is True
+    assert data["update_available"] is False
+
+
+def test_update_check_network_error_returns_500(flask_client):
+    with patch("urllib.request.urlopen", side_effect=Exception("timeout")):
+        r = flask_client.post("/update-check")
+    assert r.status_code == 500
+    assert r.get_json()["ok"] is False
+
+
+def test_test_llm_stored_unknown_provider_returns_400(flask_client):
+    r = flask_client.post(
+        "/api/test-llm-stored",
+        data=json.dumps({"provider": "unknown"}),
+        content_type="application/json",
+    )
+    assert r.status_code == 400
+
+
+def test_test_llm_stored_success_returns_ok_true(flask_client):
+    with patch("app.llm.anthropic_provider._get_api_key", return_value="sk-stored"), \
+         patch("app.llm.anthropic_provider.test_connection", return_value=None):
+        r = flask_client.post(
+            "/api/test-llm-stored",
+            data=json.dumps({"provider": "anthropic"}),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    assert r.get_json()["ok"] is True
+
+
+def test_test_llm_stored_auth_error_returns_ok_false(flask_client):
+    from app.exceptions import LLMAuthError
+    with patch("app.llm.anthropic_provider._get_api_key", return_value="sk-bad"), \
+         patch("app.llm.anthropic_provider.test_connection", side_effect=LLMAuthError("bad key")):
+        r = flask_client.post(
+            "/api/test-llm-stored",
+            data=json.dumps({"provider": "anthropic"}),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["ok"] is False
+    assert "bad key" in data["error"]
+
+
+def test_recordings_cleanup_deletes_error_job_files(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    rdir = tmp_path / "recordings"
+    rdir.mkdir()
+    mp3 = rdir / "error_job.mp3"
+    mp3.write_bytes(b"audio")
+    job_id = q.create_job(label="errored")
+    q.update_job(job_id, audio_path=str(mp3))
+    q.set_status(job_id, "queued")
+    q.update_job(job_id, status="error")
+    r = flask_client.post("/recordings/cleanup")
+    assert r.status_code == 200
+    assert r.get_json()["deleted"] == 1
+    assert not mp3.exists()
+
+
+def test_recordings_cleanup_deletes_orphaned_files(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    rdir = tmp_path / "recordings"
+    rdir.mkdir()
+    mp3 = rdir / "orphan.mp3"
+    mp3.write_bytes(b"audio")
+    # No job created — file is orphaned
+    r = flask_client.post("/recordings/cleanup")
+    assert r.status_code == 200
+    assert r.get_json()["deleted"] == 1
+    assert not mp3.exists()
