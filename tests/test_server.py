@@ -727,3 +727,161 @@ def test_settings_save_ui_language(flask_client, tmp_path, monkeypatch):
     assert r.get_json()["ok"] is True
     config = cfg.load()
     assert config["ui_language"] == "cs"
+
+
+# ------------------------------------------------------------------
+# P6 — Wizard routes
+# ------------------------------------------------------------------
+
+def _wizard_client(flask_client, tmp_path, monkeypatch, setup_complete):
+    """Helper: write config with given setup_complete value, return flask_client."""
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    cfg.save({**cfg.DEFAULTS, "setup_complete": setup_complete, "vault_path": str(tmp_path)})
+    return flask_client
+
+
+def test_index_redirects_to_wizard_when_not_complete(flask_client, tmp_path, monkeypatch):
+    _wizard_client(flask_client, tmp_path, monkeypatch, setup_complete=False)
+    r = flask_client.get("/")
+    assert r.status_code == 302
+    assert "/wizard" in r.headers["Location"]
+
+
+def test_index_served_when_setup_complete(flask_client, tmp_path, monkeypatch):
+    _wizard_client(flask_client, tmp_path, monkeypatch, setup_complete=True)
+    r = flask_client.get("/")
+    assert r.status_code == 200
+
+
+def test_wizard_page_served_when_not_complete(flask_client, tmp_path, monkeypatch):
+    import app.server as srv
+    monkeypatch.setattr(srv, "_get_devices", lambda: [])
+    _wizard_client(flask_client, tmp_path, monkeypatch, setup_complete=False)
+    r = flask_client.get("/wizard")
+    assert r.status_code == 200
+    assert b"wizard" in r.data.lower()
+
+
+def test_wizard_redirects_to_index_when_complete(flask_client, tmp_path, monkeypatch):
+    _wizard_client(flask_client, tmp_path, monkeypatch, setup_complete=True)
+    r = flask_client.get("/wizard")
+    assert r.status_code == 302
+    assert r.headers["Location"].rstrip("/").endswith("/") or "/" in r.headers["Location"]
+
+
+def test_wizard_test_llm_missing_key_returns_400(flask_client):
+    r = flask_client.post(
+        "/wizard/test-llm",
+        data=json.dumps({"provider": "anthropic", "key": ""}),
+        content_type="application/json",
+    )
+    assert r.status_code == 400
+    assert r.get_json()["ok"] is False
+
+
+def test_wizard_test_llm_unknown_provider_returns_400(flask_client):
+    r = flask_client.post(
+        "/wizard/test-llm",
+        data=json.dumps({"provider": "grok", "key": "sk-test"}),
+        content_type="application/json",
+    )
+    assert r.status_code == 400
+    assert r.get_json()["ok"] is False
+
+
+def test_wizard_test_llm_auth_error_returns_ok_false(flask_client):
+    from app.exceptions import LLMAuthError
+    with patch("app.llm.anthropic_provider.test_connection", side_effect=LLMAuthError("bad key")):
+        r = flask_client.post(
+            "/wizard/test-llm",
+            data=json.dumps({"provider": "anthropic", "key": "sk-bad"}),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["ok"] is False
+    assert "bad key" in data["error"]
+
+
+def test_wizard_test_llm_success_returns_ok_true(flask_client):
+    with patch("app.llm.anthropic_provider.test_connection", return_value=None):
+        r = flask_client.post(
+            "/wizard/test-llm",
+            data=json.dumps({"provider": "anthropic", "key": "sk-valid"}),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    assert r.get_json()["ok"] is True
+
+
+def test_wizard_test_recording_returns_filename(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    mock_rec = MagicMock()
+    mock_rec.save.side_effect = lambda path: open(path, "wb").close()
+    with patch("app.server.Recorder", return_value=mock_rec), \
+         patch("app.server._time", MagicMock(time=lambda: 12345, sleep=lambda n: None)):
+        r = flask_client.post("/wizard/test-recording")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert "filename" in data
+    assert data["filename"].startswith("wizard_test_")
+
+
+def test_wizard_playback_serves_file(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    recordings_dir = tmp_path / "recordings"
+    recordings_dir.mkdir()
+    (recordings_dir / "wizard_test_123.mp3").write_bytes(b"fakeaudio")
+    r = flask_client.get("/wizard/playback/wizard_test_123.mp3")
+    assert r.status_code == 200
+
+
+def test_wizard_playback_path_traversal_blocked(flask_client):
+    # Flask normalizes ../config.json before routing; test with a filename that
+    # contains ".." as a substring but no slash so Flask passes it to the handler.
+    r = flask_client.get("/wizard/playback/..config.json")
+    assert r.status_code == 403
+
+
+def test_wizard_browse_folder_dev_fallback(flask_client):
+    r = flask_client.post("/wizard/browse-folder")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["dev_mode"] is True
+    assert "path" in data
+
+
+def test_wizard_complete_sets_setup_complete(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    cfg.save({**cfg.DEFAULTS, "setup_complete": False})
+    with patch("app.llm.anthropic_provider.keyring.set_password"):
+        r = flask_client.post(
+            "/wizard/complete",
+            data=json.dumps({
+                "llm_provider": "anthropic",
+                "llm_key": "sk-ant-test",
+                "whisper_model": "large-v3-turbo",
+                "vault_path": str(tmp_path / "notes"),
+            }),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    assert r.get_json()["ok"] is True
+    saved = cfg.load()
+    assert saved["setup_complete"] is True
+    assert saved["vault_path"] == str(tmp_path / "notes")
+    assert saved["llm_provider"] == "anthropic"
+
+
+def test_wizard_reset_sets_setup_complete_false(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    cfg.save({**cfg.DEFAULTS, "setup_complete": True})
+    r = flask_client.post("/wizard/reset")
+    assert r.status_code == 200
+    assert r.get_json()["ok"] is True
+    assert cfg.load()["setup_complete"] is False

@@ -791,6 +791,10 @@ python -m app.main
 
 ---
 
+## ✅ Phase P6 — First-Run Wizard — DONE (2026-05-15)
+
+Changes: `templates/wizard.html` created — 5-step single-page wizard (all steps in DOM, JS shows/hides via `.active`); `GET /` redirects to `/wizard` when `setup_complete: false`; 7 new wizard routes in `server.py` (`GET /wizard`, `POST /wizard/test-llm`, `POST /wizard/test-recording`, `GET /wizard/playback/<filename>`, `POST /wizard/browse-folder`, `POST /wizard/complete`, `POST /wizard/reset`); `test_connection(key)` added to all 3 LLM providers (Anthropic, OpenAI, Mistral) — accepts raw key, does not read keyring; pywebview `FOLDER_DIALOG` for vault path with dev fallback returning `{dev_mode: true}`; model download uses polling (`/api/model-status` every 2s) instead of SSE — simpler and WebView2-reliable; Settings → "Re-run Setup Wizard" button calls `POST /wizard/reset`; all ~35 wizard strings bilingual (en + cs) in `app/i18n.py`; `conftest.py` updated to `setup_complete: True` so existing tests are unaffected; 14 new wizard tests; 239 total passing.
+
 ## Phase P6 — First-Run Wizard
 
 **Depends on P5.5** — all wizard strings must use the `t` dict and `window.STRINGS` pattern established there. Do not write wizard UI strings in hardcoded Czech or English.

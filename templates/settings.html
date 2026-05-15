@@ -75,6 +75,10 @@
               <option value="cs" {% if config.ui_language == 'cs' %}selected{% endif %}>{{ t.opt_lang_cs }}</option>
             </select>
           </div>
+          <div class="group-heading" style="margin-top: 8px;">{{ t.wizard_group_setup }}</div>
+          <div class="field">
+            <button class="btn-secondary btn-full" onclick="rerunWizard()">{{ t.wizard_rerun_btn }}</button>
+          </div>
         </section>
 
         <!-- Audio -->
@@ -275,6 +279,11 @@
         body: JSON.stringify({enabled}),
       });
       showMsg(enabled ? window.STRINGS.msg_autostart_enabled : window.STRINGS.msg_autostart_disabled);
+    }
+
+    async function rerunWizard() {
+      await fetch('/wizard/reset', {method: 'POST'});
+      window.location.href = '/wizard';
     }
 
     async function openGlossary() {

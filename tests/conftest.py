@@ -23,7 +23,7 @@ def flask_client(db_path, tmp_vault, monkeypatch, tmp_path):
     import app.config as cfg
     import app.server as srv
     monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
-    cfg.save({**cfg.DEFAULTS, "vault_path": str(tmp_vault)})
+    cfg.save({**cfg.DEFAULTS, "vault_path": str(tmp_vault), "setup_complete": True})
     srv.app.config["TESTING"] = True
     with srv.app.test_client() as c:
         yield c

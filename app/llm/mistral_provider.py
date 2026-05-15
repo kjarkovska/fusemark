@@ -69,6 +69,19 @@ def set_api_key(key):
     logger.info("Mistral API key saved to Windows Credential Manager.")
 
 
+def test_connection(key: str) -> None:
+    """Make a minimal API call to verify the key. Raises LLMAuthError or LLMRateLimitError."""
+    try:
+        client = Mistral(api_key=key)
+        client.chat.complete(
+            model=MODEL,
+            max_tokens=1,
+            messages=[{"role": "user", "content": "hi"}],
+        )
+    except Exception as exc:
+        _handle_mistral_error(exc)
+
+
 def _handle_mistral_error(exc):
     msg = str(exc).lower()
     code = getattr(exc, "status_code", None) or getattr(exc, "http_status_code", None)

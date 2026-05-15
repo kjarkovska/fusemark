@@ -70,6 +70,21 @@ def set_api_key(key):
     logger.info("OpenAI API key saved to Windows Credential Manager.")
 
 
+def test_connection(key: str) -> None:
+    """Make a minimal API call to verify the key. Raises LLMAuthError or LLMRateLimitError."""
+    try:
+        client = OpenAI(api_key=key)
+        client.chat.completions.create(
+            model=MODEL,
+            max_tokens=1,
+            messages=[{"role": "user", "content": "hi"}],
+        )
+    except openai.AuthenticationError as exc:
+        raise LLMAuthError("Invalid API key for OpenAI.") from exc
+    except openai.RateLimitError as exc:
+        raise LLMRateLimitError("Rate limit reached.") from exc
+
+
 def generate_notes(transcript, label="", folder="", scratch_notes="", extra_context="", language="Czech"):
     """Generate structured meeting notes from a transcript. Returns markdown string."""
     client = OpenAI(api_key=_get_api_key())

@@ -10,7 +10,7 @@ Audio never leaves the machine. Recording and processing are fully decoupled so 
 
 ## Current Status
 
-**Phase P5.5 — complete. UI language (English / Czech) fully wired.**
+**Phase P6 — complete. First-run setup wizard fully wired.**
 
 - `app/recorder.py` — dual-stream capture (WASAPI loopback + mic) via `pyaudiowpatch`; ffmpeg mixes to mp3
 - `app/config.py` — load/save `config.json`
@@ -20,7 +20,7 @@ Audio never leaves the machine. Recording and processing are fully decoupled so 
 - `app/glossary.py` — load glossary.json, build Whisper prompt, add terms, open in VSCode
 - `app/notemaker.py` — Claude Haiku 3.5: generates Czech notes, suggests glossary terms; API key via keyring
 - `app/tray.py` — tray icon; icon bitmap only updated from main thread (Win32 safety); menu updates are thread-safe
-- `app/server.py` — Flask routes for start/stop recording, jobs, settings, API key, glossary
+- `app/server.py` — Flask routes for start/stop recording, jobs, settings, API key, glossary, wizard
 - `app/main.py` — entrypoint; worker + Flask on background threads, tray on main thread
 - `templates/`, `static/` — dark UI with recorder, jobs panel, settings page
 - `app/autostart.py` — Windows registry auto-start (HKCU, no admin needed); toggle in Settings
@@ -31,6 +31,7 @@ Audio never leaves the machine. Recording and processing are fully decoupled so 
 - Currently using `small` Whisper model — sufficient in initial test; upgrade to large-v3 if quality is lacking
 - BT note: Windows switches JBL to HSP/HFP when mic opens. Windows OS limitation — unavoidable. Acceptable for transcription quality.
 - P5.5: `app/i18n.py` — `TRANSLATIONS` dict ("en"/"cs") + `get_strings(lang)`; all templates receive `t=get_strings(...)` from server; `window.STRINGS` injected before app.js; Settings page has "Interface language" selector; saving settings triggers full page reload so language takes effect immediately; Tests: 225 passed.
+- P6: 5-step first-run wizard (`templates/wizard.html`); gated on `setup_complete: false` in config; `GET /` redirects to `/wizard` when false; 7 wizard routes in server.py; `test_connection(key)` added to all 3 LLM providers; pywebview FOLDER_DIALOG for vault path; dev fallback returns `{dev_mode: true}`; Settings → Re-run Setup Wizard resets flag; all wizard strings bilingual (en+cs); Tests: 239 passed.
 
 Update this section at the end of every session.
 

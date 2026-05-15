@@ -69,6 +69,21 @@ def set_api_key(key):
     logger.info("Anthropic API key saved to Windows Credential Manager.")
 
 
+def test_connection(key: str) -> None:
+    """Make a minimal API call to verify the key. Raises LLMAuthError or LLMRateLimitError."""
+    try:
+        client = anthropic.Anthropic(api_key=key)
+        client.messages.create(
+            model=MODEL,
+            max_tokens=1,
+            messages=[{"role": "user", "content": "hi"}],
+        )
+    except anthropic.AuthenticationError as exc:
+        raise LLMAuthError("Invalid API key for Anthropic.") from exc
+    except anthropic.RateLimitError as exc:
+        raise LLMRateLimitError("Rate limit reached.") from exc
+
+
 def generate_notes(transcript, label="", folder="", scratch_notes="", extra_context="", language="Czech"):
     """Generate structured meeting notes from a transcript. Returns markdown string."""
     client = anthropic.Anthropic(api_key=_get_api_key())
