@@ -64,6 +64,8 @@ Production v1.0 adds:
 8. **Update notifications** — check GitHub releases, show banner in UI
 9. **Recording housekeeping** — size display, auto-cleanup option
 10. **Gumroad listing** — paid pre-compiled installer for convenience; source code is GPL v3-licensed
+11. **UI language (Czech / English)** — all user-facing strings switchable; English is the default for new installs (P5.5)
+12. **Audio file import** — dedicated "Import audio" button and modal; uploads `.mp3`/`.wav`/`.m4a`/`.ogg`/`.flac` for transcription + note generation; optional scratch notes attached; complete as of 2026-05-15
 
 The existing pipeline architecture (recorder → queue → worker → notemaker) is preserved.
 The existing Flask + pywebview UI shell is preserved.
@@ -89,6 +91,7 @@ obsinote/
 │   ├── notes.py                 # NEW: save_note() and save_transcript() file-writing utilities
 │   ├── exceptions.py            # NEW: shared custom exception classes
 │   ├── utils.py                 # NEW: ffmpeg_exe() and other cross-cutting utilities
+│   ├── i18n.py                  # NEW (P5.5): TRANSLATIONS dict + get_strings(); "en" default
 │   ├── transcription/
 │   │   ├── __init__.py          # transcribe() dispatcher
 │   │   └── local.py             # faster-whisper (moved from transcriber.py)
@@ -162,6 +165,7 @@ The install directory itself contains only code, assets, and ffmpeg.
   "max_recordings_gb": 5.0,
   "check_updates": true,
   "setup_complete": false,
+  "ui_language": "en",
   "last_update_check": null,
   "latest_known_version": null
 }
@@ -688,7 +692,108 @@ python -m app.main
 
 ---
 
+## ✅ Phase P5.5 — UI Language (Czech / English) — DONE (2026-05-15)
+
+Changes: `app/i18n.py` created with 115-key `TRANSLATIONS` dict (`"en"`/`"cs"`) and `get_strings(lang)` · all `render_template()` calls pass `t=get_strings(config.get("ui_language", "en"))` · `window.STRINGS = {{ t | tojson }}` injected server-side before `app.js` · all hardcoded strings in `index.html`, `settings.html`, and `app.js` replaced with `t.key` / `window.STRINGS.key` · Settings page gains "Interface language" selector (English / Čeština); save triggers full page reload · `"ui_language": "en"` added to config DEFAULTS · 5 new tests in `test_i18n.py`, 2 in `test_server.py`; 225 total passing.
+
+**Goal:** All user-facing strings in templates and JS are served in the selected UI language. English is the default for new installs. This phase must be completed before P6 so the wizard is built bilingual from day one — writing it in Czech and retrofitting translation later doubles the work.
+
+### Tasks
+
+- Add `ui_language` to `config.py` defaults:
+  ```python
+  "ui_language": "en"   # "en" or "cs"
+  ```
+
+- Create `app/i18n.py`:
+  - `TRANSLATIONS: dict[str, dict[str, str]]` with keys `"en"` and `"cs"`
+  - `get_strings(lang: str) -> dict[str, str]` — returns the translation dict for the given code, falls back to `"en"` for unknown codes
+  - Group strings by surface area (nav, recorder, notes, jobs panel, import modals, settings, errors) so the file is easy to scan
+  - ~80–100 strings covering `index.html`, `settings.html`, and the dynamic strings in `app.js`
+
+  Key string categories:
+  ```python
+  TRANSLATIONS = {
+      "en": {
+          # Nav
+          "nav_settings": "Settings",
+          # Recorder
+          "label_meeting_name": "Meeting name",
+          "label_folder": "Folder",
+          "label_template": "Template",
+          "btn_start_recording": "Start Recording",
+          "btn_stop_recording": "Stop Recording",
+          "rec_status_label": "Recording",
+          # Notes section
+          "notes_label_idle": "Rough notes",
+          "notes_label_active": "Quick notes",
+          "btn_import_transcript": "Import transcript",
+          "btn_import_audio": "Import audio",
+          "scratch_placeholder": "Rough notes during the meeting...",
+          # Jobs panel
+          "jobs_panel_title": "Processing queue",
+          "btn_clear_history": "Clear history",
+          # Import transcript modal
+          "modal_import_transcript_title": "Import transcript",
+          # Import audio modal
+          "modal_import_audio_title": "Import audio",
+          # Common modal fields
+          "label_meeting_date": "Meeting date",
+          "label_scratch_notes": "Rough notes / context (optional)",
+          "btn_cancel": "Cancel",
+          "btn_import_process": "Import and process",
+          # Errors (JS)
+          "err_transcript_empty": "Transcript is empty.",
+          "err_audio_required": "Select an audio file.",
+          # ... etc.
+      },
+      "cs": {
+          "nav_settings": "Nastavení",
+          "label_meeting_name": "Název porady",
+          # ... etc.
+      }
+  }
+  ```
+
+- Update `server.py`: every `render_template()` call receives `t=get_strings(config.get("ui_language", "en"))`
+
+- Update `index.html` and `settings.html`:
+  - Replace all hardcoded strings with `{{ t.key }}`
+  - Inject `<script>window.STRINGS = {{ t | tojson }};</script>` just before `</body>` in each template so JS has the same strings at page load without a separate API call
+
+- Update `app.js`:
+  - Replace all hardcoded Czech/English strings with `window.STRINGS.key`
+  - Covers: inline validation messages (`"Přepis je prázdný."`, `"Vyberte audio soubor."`), file picker hint defaults, dynamic status text
+
+- Add UI language selector to `settings.html`:
+  - Simple two-option `<select>`: English / Čeština
+  - Saved via the existing `POST /settings/save`
+  - Page performs a full reload after save — no AJAX needed for language switching
+
+### Test
+
+```bash
+python -m app.main
+# Verify new install defaults to English
+# Open Settings → verify "UI Language" selector present with English / Čeština options
+# Switch to Czech → save → verify all UI labels switch to Czech (including JS error messages)
+# Switch back to English → save → verify English restored
+# Run a job end-to-end → verify UI language does not affect transcription/notes language
+```
+
+### Key constraints
+
+- Do NOT use Flask-Babel or gettext — a simple dict is sufficient and introduces zero new dependencies
+- `window.STRINGS` is injected server-side, not fetched via API — avoids a flash of untranslated content
+- Full page reload on language switch is intentional — keeps the implementation simple
+- All future phases (P6 wizard, P7 settings extension) must add new strings to **both** `"en"` and `"cs"` dicts at the time they write the feature — never add a string to one language only
+- Default is `"en"` — Czech must be explicitly selected; this matches the target audience for public distribution
+
+---
+
 ## Phase P6 — First-Run Wizard
+
+**Depends on P5.5** — all wizard strings must use the `t` dict and `window.STRINGS` pattern established there. Do not write wizard UI strings in hardcoded Czech or English.
 
 **Goal:** A new user can go from install to first successful note without reading documentation.
 
