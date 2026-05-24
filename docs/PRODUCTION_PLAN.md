@@ -1004,6 +1004,10 @@ python -m app.main
 
 ---
 
+## ✅ Phase P8 — Recordings Housekeeping (Worker Integration) — DONE (2026-05-24)
+
+Changes: `keep_audio` migration added to `queue.py` init_db() · `worker.py` gained `_maybe_delete_recording()` (auto-deletes after `"done"` when `auto_delete_recordings=True` and `keep_audio!=1`) and module-level `_enforce_size_limit()` (deletes oldest unkeep-flagged recordings when total exceeds `max_recordings_gb`) · `server.py` `recordings_cleanup()` replaced by new `cleanup_recordings(data_dir, delete_processed, delete_orphans)` utility — respects `keep_audio` flag, handles done+error jobs and orphans; route calls it with both flags True · `index.html` jobs panel footer shows "Total size: X MB/GB" · `app.js` `refreshJobs()` calls `updateRecordingsSize()` which fetches `/recordings/size` · 7 new tests (5 worker, 2 server); 261 total passing.
+
 ## Phase P8 — Recordings Housekeeping (Worker Integration)
 
 **Goal:** Worker automatically manages recording files based on config. No unbounded disk growth.

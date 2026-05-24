@@ -1117,3 +1117,38 @@ def test_recordings_cleanup_deletes_orphaned_files(flask_client, tmp_path, monke
     assert r.status_code == 200
     assert r.get_json()["deleted"] == 1
     assert not mp3.exists()
+
+
+def test_recordings_cleanup_keeps_file_when_keep_audio_set(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    rdir = tmp_path / "recordings"
+    rdir.mkdir()
+    mp3 = rdir / "kept.mp3"
+    mp3.write_bytes(b"audio")
+    job_id = q.create_job(label="keep this")
+    q.update_job(job_id, audio_path=str(mp3), keep_audio=1)
+    q.set_status(job_id, "queued")
+    q.set_status(job_id, "done")
+    r = flask_client.post("/recordings/cleanup")
+    assert r.status_code == 200
+    assert r.get_json()["deleted"] == 0
+    assert mp3.exists()
+
+
+def test_recordings_cleanup_returns_freed_mb(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    rdir = tmp_path / "recordings"
+    rdir.mkdir()
+    mp3 = rdir / "big.mp3"
+    mp3.write_bytes(b"x" * 1024 * 1024)  # 1 MB
+    job_id = q.create_job(label="big job")
+    q.update_job(job_id, audio_path=str(mp3))
+    q.set_status(job_id, "queued")
+    q.set_status(job_id, "done")
+    r = flask_client.post("/recordings/cleanup")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["deleted"] == 1
+    assert data["freed_mb"] == 1.0

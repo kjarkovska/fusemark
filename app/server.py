@@ -452,30 +452,35 @@ def recordings_size():
     return jsonify({"size_mb": mb, "size_gb": round(mb / 1024, 2)})
 
 
-@app.route("/recordings/cleanup", methods=["POST"])
-def recordings_cleanup():
-    recordings_dir = os.path.join(cfg.DATA_DIR, "recordings")
+def cleanup_recordings(data_dir, delete_processed=False, delete_orphans=True):
+    from pathlib import Path
+    recordings_dir = os.path.join(data_dir, "recordings")
     if not os.path.isdir(recordings_dir):
-        return jsonify({"deleted": 0, "freed_mb": 0.0})
-    active_paths = {
-        j["audio_path"]
-        for j in q.list_jobs()
-        if j.get("status") not in ("done", "error") and j.get("audio_path")
+        return {"deleted": 0, "freed_mb": 0.0}
+    all_jobs = q.list_jobs()
+    known_paths = {j["audio_path"] for j in all_jobs if j.get("audio_path")}
+    processed_paths = {
+        j["audio_path"] for j in all_jobs
+        if j.get("audio_path") and j["status"] in ("done", "error") and not j.get("keep_audio")
     }
     deleted, freed = 0, 0
-    for fname in os.listdir(recordings_dir):
-        if not fname.endswith(".mp3"):
-            continue
-        fpath = os.path.join(recordings_dir, fname)
-        if fpath in active_paths:
-            continue
-        try:
-            freed += os.path.getsize(fpath)
-            os.remove(fpath)
+    for mp3 in Path(recordings_dir).glob("*.mp3"):
+        mp3_str = str(mp3)
+        if delete_processed and mp3_str in processed_paths:
+            freed += mp3.stat().st_size
+            mp3.unlink(missing_ok=True)
             deleted += 1
-        except OSError:
-            pass
-    return jsonify({"deleted": deleted, "freed_mb": round(freed / (1024 * 1024), 1)})
+        elif delete_orphans and mp3_str not in known_paths:
+            freed += mp3.stat().st_size
+            mp3.unlink(missing_ok=True)
+            deleted += 1
+    return {"deleted": deleted, "freed_mb": round(freed / (1024 * 1024), 1)}
+
+
+@app.route("/recordings/cleanup", methods=["POST"])
+def recordings_cleanup():
+    result = cleanup_recordings(cfg.DATA_DIR, delete_processed=True, delete_orphans=True)
+    return jsonify(result)
 
 
 @app.route("/api/test-llm-stored", methods=["POST"])

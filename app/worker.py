@@ -11,6 +11,7 @@ Error strategy:
 
 import json
 import logging
+import os
 import threading
 import time
 
@@ -109,6 +110,7 @@ class Worker:
             return
 
         q.set_status(job_id, "done")
+        self._maybe_delete_recording(job_id)
         logger.info("Job %s done", job_id)
         if self.on_tooltip:
             self.on_tooltip("ObsiNote")
@@ -170,6 +172,23 @@ class Worker:
             logger.debug("Glossary suggestion failed (non-fatal): %s", exc)
 
 
+    def _maybe_delete_recording(self, job_id):
+        config = cfg.load()
+        if config.get("auto_delete_recordings"):
+            job = q.get_job(job_id)
+            if job.get("keep_audio") != 1:
+                audio = job.get("audio_path") or job.get("recording_path")
+                if audio and os.path.exists(audio):
+                    try:
+                        os.remove(audio)
+                        q.update_job(job_id, audio_path=None)
+                        logger.info("Auto-deleted recording for job %s", job_id)
+                    except OSError as exc:
+                        logger.warning("Could not delete recording %s: %s", audio, exc)
+        elif config.get("max_recordings_gb", 0) > 0:
+            _enforce_size_limit(config)
+
+
 class _RetryableError(Exception):
     """Raised when a generation step fails but should be retried automatically."""
 
@@ -182,3 +201,26 @@ def _parse_retry_count(error_message):
         except (IndexError, ValueError):
             pass
     return 0
+
+
+def _enforce_size_limit(config):
+    from pathlib import Path
+    from app.config import DATA_DIR
+    limit_bytes = config["max_recordings_gb"] * 1024 ** 3
+    recordings_dir = os.path.join(DATA_DIR, "recordings")
+    candidates = sorted(
+        [j for j in q.list_jobs(status="done") if j.get("audio_path") and j.get("keep_audio") != 1],
+        key=lambda j: j["created_at"],
+    )
+    for job in candidates:
+        total = sum(f.stat().st_size for f in Path(recordings_dir).glob("*.mp3") if f.exists())
+        if total <= limit_bytes:
+            break
+        audio = job["audio_path"]
+        if os.path.exists(audio):
+            try:
+                os.remove(audio)
+                q.update_job(job["id"], audio_path=None)
+                logger.info("Size-limit cleanup: deleted %s", audio)
+            except OSError as exc:
+                logger.warning("Could not delete %s: %s", audio, exc)

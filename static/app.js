@@ -171,6 +171,7 @@ async function refreshJobs() {
   }
 
   el.innerHTML = jobs.map(renderJob).join('');
+  updateRecordingsSize();
 }
 
 function renderJob(job) {
@@ -329,6 +330,19 @@ async function retryJob(jobId) {
     return;
   }
   refreshJobs();
+}
+
+async function updateRecordingsSize() {
+  const footer = document.getElementById('recordings-size-footer');
+  const val = document.getElementById('recordings-size-value');
+  if (!footer || !val) return;
+  try {
+    const data = await fetch('/recordings/size').then(r => r.json());
+    val.textContent = data.size_gb >= 1
+      ? data.size_gb.toFixed(2) + ' GB'
+      : data.size_mb.toFixed(1) + ' MB';
+    footer.style.display = '';
+  } catch (_) {}
 }
 
 function formatLocalDate(isoStr) {

@@ -84,6 +84,7 @@ def init_db():
             ("template",        "ALTER TABLE jobs ADD COLUMN template TEXT"),
             ("meeting_date",    "ALTER TABLE jobs ADD COLUMN meeting_date TEXT"),
             ("glossary_terms",  "ALTER TABLE jobs ADD COLUMN glossary_terms TEXT"),
+            ("keep_audio",      "ALTER TABLE jobs ADD COLUMN keep_audio INTEGER"),
         ]
         for col, sql in migrations:
             if col not in existing_cols:

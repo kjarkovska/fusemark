@@ -413,3 +413,118 @@ def test_glossary_suggestion_error_is_nonfatal(mocks):
     w._process_next()
 
     mocks["q"].set_status.assert_any_call("test-job-id", "done")
+
+
+# ------------------------------------------------------------------
+# P8 — Recordings housekeeping
+# ------------------------------------------------------------------
+
+def test_auto_delete_removes_file_when_enabled(mocks, tmp_path):
+    audio = tmp_path / "rec.mp3"
+    audio.write_bytes(b"audio")
+    job = _make_job({"transcript": "text", "keep_audio": None, "audio_path": str(audio)})
+    done_job = {**job}
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.side_effect = [
+        {**job, "transcript": "Hello world"},  # re-fetch after transcription
+        done_job,                               # re-fetch in _maybe_delete_recording
+    ]
+    mocks["cfg"].load.return_value = {
+        "vault_path": "/vault",
+        "language_name": "Czech",
+        "auto_delete_recordings": True,
+        "max_recordings_gb": 0,
+    }
+
+    w = Worker()
+    w._process_next()
+
+    assert not audio.exists()
+    update_calls = mocks["q"].update_job.call_args_list
+    assert any(c.kwargs.get("audio_path") is None for c in update_calls)
+
+
+def test_auto_delete_skips_when_keep_audio_set(mocks, tmp_path):
+    audio = tmp_path / "rec.mp3"
+    audio.write_bytes(b"audio")
+    job = _make_job({"transcript": "text", "keep_audio": 1, "audio_path": str(audio)})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+    mocks["cfg"].load.return_value = {
+        "vault_path": "/vault",
+        "language_name": "Czech",
+        "auto_delete_recordings": True,
+        "max_recordings_gb": 0,
+    }
+
+    w = Worker()
+    w._process_next()
+
+    assert audio.exists()
+
+
+def test_auto_delete_skips_when_flag_off(mocks, tmp_path):
+    audio = tmp_path / "rec.mp3"
+    audio.write_bytes(b"audio")
+    job = _make_job({"transcript": "text", "keep_audio": None, "audio_path": str(audio)})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+    mocks["cfg"].load.return_value = {
+        "vault_path": "/vault",
+        "language_name": "Czech",
+        "auto_delete_recordings": False,
+        "max_recordings_gb": 0,
+    }
+
+    w = Worker()
+    w._process_next()
+
+    assert audio.exists()
+
+
+def test_auto_delete_missing_file_no_crash(mocks):
+    job = _make_job({"transcript": "text", "keep_audio": None, "audio_path": "/nonexistent/rec.mp3"})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+    mocks["cfg"].load.return_value = {
+        "vault_path": "/vault",
+        "language_name": "Czech",
+        "auto_delete_recordings": True,
+        "max_recordings_gb": 0,
+    }
+
+    w = Worker()
+    w._process_next()  # should not raise
+
+    mocks["q"].set_status.assert_any_call("test-job-id", "done")
+
+
+def test_enforce_size_limit_deletes_oldest(monkeypatch, tmp_path):
+    from app.worker import _enforce_size_limit
+    import app.queue as q_real
+    import app.config as cfg_real
+
+    rdir = tmp_path / "recordings"
+    rdir.mkdir()
+    old_mp3 = rdir / "old.mp3"
+    new_mp3 = rdir / "new.mp3"
+    old_mp3.write_bytes(b"x" * 1024)
+    new_mp3.write_bytes(b"x" * 1024)
+
+    monkeypatch.setattr(q_real, "DB_PATH", str(tmp_path / "jobs.db"))
+    q_real.init_db()
+    monkeypatch.setattr(cfg_real, "DATA_DIR", str(tmp_path))
+
+    j1 = q_real.create_job(label="old")
+    q_real.update_job(j1, audio_path=str(old_mp3))
+    q_real.update_job(j1, status="done", created_at="2026-01-01T10:00:00+00:00")
+
+    j2 = q_real.create_job(label="new")
+    q_real.update_job(j2, audio_path=str(new_mp3))
+    q_real.update_job(j2, status="done", created_at="2026-01-02T10:00:00+00:00")
+
+    # Limit smaller than total (2 KB), so oldest should be deleted
+    _enforce_size_limit({"max_recordings_gb": 1 / (1024 ** 2), "auto_delete_recordings": False})
+
+    assert not old_mp3.exists()
+    assert new_mp3.exists()
