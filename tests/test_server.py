@@ -1152,3 +1152,25 @@ def test_recordings_cleanup_returns_freed_mb(flask_client, tmp_path, monkeypatch
     data = r.get_json()
     assert data["deleted"] == 1
     assert data["freed_mb"] == 1.0
+
+
+# ------------------------------------------------------------------
+# route_stop — scratch notes persisted before stopping
+# ------------------------------------------------------------------
+
+def test_route_stop_saves_scratch_notes_before_stopping(flask_client, monkeypatch):
+    import app.server as srv
+
+    job_id = q.create_job(label="live meeting")
+    monkeypatch.setattr(srv, '_current_job_id', job_id)
+    monkeypatch.setattr(srv, 'stop_recording',
+                        lambda: {"job_id": job_id, "audio_path": "/fake.mp3"})
+
+    r = flask_client.post(
+        "/stop",
+        data=json.dumps({"scratch_notes": "budget approved, next steps: TBD"}),
+        content_type="application/json",
+    )
+    assert r.status_code == 200
+    job = q.get_job(job_id)
+    assert job["scratch_notes"] == "budget approved, next steps: TBD"

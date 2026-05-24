@@ -81,6 +81,32 @@ def test_suggest_glossary_terms_dispatches_to_anthropic():
     assert result == []
 
 
+def test_suggest_glossary_terms_dispatches_to_openai():
+    import app.llm.openai_provider
+    from app.llm import suggest_glossary_terms
+
+    with patch("app.llm.cfg") as mock_cfg, \
+         patch("app.llm.openai_provider.suggest_glossary_terms", return_value=[{"canonical": "OKR"}]) as mock_s:
+        mock_cfg.load.return_value = {"llm_provider": "openai"}
+        result = suggest_glossary_terms("transcript")
+
+    mock_s.assert_called_once_with("transcript")
+    assert result == [{"canonical": "OKR"}]
+
+
+def test_suggest_glossary_terms_dispatches_to_mistral():
+    import app.llm.mistral_provider
+    from app.llm import suggest_glossary_terms
+
+    with patch("app.llm.cfg") as mock_cfg, \
+         patch("app.llm.mistral_provider.suggest_glossary_terms", return_value=[]) as mock_s:
+        mock_cfg.load.return_value = {"llm_provider": "mistral"}
+        result = suggest_glossary_terms("transcript")
+
+    mock_s.assert_called_once_with("transcript")
+    assert result == []
+
+
 # ------------------------------------------------------------------
 # Anthropic provider — API key
 # ------------------------------------------------------------------
@@ -224,6 +250,65 @@ def test_anthropic_suggest_non_list_json_returns_empty():
         result = suggest_glossary_terms("transcript")
 
     assert result == []
+
+
+def test_anthropic_suggest_rate_limit_raises_llm_rate_limit_error():
+    import anthropic as ant
+    from app.llm.anthropic_provider import suggest_glossary_terms
+
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = ant.RateLimitError(
+        message="rate limited", response=MagicMock(), body={}
+    )
+    with patch("app.llm.anthropic_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.anthropic_provider.load_glossary", return_value={}), \
+         patch("app.llm.anthropic_provider.anthropic.Anthropic", return_value=mock_client):
+        with pytest.raises(LLMRateLimitError):
+            suggest_glossary_terms("transcript")
+
+
+def test_anthropic_suggest_auth_error_raises_llm_auth_error():
+    import anthropic as ant
+    from app.llm.anthropic_provider import suggest_glossary_terms
+
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = ant.AuthenticationError(
+        message="invalid key", response=MagicMock(), body={}
+    )
+    with patch("app.llm.anthropic_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.anthropic_provider.load_glossary", return_value={}), \
+         patch("app.llm.anthropic_provider.anthropic.Anthropic", return_value=mock_client):
+        with pytest.raises(LLMAuthError, match="Invalid API key for Anthropic"):
+            suggest_glossary_terms("transcript")
+
+
+# ------------------------------------------------------------------
+# Anthropic provider — generate_notes() optional fields
+# ------------------------------------------------------------------
+
+def test_anthropic_generate_notes_includes_optional_fields():
+    """scratch_notes, extra_context, label, and folder must appear in the user message."""
+    from app.llm.anthropic_provider import generate_notes
+
+    mock_client = _make_anthropic_mock()
+    with patch("app.llm.anthropic_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.anthropic_provider.load_glossary", return_value={}), \
+         patch("app.llm.anthropic_provider.anthropic.Anthropic", return_value=mock_client):
+        generate_notes(
+            "meeting transcript",
+            label="Q4 Planning",
+            folder="Strategy",
+            scratch_notes="Budget approved",
+            extra_context="Board meeting",
+            language="English",
+        )
+
+    _, kwargs = mock_client.messages.create.call_args
+    content = kwargs["messages"][0]["content"]
+    assert "Q4 Planning" in content
+    assert "Strategy" in content
+    assert "Budget approved" in content
+    assert "Board meeting" in content
 
 
 # ------------------------------------------------------------------

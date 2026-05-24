@@ -1,3 +1,4 @@
+import threading
 from unittest.mock import MagicMock, call, patch
 import pytest
 
@@ -528,3 +529,98 @@ def test_enforce_size_limit_deletes_oldest(monkeypatch, tmp_path):
 
     assert not old_mp3.exists()
     assert new_mp3.exists()
+
+
+# ------------------------------------------------------------------
+# Worker thread lifecycle — start() / stop() / _loop()
+# ------------------------------------------------------------------
+
+def test_worker_start_creates_running_thread():
+    w = Worker()
+    with patch('app.worker.POLL_INTERVAL', 0), \
+         patch.object(w, '_process_next'):
+        w.start()
+        assert w._thread is not None
+        assert w._thread.is_alive()
+        w.stop()
+
+
+def test_worker_stop_terminates_thread():
+    w = Worker()
+    with patch('app.worker.POLL_INTERVAL', 0), \
+         patch.object(w, '_process_next'):
+        w.start()
+        w.stop()
+        assert not w._thread.is_alive()
+
+
+def test_loop_swallows_process_next_exception_and_continues():
+    """_loop() must catch any exception from _process_next() and keep running."""
+    calls = []
+
+    w = Worker()
+
+    def fake_process_next():
+        calls.append(True)
+        if len(calls) == 1:
+            raise RuntimeError("unexpected crash")
+        w._stop_event.set()  # exit after second successful call
+
+    with patch('app.worker.POLL_INTERVAL', 0), \
+         patch.object(w, '_process_next', side_effect=fake_process_next):
+        w._loop()
+
+    assert len(calls) == 2
+
+
+# ------------------------------------------------------------------
+# P8 — OSError swallowing in auto-delete paths
+# ------------------------------------------------------------------
+
+def test_auto_delete_oserror_is_swallowed(mocks, tmp_path):
+    """An OSError during file removal must not propagate out of _process_next()."""
+    audio = tmp_path / "rec.mp3"
+    audio.write_bytes(b"audio")
+    job = _make_job({"transcript": "text", "keep_audio": None, "audio_path": str(audio)})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.side_effect = [
+        {**job, "transcript": "text"},
+        job,
+    ]
+    mocks["cfg"].load.return_value = {
+        "vault_path": "/vault",
+        "language_name": "Czech",
+        "auto_delete_recordings": True,
+        "max_recordings_gb": 0,
+    }
+
+    with patch("app.worker.os.remove", side_effect=OSError("file locked")):
+        w = Worker()
+        w._process_next()  # must not raise
+
+    mocks["q"].set_status.assert_any_call("test-job-id", "done")
+
+
+def test_enforce_size_limit_oserror_is_swallowed(monkeypatch, tmp_path):
+    """An OSError during deletion in _enforce_size_limit() must not propagate."""
+    from app.worker import _enforce_size_limit
+    import app.queue as q_real
+    import app.config as cfg_real
+
+    rdir = tmp_path / "recordings"
+    rdir.mkdir()
+    mp3 = rdir / "file.mp3"
+    mp3.write_bytes(b"x" * 2048)
+
+    monkeypatch.setattr(q_real, "DB_PATH", str(tmp_path / "jobs.db"))
+    q_real.init_db()
+    monkeypatch.setattr(cfg_real, "DATA_DIR", str(tmp_path))
+
+    j = q_real.create_job(label="test")
+    q_real.update_job(j, audio_path=str(mp3))
+    q_real.update_job(j, status="done")
+
+    with patch("app.worker.os.remove", side_effect=OSError("access denied")):
+        _enforce_size_limit({"max_recordings_gb": 1 / (1024 ** 3)})  # limit of ~1 byte
+
+    assert mp3.exists()  # file untouched because deletion was blocked

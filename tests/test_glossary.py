@@ -143,3 +143,71 @@ def test_glossary_path_without_vault(monkeypatch):
     result = gl.glossary_path(None)
     assert result.endswith("Glossary.md")
     assert result.startswith(cfg.DATA_DIR)  # falls back to data directory (P1)
+
+
+# ------------------------------------------------------------------
+# load() — short/malformed rows
+# ------------------------------------------------------------------
+
+def test_load_skips_row_with_fewer_than_4_columns(vault):
+    """A table row with < 4 pipe-delimited cells must be silently skipped."""
+    path = os.path.join(vault, "ObsiNote", "Glossary.md")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("# ObsiNote Glossary\n\n")
+        f.write("| Term | Aliases | Context | Type |\n")
+        f.write("|------|---------|---------|------|\n")
+        f.write("| Jira | Yira | Issue tracker | product |\n")  # valid
+        f.write("| Short row |\n")                               # only 1 cell — skipped
+    result = gl.load(vault)
+    assert len(result["terms"]) == 1
+    assert result["terms"][0]["canonical"] == "Jira"
+
+
+# ------------------------------------------------------------------
+# migrate_if_needed()
+# ------------------------------------------------------------------
+
+def test_migrate_if_needed_noop_when_no_json(tmp_path, monkeypatch):
+    """No glossary.json present → function returns without creating Glossary.md."""
+    glossary_md = tmp_path / "ObsiNote" / "Glossary.md"
+    monkeypatch.setattr(gl, "_LEGACY_JSON_PATH", str(tmp_path / "missing.json"))
+    monkeypatch.setattr(gl, "glossary_path", lambda vp=None: str(glossary_md))
+
+    gl.migrate_if_needed()
+
+    assert not glossary_md.exists()
+
+
+def test_migrate_if_needed_converts_json_to_md(tmp_path, monkeypatch):
+    """Legacy glossary.json is converted to Glossary.md and then deleted."""
+    import json
+
+    legacy_json = tmp_path / "glossary.json"
+    terms = [{"canonical": "JIRA", "aliases": ["Yira"], "context": "Issue tracker", "type": "product"}]
+    legacy_json.write_text(json.dumps({"terms": terms}), encoding="utf-8")
+
+    glossary_md = tmp_path / "ObsiNote" / "Glossary.md"
+    monkeypatch.setattr(gl, "_LEGACY_JSON_PATH", str(legacy_json))
+    monkeypatch.setattr(gl, "glossary_path", lambda vp=None: str(glossary_md))
+
+    gl.migrate_if_needed()
+
+    assert not legacy_json.exists()
+    assert glossary_md.exists()
+    loaded = gl.load(str(tmp_path))
+    assert any(t["canonical"] == "JIRA" for t in loaded["terms"])
+
+
+def test_migrate_if_needed_preserves_json_on_failure(tmp_path, monkeypatch):
+    """If migration fails (bad JSON), the source glossary.json is preserved."""
+    legacy_json = tmp_path / "glossary.json"
+    legacy_json.write_text("not valid json", encoding="utf-8")
+
+    glossary_md = tmp_path / "ObsiNote" / "Glossary.md"
+    monkeypatch.setattr(gl, "_LEGACY_JSON_PATH", str(legacy_json))
+    monkeypatch.setattr(gl, "glossary_path", lambda vp=None: str(glossary_md))
+
+    gl.migrate_if_needed()  # must not raise
+
+    assert legacy_json.exists()   # preserved because migration failed
+    assert not glossary_md.exists()
