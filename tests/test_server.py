@@ -450,40 +450,38 @@ def test_index_no_vault_warning_when_vault_set(flask_client, tmp_path, monkeypat
 
 def test_start_route_creates_job(flask_client, monkeypatch):
     import app.server as srv
-    monkeypatch.setattr(srv, "_recorder", None)
-    monkeypatch.setattr(srv, "_current_job_id", None)
-    mock_rec = MagicMock()
-    with patch("app.server.Recorder", return_value=mock_rec):
-        r = flask_client.post(
-            "/start",
-            data=json.dumps({"label": "Stand-up", "folder": "Other"}),
-            content_type="application/json",
-        )
+    mock_svc = MagicMock()
+    mock_svc.start.return_value = {"job_id": "abc-123"}
+    monkeypatch.setattr(srv, "_recording_service", mock_svc)
+    r = flask_client.post(
+        "/start",
+        data=json.dumps({"label": "Stand-up", "folder": "Other"}),
+        content_type="application/json",
+    )
     assert r.status_code == 200
-    job_id = r.get_json()["job_id"]
-    assert q.get_job(job_id)["label"] == "Stand-up"
-    mock_rec.start.assert_called_once()
+    mock_svc.start.assert_called_once_with(label="Stand-up", folder="Other", template="")
 
 
 def test_start_route_already_recording_returns_400(flask_client, monkeypatch):
     import app.server as srv
-    monkeypatch.setattr(srv, "_recorder", MagicMock())
+    mock_svc = MagicMock()
+    mock_svc.start.return_value = {"error": "Already recording"}
+    monkeypatch.setattr(srv, "_recording_service", mock_svc)
     r = flask_client.post("/start", data=json.dumps({}), content_type="application/json")
     assert r.status_code == 400
 
 
 def test_start_route_saves_template(flask_client, monkeypatch):
     import app.server as srv
-    monkeypatch.setattr(srv, "_recorder", None)
-    monkeypatch.setattr(srv, "_current_job_id", None)
-    with patch("app.server.Recorder", return_value=MagicMock()):
-        r = flask_client.post(
-            "/start",
-            data=json.dumps({"label": "x", "template": "Meeting"}),
-            content_type="application/json",
-        )
-    job_id = r.get_json()["job_id"]
-    assert q.get_job(job_id)["template"] == "Meeting"
+    mock_svc = MagicMock()
+    mock_svc.start.return_value = {"job_id": "abc-456"}
+    monkeypatch.setattr(srv, "_recording_service", mock_svc)
+    flask_client.post(
+        "/start",
+        data=json.dumps({"label": "x", "template": "Meeting"}),
+        content_type="application/json",
+    )
+    mock_svc.start.assert_called_once_with(label="x", folder="Other", template="Meeting")
 
 
 # ------------------------------------------------------------------
@@ -492,22 +490,23 @@ def test_start_route_saves_template(flask_client, monkeypatch):
 
 def test_stop_route_not_recording_returns_400(flask_client, monkeypatch):
     import app.server as srv
-    monkeypatch.setattr(srv, "_recorder", None)
+    mock_svc = MagicMock()
+    mock_svc.stop.return_value = {"error": "Not recording"}
+    monkeypatch.setattr(srv, "_recording_service", mock_svc)
     r = flask_client.post("/stop", data=json.dumps({}), content_type="application/json")
     assert r.status_code == 400
 
 
 def test_stop_route_success(flask_client, monkeypatch, tmp_path):
     import app.server as srv
-    import app.config as cfg
     job_id = q.create_job(label="Stop test")
-    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(srv, "_recorder", MagicMock())
-    monkeypatch.setattr(srv, "_current_job_id", job_id)
+    mock_svc = MagicMock()
+    mock_svc.stop.return_value = {"job_id": job_id, "audio_path": str(tmp_path / "rec.mp3")}
+    mock_svc.current_job_id = job_id
+    monkeypatch.setattr(srv, "_recording_service", mock_svc)
     r = flask_client.post("/stop", data=json.dumps({}), content_type="application/json")
     assert r.status_code == 200
     assert r.get_json()["job_id"] == job_id
-    assert q.get_job(job_id)["status"] == "queued"
 
 
 # ------------------------------------------------------------------
@@ -1162,7 +1161,7 @@ def test_route_stop_saves_scratch_notes_before_stopping(flask_client, monkeypatc
     import app.server as srv
 
     job_id = q.create_job(label="live meeting")
-    monkeypatch.setattr(srv, '_current_job_id', job_id)
+    monkeypatch.setattr(srv._recording_service, '_current_job_id', job_id)
     monkeypatch.setattr(srv, 'stop_recording',
                         lambda: {"job_id": job_id, "audio_path": "/fake.mp3"})
 

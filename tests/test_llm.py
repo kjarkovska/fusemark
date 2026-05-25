@@ -679,3 +679,35 @@ def test_mistral_suggest_rate_limit_raises():
          patch("app.llm.mistral_provider.Mistral", return_value=mock_client):
         with pytest.raises(LLMRateLimitError):
             suggest_glossary_terms("transcript")
+
+
+# ------------------------------------------------------------------
+# Provider contract — type alias + structural conformance
+# ------------------------------------------------------------------
+
+def test_generate_notes_callable_alias_is_defined():
+    from app.llm import GenerateNotesCallable
+    assert GenerateNotesCallable is not None
+
+
+def test_suggest_terms_callable_alias_is_defined():
+    from app.llm import SuggestTermsCallable
+    assert SuggestTermsCallable is not None
+
+
+def test_all_providers_have_generate_notes_function():
+    import app.llm.anthropic_provider as ap
+    import app.llm.openai_provider as op
+    import app.llm.mistral_provider as mp
+    for mod in (ap, op, mp):
+        assert callable(getattr(mod, "generate_notes", None)), \
+            f"{mod.__name__} missing generate_notes"
+
+
+def test_all_providers_have_suggest_glossary_terms_function():
+    import app.llm.anthropic_provider as ap
+    import app.llm.openai_provider as op
+    import app.llm.mistral_provider as mp
+    for mod in (ap, op, mp):
+        assert callable(getattr(mod, "suggest_glossary_terms", None)), \
+            f"{mod.__name__} missing suggest_glossary_terms"

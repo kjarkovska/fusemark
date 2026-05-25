@@ -624,3 +624,44 @@ def test_enforce_size_limit_oserror_is_swallowed(monkeypatch, tmp_path):
         _enforce_size_limit({"max_recordings_gb": 1 / (1024 ** 3)})  # limit of ~1 byte
 
     assert mp3.exists()  # file untouched because deletion was blocked
+
+
+# ------------------------------------------------------------------
+# Config injection
+# ------------------------------------------------------------------
+
+def test_worker_default_config_loader_uses_cfg_load():
+    import app.config as real_cfg
+    w = Worker()
+    assert w._config_loader is real_cfg.load
+
+
+def test_worker_injected_config_vault_path_empty_causes_retry(mocks):
+    job = _make_job({"transcript": "text"})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+
+    w = Worker(config_loader=lambda: {"vault_path": "", "language_name": "Czech",
+                                       "auto_delete_recordings": False, "max_recordings_gb": 0})
+    w._process_next()
+
+    statuses = [c.kwargs.get("status") for c in mocks["q"].update_job.call_args_list
+                if "status" in c.kwargs]
+    assert "queued" in statuses
+
+
+def test_worker_injected_config_auto_delete_removes_file(mocks, tmp_path):
+    audio = tmp_path / "rec.mp3"
+    audio.write_bytes(b"audio")
+    job = _make_job({"transcript": "text", "keep_audio": None, "audio_path": str(audio)})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.side_effect = [
+        {**job, "transcript": "Hello world"},
+        {**job},
+    ]
+
+    w = Worker(config_loader=lambda: {"vault_path": "/vault", "language_name": "Czech",
+                                       "auto_delete_recordings": True, "max_recordings_gb": 0})
+    w._process_next()
+
+    assert not audio.exists()

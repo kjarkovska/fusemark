@@ -30,7 +30,8 @@ MAX_RETRIES = 5     # max retries for generation errors before marking as error
 
 
 class Worker:
-    def __init__(self):
+    def __init__(self, config_loader=None):
+        self._config_loader = config_loader if config_loader is not None else cfg.load
         self._thread = None
         self._stop_event = threading.Event()
         self.on_transcribing = None  # optional callback(bool) — wired to tray in main.py
@@ -137,7 +138,7 @@ class Worker:
         q.set_status(job_id, "generating")
         if self.on_tooltip:
             self.on_tooltip(f"ObsiNote — Generuji poznámky: {label}")
-        config = cfg.load()
+        config = self._config_loader()
         vault_path = config.get("vault_path", "")
         if not vault_path:
             raise _RetryableError("vault_path not set — configure it in Settings")
@@ -173,7 +174,7 @@ class Worker:
 
 
     def _maybe_delete_recording(self, job_id):
-        config = cfg.load()
+        config = self._config_loader()
         if config.get("auto_delete_recordings"):
             job = q.get_job(job_id)
             if job.get("keep_audio") != 1:

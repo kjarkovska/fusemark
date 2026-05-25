@@ -29,6 +29,7 @@ from app import queue as q
 from app.exceptions import LLMAuthError, LLMRateLimitError
 from app.i18n import get_strings
 from app.recorder import Recorder, list_devices as list_audio_devices
+from app.recording_service import RecordingService
 from app.version import VERSION
 
 app = Flask(
@@ -37,75 +38,29 @@ app = Flask(
     static_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)), "static"),
 )
 
-# Shared state — accessed from Flask routes and tray callbacks
-_recorder = None
-_recorder_lock = threading.Lock()
-_current_job_id = None
-_tray = None   # set by main.py after tray is created
+_recording_service = RecordingService()
 
 
 def set_tray(tray):
-    global _tray
-    _tray = tray
+    _recording_service.set_tray(tray)
 
 
 # ------------------------------------------------------------------
-# Recording control
+# Recording control — thin wrappers so main.py needs no changes
 # ------------------------------------------------------------------
 
 def start_recording(label="", folder="", template=""):
-    global _recorder, _current_job_id
-    with _recorder_lock:
-        if _recorder is not None:
-            return {"error": "Already recording"}, 400
-
-        config = cfg.load()
-        r = Recorder(
-            output_device=config.get("output_device"),
-            input_device=config.get("input_device"),
-        )
-        r.start()
-        _recorder = r
-
-        job_id = q.create_job(label=label, folder=folder)
-        if template:
-            q.update_job(job_id, template=template)
-        _current_job_id = job_id
-
-    if _tray:
-        _tray.set_recording(True)
-        _tray.set_tooltip("ObsiNote — Nahrávám")
-
-    return {"job_id": job_id}
+    result = _recording_service.start(label=label, folder=folder, template=template)
+    if "error" in result:
+        return result, 400
+    return result
 
 
 def stop_recording():
-    global _recorder, _current_job_id
-    with _recorder_lock:
-        if _recorder is None:
-            return {"error": "Not recording"}, 400
-
-        r = _recorder
-        job_id = _current_job_id
-        _recorder = None
-        _current_job_id = None
-
-    r.stop()
-
-    # Save the audio file and queue the job
-    recordings_dir = os.path.join(cfg.DATA_DIR, "recordings")
-    os.makedirs(recordings_dir, exist_ok=True)
-    audio_path = os.path.join(recordings_dir, f"{job_id}.mp3")
-    r.save(audio_path)
-
-    q.update_job(job_id, audio_path=audio_path, recording_path=audio_path)
-    q.set_status(job_id, "queued")
-
-    if _tray:
-        _tray.set_recording(False)
-        _tray.set_tooltip("ObsiNote")
-
-    return {"job_id": job_id, "audio_path": audio_path}
+    result = _recording_service.stop()
+    if "error" in result:
+        return result, 400
+    return result
 
 
 # ------------------------------------------------------------------
@@ -183,8 +138,9 @@ def route_import_transcript():
     )
     q.set_status(job_id, "queued")
 
-    if _tray:
-        _tray.set_tooltip("ObsiNote — Zpracovávám import")
+    tray = _recording_service.tray
+    if tray:
+        tray.set_tooltip("ObsiNote — Zpracovávám import")
 
     return jsonify({"job_id": job_id})
 
@@ -223,8 +179,9 @@ def route_import_audio():
     )
     q.set_status(job_id, "queued")
 
-    if _tray:
-        _tray.set_tooltip("ObsiNote — Zpracovávám import")
+    tray = _recording_service.tray
+    if tray:
+        tray.set_tooltip("ObsiNote — Zpracovávám import")
 
     return jsonify({"job_id": job_id})
 
@@ -233,8 +190,9 @@ def route_import_audio():
 def route_stop():
     data = request.get_json(silent=True) or {}
     # Save scratch notes if provided before stopping
-    if _current_job_id and data.get("scratch_notes"):
-        q.update_job(_current_job_id, scratch_notes=data["scratch_notes"])
+    current_job_id = _recording_service.current_job_id
+    if current_job_id and data.get("scratch_notes"):
+        q.update_job(current_job_id, scratch_notes=data["scratch_notes"])
     result = stop_recording()
     if isinstance(result, tuple):
         return jsonify(result[0]), result[1]
@@ -300,10 +258,10 @@ def route_job_audio(job_id):
 
 @app.route("/status")
 def route_status():
-    with _recorder_lock:
-        recording = _recorder is not None
-        job_id = _current_job_id
-    return jsonify({"recording": recording, "job_id": job_id})
+    return jsonify({
+        "recording": _recording_service.is_recording,
+        "job_id": _recording_service.current_job_id,
+    })
 
 
 @app.route("/settings/save", methods=["POST"])

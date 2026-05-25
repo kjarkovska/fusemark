@@ -265,3 +265,26 @@ def test_dispatcher_passes_language_from_config(tmp_path):
 
     _, args, _ = mock_local.mock_calls[0]
     assert args[1] == "de"
+
+
+# ------------------------------------------------------------------
+# Provider contract — type alias + structural conformance
+# ------------------------------------------------------------------
+
+def test_transcribe_callable_alias_is_defined():
+    from app.transcription import TranscribeCallable
+    assert TranscribeCallable is not None
+
+
+def test_transcribe_local_signature_matches_contract():
+    import inspect
+    from app.transcription.local import transcribe_local
+    params = list(inspect.signature(transcribe_local).parameters)
+    assert params == ["audio_path", "language", "job_id", "glossary_prompt"]
+
+
+def test_transcription_dispatcher_return_type_annotated():
+    import inspect
+    from app.transcription import transcribe
+    hints = inspect.get_annotations(transcribe)
+    assert hints.get("return") == str

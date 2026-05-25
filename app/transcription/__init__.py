@@ -1,5 +1,11 @@
+from typing import Callable, Optional
+
 from app import config as cfg
 from app.glossary import build_whisper_prompt
+
+# Contract: signature that every transcription provider function must satisfy.
+# args: audio_path, language, job_id, glossary_prompt
+TranscribeCallable = Callable[[str, str, Optional[str], str], str]
 
 
 def transcribe(audio_path: str, job_id: str | None = None) -> str:
