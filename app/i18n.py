@@ -195,6 +195,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "msg_up_to_date":          "You are up to date.",
         "msg_update_available":    "Update available: {version}",
         "msg_never_checked":       "Never",
+        "btn_download_update":     "Download",
+        "btn_dismiss_update":      "Dismiss",
     },
     "cs": {
         # Nav
@@ -392,6 +394,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "msg_up_to_date":          "Máte nejnovější verzi.",
         "msg_update_available":    "Dostupná aktualizace: {version}",
         "msg_never_checked":       "Nikdy",
+        "btn_download_update":     "Stáhnout",
+        "btn_dismiss_update":      "Zavřít",
     },
 }
 

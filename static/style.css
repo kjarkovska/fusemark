@@ -191,6 +191,36 @@ select::-ms-expand { display: none; }
 }
 .warning-link:hover { opacity: 0.8; }
 
+/* ── Update banner ─────────────────────────────────────────────────── */
+.update-banner {
+  background: var(--green-bg);
+  border-bottom: 1px solid var(--green-bd);
+  color: var(--green-text);
+  font-size: var(--t-13);
+  padding: 8px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.update-link {
+  color: var(--green-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.update-link:hover { opacity: 0.8; }
+.update-dismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--green-text);
+  cursor: pointer;
+  font-size: var(--t-13);
+  opacity: 0.7;
+  padding: 0;
+}
+.update-dismiss:hover { opacity: 1; }
+
 /* ── Main content area ─────────────────────────────────────────────── */
 .main-content {
   flex: 1;
