@@ -148,6 +148,17 @@ def test_save_transcript_sanitizes_filename(vault):
 # Template placeholder substitution (inline logic test)
 # ------------------------------------------------------------------
 
+def test_save_note_path_contains_obsinote_meetings(vault):
+    path = save_note("content", "Sprint", "Team", vault, date_str="2026-01-01")
+    assert os.path.join("ObsiNote", "Meetings", "Team") in path
+
+
+def test_save_transcript_path_contains_obsinote_transcripts(vault):
+    path = save_transcript("text", "Meeting", vault, date_str="2026-01-01")
+    assert path is not None
+    assert os.path.join("ObsiNote", "Transcripts") in path
+
+
 def test_template_placeholder_substitution():
     raw = "# {{title}}\n\nDate: {{date}}\n\n{{transcript}}"
     today = "2026-04-20"

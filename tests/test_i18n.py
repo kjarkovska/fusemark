@@ -31,3 +31,15 @@ def test_get_strings_returns_dict():
     s = get_strings("en")
     assert isinstance(s, dict)
     assert len(s) > 50
+
+
+def test_msg_update_available_has_version_placeholder():
+    for lang in ("en", "cs"):
+        assert "{version}" in TRANSLATIONS[lang]["msg_update_available"]
+
+
+def test_msg_update_available_substitution():
+    s = get_strings("en")
+    result = s["msg_update_available"].replace("{version}", "1.2.3")
+    assert "1.2.3" in result
+    assert "{version}" not in result

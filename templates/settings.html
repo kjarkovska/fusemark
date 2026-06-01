@@ -450,8 +450,12 @@
       if (!res.ok) showMsg(window.STRINGS.msg_log_not_found);
     }
 
+    let _msgTimer = null;
     function showMsg(msg) {
-      document.getElementById('settings-msg').textContent = msg;
+      const el = document.getElementById('settings-msg');
+      el.textContent = msg;
+      clearTimeout(_msgTimer);
+      _msgTimer = setTimeout(function () { el.textContent = ''; }, 5000);
     }
 
     let _modelPollVersion = 0;
