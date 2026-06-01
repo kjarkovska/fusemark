@@ -230,7 +230,6 @@
               <button class="btn-inline" onclick="saveApiKey('anthropic')">{{ t.btn_save_key }}</button>
               <button class="btn-inline" onclick="testApiKey('anthropic')">{{ t.btn_test_key }}</button>
             </div>
-            <p class="key-hint" id="key-hint-anthropic"></p>
           </div>
           <div id="key-row-openai" class="field">
             <label>{{ t.label_openai_key }}</label>
@@ -239,7 +238,6 @@
               <button class="btn-inline" onclick="saveApiKey('openai')">{{ t.btn_save_key }}</button>
               <button class="btn-inline" onclick="testApiKey('openai')">{{ t.btn_test_key }}</button>
             </div>
-            <p class="key-hint" id="key-hint-openai"></p>
           </div>
           <div id="key-row-mistral" class="field">
             <label>{{ t.label_mistral_key }}</label>
@@ -248,7 +246,6 @@
               <button class="btn-inline" onclick="saveApiKey('mistral')">{{ t.btn_save_key }}</button>
               <button class="btn-inline" onclick="testApiKey('mistral')">{{ t.btn_test_key }}</button>
             </div>
-            <p class="key-hint" id="key-hint-mistral"></p>
           </div>
         </section>
 
@@ -343,13 +340,18 @@
       }
     }
 
+    const _defaultPlaceholders = {
+      anthropic: 'sk-ant-...',
+      openai:    'sk-...',
+      mistral:   '...',
+    };
     async function loadKeyHints() {
       try {
         const status = await fetch('/api-key-status').then(r => r.json());
         ['anthropic', 'openai', 'mistral'].forEach(p => {
-          const el = document.getElementById('key-hint-' + p);
-          if (!el) return;
-          el.textContent = status[p] ? status[p] : '';
+          const input = document.getElementById('api_key_' + p);
+          if (!input) return;
+          input.placeholder = status[p] ? status[p] : _defaultPlaceholders[p];
         });
       } catch (_) {}
     }
@@ -450,12 +452,15 @@
       if (!res.ok) showMsg(window.STRINGS.msg_log_not_found);
     }
 
-    let _msgTimer = null;
     function showMsg(msg) {
-      const el = document.getElementById('settings-msg');
+      var el = document.getElementById('settings-msg');
+      if (!el) return;
       el.textContent = msg;
-      clearTimeout(_msgTimer);
-      _msgTimer = setTimeout(function () { el.textContent = ''; }, 5000);
+      if (window._msgTimer) { window.clearTimeout(window._msgTimer); }
+      window._msgTimer = window.setTimeout(function () {
+        var el2 = document.getElementById('settings-msg');
+        if (el2) el2.textContent = '';
+      }, 5000);
     }
 
     let _modelPollVersion = 0;

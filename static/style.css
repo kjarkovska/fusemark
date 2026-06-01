@@ -518,6 +518,10 @@ button {
   background: var(--card);
   border: 1px solid var(--border);
   color: var(--muted);
+  padding: 10px 24px;
+  font-size: var(--t-13);
+  font-weight: var(--fw-medium);
+  border-radius: var(--r-md);
 }
 
 .btn-delete {
