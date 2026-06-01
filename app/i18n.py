@@ -17,8 +17,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "btn_import_audio": "Import audio",
         "scratch_placeholder": "Rough notes during the meeting...",
         # Record buttons (also used in JS via window.STRINGS)
-        "btn_start_recording": "Start Recording",
-        "btn_stop_recording": "Stop Recording",
+        "btn_start_recording": "Start recording",
+        "btn_stop_recording": "Stop recording",
         "btn_saving": "Saving...",
         # Jobs panel
         "jobs_panel_title": "Processing queue",

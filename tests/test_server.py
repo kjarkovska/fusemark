@@ -1051,6 +1051,46 @@ def test_update_check_network_error_returns_500(flask_client):
     assert r.get_json()["ok"] is False
 
 
+def test_update_check_github_404_returns_ok_no_update(flask_client, tmp_path, monkeypatch):
+    import urllib.error
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    cfg.save({**cfg.DEFAULTS, "setup_complete": True})
+    with patch("urllib.request.urlopen", side_effect=urllib.error.HTTPError(
+        url=None, code=404, msg="Not Found", hdrs=None, fp=None
+    )):
+        r = flask_client.post("/update-check")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["ok"] is True
+    assert data["update_available"] is False
+
+
+# ------------------------------------------------------------------
+# P9 — api-key-status
+# ------------------------------------------------------------------
+
+def test_api_key_status_returns_masked_hint_when_key_present(flask_client):
+    with patch("keyring.get_password", return_value="sk-ant-api03-verylongkeyhere"):
+        r = flask_client.get("/api-key-status")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert set(data.keys()) >= {"anthropic", "openai", "mistral"}
+    assert "••••••••" in data["anthropic"]
+    assert data["anthropic"].startswith("sk-a")
+    assert data["anthropic"].endswith("here")
+
+
+def test_api_key_status_returns_none_when_no_key(flask_client):
+    with patch("keyring.get_password", return_value=None):
+        r = flask_client.get("/api-key-status")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["anthropic"] is None
+    assert data["openai"] is None
+    assert data["mistral"] is None
+
+
 def test_test_llm_stored_unknown_provider_returns_400(flask_client):
     r = flask_client.post(
         "/api/test-llm-stored",

@@ -540,6 +540,27 @@ def route_open_log():
     return jsonify({"ok": True})
 
 
+@app.route("/api-key-status", methods=["GET"])
+def route_api_key_status():
+    """Return masked hint for each provider's stored key, without exposing the key."""
+    import keyring
+    providers = {
+        "anthropic": ("ObsiNote-Anthropic", "api_key"),
+        "openai":    ("ObsiNote-OpenAI",    "api_key"),
+        "mistral":   ("ObsiNote-Mistral",   "api_key"),
+    }
+    result = {}
+    for provider, (service, username) in providers.items():
+        key = keyring.get_password(service, username)
+        if key and len(key) >= 8:
+            result[provider] = key[:4] + "••••••••" + key[-4:]
+        elif key:
+            result[provider] = "••••••••"
+        else:
+            result[provider] = None
+    return jsonify(result)
+
+
 @app.route("/api-key", methods=["POST"])
 def route_api_key():
     data = request.get_json(silent=True) or {}

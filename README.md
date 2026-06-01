@@ -1,8 +1,8 @@
 # ObsiNote
 
-Local meeting notes app for Windows 11. Records audio, transcribes with faster-whisper, generates structured Czech notes via Claude Haiku API, saves to Obsidian vault.
+Local meeting notes app for Windows 11. Records audio, transcribes locally with faster-whisper, generates structured notes via your choice of LLM API, saves to an Obsidian vault (or any folder).
 
-**Audio never leaves your machine.** Only the text transcript is sent to the Claude API.
+**Audio never leaves your machine.** Only the text transcript is sent to the LLM API.
 
 ---
 
@@ -11,7 +11,7 @@ Local meeting notes app for Windows 11. Records audio, transcribes with faster-w
 - Windows 11
 - Python 3.11+ (tested on 3.13)
 - [ffmpeg](https://ffmpeg.org/download.html) — must be in PATH
-- Anthropic API key — [console.anthropic.com](https://console.anthropic.com)
+- API key for one of: Anthropic Claude, OpenAI, or Mistral
 - Obsidian vault (optional for testing, required for daily use)
 
 ---
@@ -38,26 +38,28 @@ ffmpeg -version
 venv\Scripts\python -m app.main
 ```
 
-A browser opens at `http://127.0.0.1:5000` and a tray icon appears.
+A native app window opens. On first run a setup wizard guides you through:
 
-**Settings to configure on first run:**
+1. **LLM provider** — choose Anthropic Claude, OpenAI, or Mistral; enter and test your API key
+2. **Whisper model** — download `large-v3-turbo` (recommended, 1.5 GB) or `large-v3` (3.1 GB, highest accuracy)
+3. **Audio devices** — test a 5-second recording to verify your mic and system audio capture work
+4. **Output folder** — full path to your Obsidian vault root (or any folder for Markdown output)
 
-1. **Vault path** — full path to your Obsidian vault root (e.g. `C:\Users\You\Documents\Obsidian\MyVault`)
-2. **API key** — paste your Anthropic API key; stored in Windows Credential Manager, never in files
-3. **Whisper model** — `small` is fast and good enough for most meetings; `large-v3` gives better quality but requires a ~3 GB download on first use
-4. **Audio devices** — defaults work for built-in speakers/mic; change if using a specific device
+API keys are stored in Windows Credential Manager — never in files or config.
 
 ---
 
 ## Daily Use
 
-1. Click the tray icon → **Start Recording** (or use the Start button in the browser UI)
-2. The timer runs; jot rough notes in the scratch pad if useful
-3. Click **Stop Recording** — audio is saved and the job is queued immediately
+1. Enter a meeting name and folder, then click **Start recording**
+2. Jot quick notes in the scratch pad during the meeting if useful
+3. Click **Stop recording** — audio is saved and the job is queued immediately
 4. The app is ready to record the next meeting right away
 5. Transcription and note generation happen in the background
-6. When done, the note appears in `<vault>/Meetings/<folder>/<date> <label>.md`
+6. When done, the note appears in `<vault>/ObsiNote/Meetings/<folder>/<date> <label>.md`
 7. Review glossary term suggestions in the jobs panel if any appear
+
+**Import without recording:** use **Import transcript** to paste or upload a `.txt`/`.md`/`.vtt` transcript, or **Import audio** to process an existing `.mp3`/`.wav`/`.m4a`/`.ogg`/`.flac` file.
 
 **Exit:** tray icon right-click → **Quit**
 
@@ -80,31 +82,18 @@ To use the BT headset mic instead of the built-in mic:
 
 ## Glossary
 
-Edit `glossary.json` in the project root to add domain-specific terms. The app uses it to:
+The glossary lives at `<vault>/ObsiNote/Glossary.md` as a Markdown table (falls back to `%APPDATA%\ObsiNote\` if no vault is configured). The app uses it to:
 - Improve Whisper transcription accuracy (canonical forms + aliases as hotwords)
-- Guide Claude to use correct spelling in generated notes
+- Guide the LLM to use correct spelling in generated notes
 
-After each meeting, Claude suggests up to 5 new terms found in the transcript. Review them in the jobs panel and add the ones you want.
+After each meeting, the LLM suggests up to 5 new terms found in the transcript. Review them in the jobs panel and add the ones you want. You can also open `Glossary.md` directly in Obsidian from Settings → Glossary.
 
-**Structure:**
-```json
-{
-  "terms": [
-    {
-      "canonical": "Jira",
-      "aliases": ["Yira", "Džira"],
-      "context": "project management tool",
-      "type": "product"
-    }
-  ]
-}
-```
 
 ---
 
 ## Output Note Structure
 
-Notes are saved to `<vault>/Meetings/<folder>/<date> <label>.md`:
+Notes are saved to `<vault>/ObsiNote/Meetings/<folder>/<date> <label>.md`:
 
 ```markdown
 ---
@@ -130,6 +119,24 @@ tags: [meeting]
 
 ---
 
+## Data Storage
+
+All user data is stored in `%APPDATA%\ObsiNote\`:
+
+```
+%APPDATA%\ObsiNote\
+├── config.json       — app settings
+├── jobs.db           — processing queue
+├── logs\obsinote.log
+└── recordings\       — .mp3 files (auto-deleted after processing if configured)
+```
+
+The glossary is stored in the vault at `<vault>/ObsiNote/Glossary.md` (falls back to `%APPDATA%\ObsiNote\Glossary.md` if no vault is configured).
+
+Whisper models are stored in `%LOCALAPPDATA%\ObsiNote\models\` (local disk, not a network path).
+
+---
+
 ## Troubleshooting
 
 **App won't start / tray icon missing**
@@ -141,16 +148,19 @@ tags: [meeting]
 - Run `venv\Scripts\python -m app.recorder --list-devices` to see all device indices
 
 **Transcription is slow**
-- Expected: ~10–15 min per hour of audio on CPU with `large-v3`; `small` is much faster
-- First run with a new model downloads it from HuggingFace (~500 MB for small, ~3 GB for large-v3)
+- Expected: ~10–15 min per hour of audio on CPU with `large-v3`; `large-v3-turbo` is ~6× faster with near-identical quality
+- First run with a new model downloads it from HuggingFace (1.5 GB for turbo, 3.1 GB for large-v3)
+
+**Whisper model not downloaded error**
+- Go to Settings → Whisper model and click Download
 
 **Note not appearing in vault**
-- Check that vault path is set correctly in Settings
+- Check that the output folder is set correctly in Settings
 - Check the jobs panel — if status is `error`, read the error message
 
 **API key error**
-- Go to Settings, paste key again and save
-- The key is stored in Windows Credential Manager under `obsinote`
+- Go to Settings, enter your key and click Save key
+- Keys are stored in Windows Credential Manager under `ObsiNote-Anthropic`, `ObsiNote-OpenAI`, or `ObsiNote-Mistral`
 
 **Ctrl+C doesn't stop the app**
 - Use tray icon → Quit, or: `taskkill /f /im python.exe`

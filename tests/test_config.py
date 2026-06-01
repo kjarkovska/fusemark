@@ -75,6 +75,15 @@ def test_supported_languages_auto_detect_name():
     assert auto["name"] == "Auto-detect"
 
 
+def test_data_dir_is_under_appdata():
+    import os
+    import app.config as cfg
+    appdata = os.environ.get("APPDATA", "")
+    assert appdata, "APPDATA env var not set"
+    assert cfg.DATA_DIR.startswith(appdata)
+    assert "ObsiNote" in cfg.DATA_DIR
+
+
 def test_defaults_contain_p1_keys(tmp_path, monkeypatch):
     monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
     result = cfg.load()

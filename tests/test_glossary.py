@@ -211,3 +211,29 @@ def test_migrate_if_needed_preserves_json_on_failure(tmp_path, monkeypatch):
 
     assert legacy_json.exists()   # preserved because migration failed
     assert not glossary_md.exists()
+
+
+# ------------------------------------------------------------------
+# open_in_obsidian()
+# ------------------------------------------------------------------
+
+def test_open_in_obsidian_calls_startfile_with_obsidian_uri(tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    vault = str(tmp_path / "MyVault")
+    with __import__("unittest.mock", fromlist=["patch"]).patch("os.startfile") as mock_start:
+        gl.open_in_obsidian(vault_path=vault)
+    mock_start.assert_called_once()
+    uri = mock_start.call_args[0][0]
+    assert uri.startswith("obsidian://")
+    assert "MyVault" in uri
+    assert "Glossary" in uri
+
+
+def test_open_in_obsidian_no_vault_does_not_call_startfile(tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    cfg.save({**cfg.DEFAULTS, "vault_path": ""})
+    with __import__("unittest.mock", fromlist=["patch"]).patch("os.startfile") as mock_start:
+        gl.open_in_obsidian(vault_path="")
+    mock_start.assert_not_called()

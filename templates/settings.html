@@ -308,6 +308,8 @@
     });
 
     async function saveSettings() {
+      const prevLang = document.documentElement.lang || '{{ config.ui_language }}';
+      const newLang = document.getElementById('ui_language').value;
       const res = await fetch('/settings/save', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -320,7 +322,7 @@
           default_template: document.getElementById('default_template').value,
           llm_provider: document.getElementById('llm_provider').value,
           language: document.getElementById('language').value,
-          ui_language: document.getElementById('ui_language').value,
+          ui_language: newLang,
           auto_delete_recordings: document.getElementById('auto_delete_recordings').checked,
           max_recordings_gb: parseFloat(document.getElementById('max_recordings_gb').value) || 5.0,
           check_updates: document.getElementById('check_updates').checked,
@@ -328,11 +330,32 @@
       });
       const data = await res.json();
       if (data.ok) {
-        location.reload();
+        if (newLang !== prevLang) {
+          location.reload();
+        } else {
+          showMsg(window.STRINGS.msg_saved);
+        }
       } else {
         showMsg(window.STRINGS.msg_error_prefix + JSON.stringify(data));
       }
     }
+
+    const _defaultPlaceholders = {
+      anthropic: 'sk-ant-...',
+      openai:    'sk-...',
+      mistral:   '...',
+    };
+    async function loadKeyHints() {
+      try {
+        const status = await fetch('/api-key-status').then(r => r.json());
+        ['anthropic', 'openai', 'mistral'].forEach(p => {
+          const input = document.getElementById('api_key_' + p);
+          if (!input) return;
+          input.placeholder = status[p] ? status[p] : _defaultPlaceholders[p];
+        });
+      } catch (_) {}
+    }
+    loadKeyHints();
 
     async function saveApiKey(provider) {
       const key = document.getElementById('api_key_' + provider).value.trim();
@@ -345,6 +368,7 @@
       const data = await res.json();
       showMsg(data.ok ? window.STRINGS.msg_api_key_saved : window.STRINGS.msg_error_prefix + JSON.stringify(data));
       document.getElementById('api_key_' + provider).value = '';
+      if (data.ok) loadKeyHints();
     }
 
     async function testApiKey(provider) {
@@ -429,7 +453,14 @@
     }
 
     function showMsg(msg) {
-      document.getElementById('settings-msg').textContent = msg;
+      var el = document.getElementById('settings-msg');
+      if (!el) return;
+      el.textContent = msg;
+      if (window._msgTimer) { window.clearTimeout(window._msgTimer); }
+      window._msgTimer = window.setTimeout(function () {
+        var el2 = document.getElementById('settings-msg');
+        if (el2) el2.textContent = '';
+      }, 5000);
     }
 
     let _modelPollVersion = 0;
