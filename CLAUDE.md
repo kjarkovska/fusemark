@@ -10,7 +10,7 @@ Audio never leaves the machine. Recording and processing are fully decoupled so 
 
 ## Current Status
 
-**P8 complete + Refactor R1 (architecture clarity & testability): RecordingService extraction, Protocol type aliases, Worker config injection.**
+**P9 complete: Update notifications — `app/updater.py` with 24h-throttled background check, `/update-status` + `/open-url` routes, green update banner in index.html; Tests: 312 passed.**
 
 - `app/recorder.py` — dual-stream capture (WASAPI loopback + mic) via `pyaudiowpatch`; ffmpeg mixes to mp3
 - `app/config.py` — load/save `config.json`
@@ -36,6 +36,7 @@ Audio never leaves the machine. Recording and processing are fully decoupled so 
 - P7: Settings UI extended — Whisper model `<select>` replaced with visual table (per-row download badge + progress bar); API key rows show only the active provider (JS toggle); "Test" button tests entered key or stored keyring key (`/api/test-llm-stored`); Recording housekeeping section (size, auto-delete toggle, max-GB, delete-processed button); Update section (version display, check-updates toggle, "Check now" → GitHub releases API); `app/version.py` created; 4 new server routes (`/recordings/size`, `/recordings/cleanup`, `/api/test-llm-stored`, `/update-check`); ~25 new i18n strings (en+cs); Tests: 247 passed.
 - P8: `keep_audio` migration added to `queue.py` init_db() · `worker.py` auto-deletes recording after "done" via `_maybe_delete_recording()` (respects `keep_audio` flag) and enforces GB size cap via `_enforce_size_limit()` · `server.py` `cleanup_recordings()` utility replaces old route body — respects `keep_audio`, handles done+error+orphans · jobs panel footer shows "Total size: X MB/GB"; Tests: 261 passed.
 - Refactor R1: `app/recording_service.py` created — recording lifecycle extracted from `server.py` module globals · `app/transcription/__init__.py` exports `TranscribeCallable`, `app/llm/__init__.py` exports `GenerateNotesCallable` + `SuggestTermsCallable` type aliases · `Worker.__init__` accepts `config_loader` param; `docs/ARCHITECTURE.md` updated with as-built diagram + hexagonal review; Tests: 299 passed.
+- P9: `app/updater.py` created — `check_for_update()` (24h throttle, respects `check_updates` flag, silent on network errors, caches result to config as `latest_known_version`/`latest_known_url`) + `get_cached_status()` · `GET /update-status` route reads cache without network call · `POST /open-url` opens URLs in system browser (https:// validated) · startup daemon thread in `main.py` calls `check_for_update()` after Flask starts · green update banner added to `index.html` (hidden by default, JS polls `/update-status` on load, Dismiss hides for session) · 2 new i18n strings (en+cs); Tests: 312 passed.
 
 Update this section at the end of every session.
 

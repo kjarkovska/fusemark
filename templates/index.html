@@ -28,6 +28,12 @@
   </div>
   {% endif %}
 
+  <div id="update-banner" class="update-banner" style="display:none">
+    <span id="update-banner-text"></span>
+    <a id="update-banner-link" href="#" class="update-link">{{ t.btn_download_update }}</a>
+    <button class="update-dismiss" onclick="dismissUpdateBanner()">{{ t.btn_dismiss_update }}</button>
+  </div>
+
   <div class="main-content">
 
     <!-- Left panel: recorder -->
@@ -103,6 +109,28 @@
 
   <script>window.STRINGS = {{ t | tojson }};</script>
   <script src="/static/app.js"></script>
+  <script>
+    (function () {
+      fetch('/update-status')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!data.available) return;
+          var msg = (window.STRINGS.msg_update_available || 'Update available: {version}').replace('{version}', data.version);
+          document.getElementById('update-banner-text').textContent = msg + '  ';
+          var link = document.getElementById('update-banner-link');
+          link.addEventListener('click', function (e) {
+            e.preventDefault();
+            fetch('/open-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: data.url }) });
+          });
+          document.getElementById('update-banner').style.display = '';
+        })
+        .catch(function () {});
+    })();
+
+    function dismissUpdateBanner() {
+      document.getElementById('update-banner').style.display = 'none';
+    }
+  </script>
 
   <!-- Import Transcript Modal -->
   <div id="import-modal" class="modal-overlay" style="display:none" onclick="closeImportModal(event)">

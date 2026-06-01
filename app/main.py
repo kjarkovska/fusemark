@@ -229,6 +229,10 @@ def main():
     # Start tray in background thread — frees main thread for pywebview
     tray.run_detached()
 
+    # Background update check — runs once; respects check_updates flag and 24h throttle
+    from app import updater as _updater
+    threading.Thread(target=_updater.check_for_update, daemon=True).start()
+
     # Wait for Flask to be ready before pywebview loads the URL
     time.sleep(0.8)
 
