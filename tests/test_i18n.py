@@ -3,7 +3,7 @@ from app.i18n import get_strings, TRANSLATIONS
 
 def test_get_strings_en():
     s = get_strings("en")
-    assert s["btn_start_recording"] == "Start Recording"
+    assert s["btn_start_recording"] == "Start recording"
     assert s["status_done"] == "Done"
     assert s["jobs_empty_title"] == "No recordings yet"
 
@@ -17,7 +17,7 @@ def test_get_strings_cs():
 
 def test_get_strings_unknown_falls_back_to_en():
     s = get_strings("fr")
-    assert s["btn_start_recording"] == "Start Recording"
+    assert s["btn_start_recording"] == "Start recording"
     assert s["nav_settings"] == "Settings"
 
 

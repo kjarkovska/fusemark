@@ -106,7 +106,7 @@ button:not(:disabled):active { filter: brightness(0.94); }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-2); }
 
 /* ── Inputs ────────────────────────────────────────────────────────── */
-input[type=text], input[type=password], input[type=date], select, textarea {
+input[type=text], input[type=password], input[type=date], input[type=number], input[type=url], select, textarea {
   background: var(--input);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
@@ -370,14 +370,33 @@ body:has(#recorder.is-recording) .left-panel {
   padding: 14px;
 }
 
+/* ── Import actions (idle only) ────────────────────────────────────── */
+.import-actions {
+  display: flex;
+  gap: 8px;
+}
+.import-btn {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: var(--t-13);
+  font-weight: var(--fw-medium);
+  text-align: center;
+  border-radius: var(--r-md);
+}
+
 /* ── Active recording overrides ────────────────────────────────────── */
-#recorder.is-recording .recorder-form { display: none; }
-#recorder.is-recording #timer         { font-size: var(--t-display-lg); }
-#recorder.is-recording #rec-btn       { background: var(--stop-btn); }
+#recorder.is-recording .recorder-form  { display: none; }
+#recorder.is-recording #timer          { display: block; font-size: var(--t-display-lg); }
+#recorder.is-recording #rec-btn        { background: var(--stop-btn); }
+#recorder.is-recording .import-actions { display: none; }
+#recorder.is-recording .notes-section  { display: flex; }
 #recorder.is-recording .notes-label-idle   { display: none; }
 #recorder.is-recording .notes-label-active { display: block; }
 #recorder.is-recording #scratch        { min-height: 160px; }
-#recorder.is-recording .notes-header .btn-ghost { display: none; }
+
+/* ── Idle state overrides ───────────────────────────────────────────── */
+#timer         { display: none; }
+.notes-section { display: none; }
 
 /* ── Right panel ───────────────────────────────────────────────────── */
 .right-panel {
@@ -413,6 +432,15 @@ body:has(#recorder.is-recording) .left-panel {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* ── Recordings footer ─────────────────────────────────────────────── */
+.recordings-footer {
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  font-size: var(--t-12);
+  color: var(--muted);
+  flex-shrink: 0;
 }
 
 /* ── Jobs empty state ──────────────────────────────────────────────── */
@@ -750,6 +778,13 @@ body.settings-page {
   color: var(--muted);
   opacity: 0.7;
   display: block;
+}
+.key-hint {
+  font-size: var(--t-11);
+  color: var(--muted);
+  font-family: monospace;
+  margin-top: 4px;
+  min-height: 1em;
 }
 
 .input-action-row {

@@ -230,6 +230,7 @@
               <button class="btn-inline" onclick="saveApiKey('anthropic')">{{ t.btn_save_key }}</button>
               <button class="btn-inline" onclick="testApiKey('anthropic')">{{ t.btn_test_key }}</button>
             </div>
+            <p class="key-hint" id="key-hint-anthropic"></p>
           </div>
           <div id="key-row-openai" class="field">
             <label>{{ t.label_openai_key }}</label>
@@ -238,6 +239,7 @@
               <button class="btn-inline" onclick="saveApiKey('openai')">{{ t.btn_save_key }}</button>
               <button class="btn-inline" onclick="testApiKey('openai')">{{ t.btn_test_key }}</button>
             </div>
+            <p class="key-hint" id="key-hint-openai"></p>
           </div>
           <div id="key-row-mistral" class="field">
             <label>{{ t.label_mistral_key }}</label>
@@ -246,6 +248,7 @@
               <button class="btn-inline" onclick="saveApiKey('mistral')">{{ t.btn_save_key }}</button>
               <button class="btn-inline" onclick="testApiKey('mistral')">{{ t.btn_test_key }}</button>
             </div>
+            <p class="key-hint" id="key-hint-mistral"></p>
           </div>
         </section>
 
@@ -308,6 +311,8 @@
     });
 
     async function saveSettings() {
+      const prevLang = document.documentElement.lang || '{{ config.ui_language }}';
+      const newLang = document.getElementById('ui_language').value;
       const res = await fetch('/settings/save', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -320,7 +325,7 @@
           default_template: document.getElementById('default_template').value,
           llm_provider: document.getElementById('llm_provider').value,
           language: document.getElementById('language').value,
-          ui_language: document.getElementById('ui_language').value,
+          ui_language: newLang,
           auto_delete_recordings: document.getElementById('auto_delete_recordings').checked,
           max_recordings_gb: parseFloat(document.getElementById('max_recordings_gb').value) || 5.0,
           check_updates: document.getElementById('check_updates').checked,
@@ -328,11 +333,27 @@
       });
       const data = await res.json();
       if (data.ok) {
-        location.reload();
+        if (newLang !== prevLang) {
+          location.reload();
+        } else {
+          showMsg(window.STRINGS.msg_saved);
+        }
       } else {
         showMsg(window.STRINGS.msg_error_prefix + JSON.stringify(data));
       }
     }
+
+    async function loadKeyHints() {
+      try {
+        const status = await fetch('/api-key-status').then(r => r.json());
+        ['anthropic', 'openai', 'mistral'].forEach(p => {
+          const el = document.getElementById('key-hint-' + p);
+          if (!el) return;
+          el.textContent = status[p] ? status[p] : '';
+        });
+      } catch (_) {}
+    }
+    loadKeyHints();
 
     async function saveApiKey(provider) {
       const key = document.getElementById('api_key_' + provider).value.trim();
@@ -345,6 +366,7 @@
       const data = await res.json();
       showMsg(data.ok ? window.STRINGS.msg_api_key_saved : window.STRINGS.msg_error_prefix + JSON.stringify(data));
       document.getElementById('api_key_' + provider).value = '';
+      if (data.ok) loadKeyHints();
     }
 
     async function testApiKey(provider) {
