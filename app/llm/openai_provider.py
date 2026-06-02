@@ -22,7 +22,7 @@ type: meeting
 tags: [meeting]
 ---
 
-# {date} {title}
+# {title}
 
 ## Participants
 

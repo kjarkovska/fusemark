@@ -109,6 +109,21 @@ def test_save_note_sanitizes_filename(vault):
         assert char not in basename
 
 
+def test_save_note_enforces_frontmatter_date(vault):
+    note_md = "---\ndate:\ntype: meeting\ntags: [meeting]\n---\n\n# Meeting\n"
+    path = save_note(note_md, "Meeting", "Other", vault, date_str="2025-05-22")
+    content = open(path, encoding="utf-8").read()
+    assert "date: 2025-05-22" in content
+
+
+def test_save_note_overwrites_wrong_frontmatter_date(vault):
+    note_md = "---\ndate: 2099-01-01\ntype: meeting\n---\n\n# Meeting\n"
+    path = save_note(note_md, "Meeting", "Other", vault, date_str="2025-05-22")
+    content = open(path, encoding="utf-8").read()
+    assert "date: 2025-05-22" in content
+    assert "2099-01-01" not in content
+
+
 # ------------------------------------------------------------------
 # save_transcript()
 # ------------------------------------------------------------------
