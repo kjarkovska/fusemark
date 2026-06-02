@@ -85,11 +85,11 @@ def test_connection(key: str) -> None:
         raise LLMRateLimitError("Rate limit reached.") from exc
 
 
-def generate_notes(transcript, label="", folder="", scratch_notes="", extra_context="", language="Czech"):
+def generate_notes(transcript, label="", folder="", scratch_notes="", extra_context="", language="Czech", date_str=""):
     """Generate structured meeting notes from a transcript. Returns markdown string."""
     client = OpenAI(api_key=_get_api_key())
     glossary = load_glossary()
-    today = date.today().isoformat()
+    today = date_str or date.today().isoformat()
     title = label or "Meeting"
     template = NOTE_TEMPLATE.format(date=today, title=title)
 

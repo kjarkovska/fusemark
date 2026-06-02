@@ -158,6 +158,7 @@ class Worker:
                 scratch_notes=job.get("scratch_notes", "") or "",
                 extra_context=job.get("extra_context", "") or "",
                 language=config.get("language_name", "Czech"),
+                date_str=date_str,
             )
         except LLMRateLimitError as exc:
             raise _RetryableError(str(exc)) from exc

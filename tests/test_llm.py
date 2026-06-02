@@ -27,7 +27,7 @@ def test_generate_notes_dispatches_to_anthropic():
         mock_cfg.load.return_value = {"llm_provider": "anthropic"}
         result = generate_notes("transcript", label="Standup", language="Czech")
 
-    mock_gen.assert_called_once_with("transcript", "Standup", "", "", "", "Czech")
+    mock_gen.assert_called_once_with("transcript", "Standup", "", "", "", "Czech", "")
     assert result == "# Note"
 
 
@@ -309,6 +309,33 @@ def test_anthropic_generate_notes_includes_optional_fields():
     assert "Strategy" in content
     assert "Budget approved" in content
     assert "Board meeting" in content
+
+
+def test_anthropic_date_str_used_in_template():
+    from app.llm.anthropic_provider import generate_notes
+
+    mock_client = _make_anthropic_mock()
+    with patch("app.llm.anthropic_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.anthropic_provider.load_glossary", return_value={}), \
+         patch("app.llm.anthropic_provider.anthropic.Anthropic", return_value=mock_client):
+        generate_notes("transcript", date_str="2025-05-22")
+
+    _, kwargs = mock_client.messages.create.call_args
+    assert "2025-05-22" in kwargs["system"]
+
+
+def test_anthropic_date_str_defaults_to_today():
+    from datetime import date
+    from app.llm.anthropic_provider import generate_notes
+
+    mock_client = _make_anthropic_mock()
+    with patch("app.llm.anthropic_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.anthropic_provider.load_glossary", return_value={}), \
+         patch("app.llm.anthropic_provider.anthropic.Anthropic", return_value=mock_client):
+        generate_notes("transcript")
+
+    _, kwargs = mock_client.messages.create.call_args
+    assert date.today().isoformat() in kwargs["system"]
 
 
 # ------------------------------------------------------------------

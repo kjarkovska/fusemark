@@ -243,6 +243,17 @@ def test_meeting_date_threads_to_save_functions(mocks):
     assert save_note_kwargs.get("date_str") == "2025-06-01"
 
 
+def test_meeting_date_passes_to_generate_notes(mocks):
+    job = _make_job({"transcript": "text", "meeting_date": "2025-05-22"})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+
+    Worker()._process_next()
+
+    _, generate_kwargs = mocks["generate"].call_args
+    assert generate_kwargs.get("date_str") == "2025-05-22"
+
+
 def test_generate_notes_receives_language_from_config(mocks):
     job = _make_job({"transcript": "text"})
     mocks["q"].list_jobs.return_value = [job]
