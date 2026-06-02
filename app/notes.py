@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from datetime import date
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,8 @@ def save_note(note_md, label, folder, vault_path, date_str=""):
 
     target_dir = os.path.join(vault_path, "ObsiNote", "Meetings", folder or "Other")
     os.makedirs(target_dir, exist_ok=True)
+
+    note_md = re.sub(r'(?m)^(date:)\s*.*$', f'date: {today}', note_md, count=1)
 
     out_path = os.path.join(target_dir, filename)
     with open(out_path, "w", encoding="utf-8") as f:

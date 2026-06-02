@@ -10,7 +10,7 @@ Audio never leaves the machine. Recording and processing are fully decoupled so 
 
 ## Current Status
 
-**v0.9.0: UI fixes — dark inputs in settings, recordings footer padding, save settings stays on tab + shows confirmation, API key masked hint, main screen restructure (idle: full-width rec button + import actions row; recording: timer + notes textarea); brand name spacing fixed; sentence-case button labels; Tests: 312 passed.**
+**v0.9.1: Bug fixes — datepicker popup now dark (color-scheme: dark); uploaded notes now use selected meeting date in content (date_str threaded through generate_notes in all providers); audio import modal pre-fills today's date; Tests: 334 passed.**
 
 - `app/recorder.py` — dual-stream capture (WASAPI loopback + mic) via `pyaudiowpatch`; ffmpeg mixes to mp3
 - `app/config.py` — load/save `config.json`

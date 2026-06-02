@@ -406,6 +406,8 @@ function closeImportModal(event) {
 let _audioFile = null;
 
 function openAudioModal() {
+  const today = new Date().toISOString().slice(0, 10);
+  document.getElementById('audio-date').value = today;
   document.getElementById('audio-modal').style.display = 'flex';
   document.getElementById('audio-label').focus();
 }
