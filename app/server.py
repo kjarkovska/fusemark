@@ -48,6 +48,10 @@ def set_tray(tray):
     _recording_service.set_tray(tray)
 
 
+def set_on_recording(callback):
+    _recording_service.on_recording = callback
+
+
 # ------------------------------------------------------------------
 # Recording control — thin wrappers so main.py needs no changes
 # ------------------------------------------------------------------

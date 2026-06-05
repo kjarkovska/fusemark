@@ -35,6 +35,18 @@ ICON_IDLE          = _tint(_ICON_PATH, (120, 120, 120, 255))
 ICON_RECORDING     = _tint(_ICON_PATH, (210,  40,  40, 255))
 ICON_TRANSCRIBING  = _tint(_ICON_PATH, ( 40, 120, 210, 255))
 
+_ICON_MAP = {"idle": ICON_IDLE, "recording": ICON_RECORDING, "transcribing": ICON_TRANSCRIBING}
+
+
+def icon_for_state(recording: bool, transcribing: bool) -> str:
+    """Return the icon state key given recording/transcribing flags.
+    Recording takes precedence over transcribing."""
+    if recording:
+        return "recording"
+    if transcribing:
+        return "transcribing"
+    return "idle"
+
 
 class TrayIcon:
     def __init__(self, on_start, on_stop, on_open, on_quit):
@@ -92,13 +104,13 @@ class TrayIcon:
     def set_recording(self, recording):
         self._recording = recording
         if self._icon:
-            self._icon.icon = ICON_RECORDING if recording else ICON_IDLE
+            self._icon.icon = _ICON_MAP[icon_for_state(self._recording, self._transcribing)]
             self._icon.menu = self._menu()
 
     def set_transcribing(self, transcribing):
         self._transcribing = transcribing
         if self._icon:
-            self._icon.icon = ICON_TRANSCRIBING if transcribing else ICON_IDLE
+            self._icon.icon = _ICON_MAP[icon_for_state(self._recording, self._transcribing)]
             self._icon.menu = self._menu()
 
     def set_tooltip(self, text):

@@ -23,6 +23,7 @@ class RecordingService:
         self._current_job_id: str | None = None
         self._lock = threading.Lock()
         self._tray = tray
+        self.on_recording = None  # optional callback(bool) — wired to taskbar update in main.py
 
     def set_tray(self, tray) -> None:
         self._tray = tray
@@ -63,6 +64,8 @@ class RecordingService:
         if self._tray:
             self._tray.set_recording(True)
             self._tray.set_tooltip("ObsiNote — Nahrávám")
+        if self.on_recording:
+            self.on_recording(True)
 
         logger.info("Recording started, job %s", job_id)
         return {"job_id": job_id}
@@ -90,6 +93,8 @@ class RecordingService:
         if self._tray:
             self._tray.set_recording(False)
             self._tray.set_tooltip("ObsiNote")
+        if self.on_recording:
+            self.on_recording(False)
 
         logger.info("Recording stopped, job %s queued", job_id)
         return {"job_id": job_id, "audio_path": audio_path}

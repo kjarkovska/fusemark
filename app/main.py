@@ -190,17 +190,31 @@ def main():
     window.events.closing += _on_closing
 
     # Status callbacks — update tray icon and taskbar icon together
+    _is_recording = False
+    _is_transcribing = False
+
+    def _update_taskbar():
+        from app.tray import icon_for_state
+        _win32_set_icons(big_path=icons[icon_for_state(_is_recording, _is_transcribing)])
+
+    def _on_recording(active):
+        nonlocal _is_recording
+        _is_recording = active
+        _update_taskbar()
+
     def _on_transcribing(active):
+        nonlocal _is_transcribing
+        _is_transcribing = active
         tray.set_transcribing(active)
-        _win32_set_icons(big_path=icons["transcribing"] if active else icons["idle"])
+        _update_taskbar()
 
     def _on_start():
         server.start_recording()
-        _win32_set_icons(big_path=icons["recording"])
+        # taskbar updated via server.on_recording → _on_recording callback
 
     def _on_stop():
         server.stop_recording()
-        _win32_set_icons(big_path=icons["idle"])
+        # taskbar updated via server.on_recording → _on_recording callback
 
     def _quit():
         worker.stop()
@@ -215,6 +229,7 @@ def main():
         on_quit=_quit,
     )
     server.set_tray(tray)
+    server.set_on_recording(_on_recording)
     worker.on_transcribing = _on_transcribing
     worker.on_tooltip = tray.set_tooltip
 
