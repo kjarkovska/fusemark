@@ -1,7 +1,7 @@
 # ObsiNote — Architecture Analysis
 
-**Date:** 2026-05-25 (updated after Refactor R1)  
-**Scope:** Current as-built architecture (P8 + Refactor R1) + hexagonal architecture review
+**Date:** 2026-06-05 (updated after P10 — two-track worker)  
+**Scope:** Current as-built architecture (P10 + Refactor R1) + hexagonal architecture review
 
 ---
 
@@ -14,7 +14,7 @@ app/
 ├── main.py              Entrypoint — wires threads, Win32 icons, pywebview
 ├── server.py            Flask routes (delegates recording to RecordingService)
 ├── recording_service.py Recording lifecycle — start/stop, recorder state, tray notify
-├── worker.py            Background processing loop
+├── worker.py            Two-track background processing: audio (transcribe→generate, thread worker-audio) + import (generate-only, thread worker-import)
 ├── recorder.py          WASAPI dual-stream capture → mp3
 ├── queue.py             SQLite job queue + state machine
 ├── config.py            config.json load/save + constants
@@ -55,7 +55,8 @@ graph TD
     svc --> rec["Recorder<br/>recorder.py"]
     rec --> audio["pyaudiowpatch<br/>WASAPI loopback + mic → .mp3"]
 
-    worker -->|"polls every 5s"| q["queue.list_jobs(status='queued')"]
+    worker -->|"audio track: polls every 5s"| q["queue.list_jobs(status='queued', has_transcript=False)"]
+    worker -->|"import track: polls every 5s"| qi["queue.list_jobs(status='queued', has_transcript=True)"]
     q --> tr["transcription/__init__.py → local.py<br/>faster-whisper · CPU · glossary prompt"]
     tr -->|"transcript"| llm["llm/__init__.py<br/>anthropic / openai / mistral"]
     llm -->|"markdown"| save["notes.save_note() → vault .md<br/>notes.save_transcript() → vault<br/>queue.update_job() → SQLite"]
@@ -67,7 +68,8 @@ graph TD
 stateDiagram-v2
     [*] --> recording : start()
     recording --> queued : stop()
-    queued --> transcribing : worker picks up
+    queued --> transcribing : audio track (transcript IS NULL)
+    queued --> generating : import track (transcript IS NOT NULL)
     transcribing --> generating
     generating --> done
     generating --> queued : retry ≤5

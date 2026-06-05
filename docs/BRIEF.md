@@ -1,7 +1,7 @@
 # ObsiNote — Product Brief
 
-**Version:** 0.2  
-**Date:** March 12, 2026
+**Version:** 0.9.2  
+**Date:** June 2026
 
 ---
 
@@ -28,8 +28,8 @@ Single user (with potential to share with friends). ASUS ExpertBook laptop, Wind
 - **Audio never leaves the machine** — only the text transcript is sent to the cloud
 - **No real-time transcription** — processing happens in the background, independent of recording
 - **Minimal friction** — tray icon, two clicks to start recording
-- **Czech-first** — output always in Czech, regardless of the meeting language
-- **Cheap to run** — approx. $0.67/month (Claude Haiku 3.5 API)
+- **Czech-first** — output defaults to Czech; configurable to any language
+- **Cheap to run** — cost depends on chosen LLM provider; local transcription is free
 - **Shareable** — easy to set up for other users
 
 ---
@@ -43,11 +43,11 @@ Audio capture (WASAPI loopback + mic — separate streams)
         ↓
   Job Queue (SQLite — persistent)
         ↓
-  faster-whisper large-v3 (local, CPU, background)
+  faster-whisper (configurable model, local, CPU, background)
         ↓
   Transcript + Scratch notes + Context + Glossary
         ↓
-  Claude Haiku 3.5 API
+  Anthropic / OpenAI / Mistral API (configurable)
         ↓
   .md file → Obsidian vault
         ↓
@@ -56,15 +56,16 @@ Audio capture (WASAPI loopback + mic — separate streams)
 
 | Layer | Technology |
 |---|---|
-| Audio capture | Python + `sounddevice` (WASAPI loopback, separate streams) |
-| Transcription | `faster-whisper large-v3` (local, CPU) |
-| Note generation | Claude Haiku 3.5 API |
-| UI | Flask + HTML (local web app) |
+| Audio capture | Python + `pyaudiowpatch` (WASAPI loopback, separate streams) |
+| Transcription | `faster-whisper` (configurable: small / large-v3-turbo / large-v3, local, CPU) |
+| Note generation | Anthropic Haiku 4.5 / OpenAI GPT-4o-mini / Mistral Small (configurable) |
+| UI | Flask + HTML + `pywebview` (standalone window, no browser needed) |
 | System integration | `pystray` (tray icon) |
-| Job queue | SQLite (via Python `sqlite3`) |
+| Job queue | SQLite (via Python `sqlite3`, WAL mode) |
 | API key storage | Windows Credential Manager (via `keyring`) |
-| Glossary | `glossary.json` (editable in VSCode) |
+| Glossary | `glossary.json` in `%APPDATA%\ObsiNote\` |
 | Output | Markdown → Obsidian vault |
+| i18n | English / Czech UI (configurable) |
 
 ---
 
@@ -166,11 +167,17 @@ File `glossary.json` in the project root, editable in VSCode.
 - States: Recording / Queued / Transcribing / Generating / Done / Error
 
 **C) Settings** (accessible via icon)
-- Vault path
-- Audio devices (output + input)
-- Whisper model size (large-v3 / medium / small)
-- Open glossary.json in VSCode
-- API key (stored in Windows Credential Manager)
+- Vault path, audio devices
+- Whisper model (visual table with download badges)
+- LLM provider + API key per provider (test button)
+- Language selection (transcription + notes)
+- UI language (English / Czech)
+- Recording housekeeping (size, auto-delete, max GB)
+- Update checker (version display, check-now button)
+- Autostart toggle (Windows registry)
+- Open glossary in VSCode
+
+**First-run wizard:** 5-step setup (welcome → LLM key → Whisper model download → audio devices → vault folder)
 
 ---
 
@@ -197,7 +204,7 @@ type: meeting
 tags: [meeting]
 ---
 
-# 2026-03-10 Meeting Title
+# Meeting Title
 
 ## Participants
 
@@ -229,18 +236,22 @@ tags: [meeting]
 CREATE TABLE jobs (
   id TEXT PRIMARY KEY,
   created_at TEXT,
+  updated_at TEXT,
   label TEXT,
   folder TEXT,
+  template TEXT,
+  meeting_date TEXT,
   recording_path TEXT,
   audio_path TEXT,
   scratch_notes TEXT,
   extra_context TEXT,
-  status TEXT,
+  status TEXT,              -- recording/queued/transcribing/generating/done/error
   transcript TEXT,
+  transcript_path TEXT,
   output_note_path TEXT,
-  keep_audio INTEGER,
-  error_message TEXT,
-  updated_at TEXT
+  glossary_terms TEXT,      -- JSON array of suggested terms
+  keep_audio INTEGER,       -- NULL=undecided, 1=keep, 0=delete
+  error_message TEXT
 );
 ```
 
@@ -256,9 +267,9 @@ Stored in **Windows Credential Manager** via Python `keyring`. On first launch t
 
 | | Monthly |
 |---|---|
-| faster-whisper (transcription) | $0 |
-| Claude Haiku 3.5 (~43h of meetings) | ~$0.67 |
-| **Total** | **~$0.67** |
+| faster-whisper (transcription) | $0 — fully local |
+| LLM (note generation, ~43h/month) | ~$0.67 with Claude Haiku 4.5; varies by provider |
+| **Total** | **$0–~$1/month depending on provider** |
 
 ---
 
@@ -268,7 +279,7 @@ Stored in **Windows Credential Manager** via Python `keyring`. On first launch t
 
 ---
 
-## Deliberately OUT of Scope for v0.1
+## Deliberately OUT of Scope for v1.0
 
 - Live transcription
 - Speaker diarization (who said what) — possible future addition

@@ -676,3 +676,84 @@ def test_worker_injected_config_auto_delete_removes_file(mocks, tmp_path):
     w._process_next()
 
     assert not audio.exists()
+
+
+# ------------------------------------------------------------------
+# Two-track parallel processing (P10)
+# ------------------------------------------------------------------
+
+def test_audio_track_calls_list_jobs_without_transcript(mocks):
+    mocks["q"].list_jobs.return_value = []
+    w = Worker()
+    w._process_next()
+    mocks["q"].list_jobs.assert_called_once_with(status="queued", has_transcript=False)
+
+
+def test_import_track_calls_list_jobs_with_transcript(mocks):
+    mocks["q"].list_jobs.return_value = []
+    w = Worker()
+    w._process_next(audio_track=False)
+    mocks["q"].list_jobs.assert_called_once_with(status="queued", has_transcript=True)
+
+
+def test_import_track_calls_generate_but_not_transcribe(mocks):
+    imported_job = _make_job({"transcript": "Pre-existing transcript"})
+    mocks["q"].list_jobs.return_value = [imported_job]
+    mocks["q"].get_job.return_value = imported_job
+
+    w = Worker()
+    w._process_next(audio_track=False)
+
+    mocks["transcribe"].assert_not_called()
+    mocks["generate"].assert_called_once()
+    mocks["q"].set_status.assert_any_call("test-job-id", "done")
+
+
+def test_start_creates_exactly_two_threads():
+    w = Worker()
+    with patch('app.worker.POLL_INTERVAL', 0), \
+         patch.object(w, '_process_next'):
+        w.start()
+        assert w._audio_thread is not None
+        assert w._import_thread is not None
+        assert w._audio_thread.is_alive()
+        assert w._import_thread.is_alive()
+        assert w._audio_thread is not w._import_thread
+        w.stop()
+
+
+def test_stop_joins_both_threads():
+    w = Worker()
+    with patch('app.worker.POLL_INTERVAL', 0), \
+         patch.object(w, '_process_next'):
+        w.start()
+        w.stop()
+        assert not w._audio_thread.is_alive()
+        assert not w._import_thread.is_alive()
+
+
+def test_thread_backward_compat_alias():
+    w = Worker()
+    with patch('app.worker.POLL_INTERVAL', 0), \
+         patch.object(w, '_process_next'):
+        w.start()
+        assert w._thread is w._audio_thread
+        w.stop()
+
+
+def test_import_loop_swallows_exception_and_continues():
+    calls = []
+    w = Worker()
+
+    def fake_process_next(audio_track=True):
+        calls.append(audio_track)
+        if len(calls) == 1:
+            raise RuntimeError("crash")
+        w._stop_event.set()
+
+    with patch('app.worker.POLL_INTERVAL', 0), \
+         patch.object(w, '_process_next', side_effect=fake_process_next):
+        w._import_loop()
+
+    assert len(calls) == 2
+    assert all(t is False for t in calls)

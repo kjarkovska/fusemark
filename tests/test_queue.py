@@ -140,3 +140,81 @@ def test_update_job_no_fields_is_noop(db_path):
     q.update_job(job_id)  # no fields — early return, updated_at unchanged
     after = q.get_job(job_id)
     assert before["updated_at"] == after["updated_at"]
+
+
+# ------------------------------------------------------------------
+# list_jobs() — has_transcript filter
+# ------------------------------------------------------------------
+
+def test_init_db_enables_wal_mode(db_path):
+    import sqlite3
+    with sqlite3.connect(db_path) as con:
+        mode = con.execute("PRAGMA journal_mode").fetchone()[0]
+    assert mode == "wal"
+
+
+def test_list_jobs_has_transcript_true_returns_only_jobs_with_transcript(db_path):
+    j_audio = q.create_job(label="audio")
+    q.set_status(j_audio, "queued")
+    j_import = q.create_job(label="imported")
+    q.update_job(j_import, transcript="Hello world")
+    q.set_status(j_import, "queued")
+
+    result = q.list_jobs(status="queued", has_transcript=True)
+    ids = [r["id"] for r in result]
+    assert j_import in ids
+    assert j_audio not in ids
+
+
+def test_list_jobs_has_transcript_false_returns_only_jobs_without_transcript(db_path):
+    j_audio = q.create_job(label="audio")
+    q.set_status(j_audio, "queued")
+    j_import = q.create_job(label="imported")
+    q.update_job(j_import, transcript="Hello world")
+    q.set_status(j_import, "queued")
+
+    result = q.list_jobs(status="queued", has_transcript=False)
+    ids = [r["id"] for r in result]
+    assert j_audio in ids
+    assert j_import not in ids
+
+
+def test_list_jobs_has_transcript_none_returns_all(db_path):
+    j_audio = q.create_job(label="audio")
+    q.set_status(j_audio, "queued")
+    j_import = q.create_job(label="imported")
+    q.update_job(j_import, transcript="Hello world")
+    q.set_status(j_import, "queued")
+
+    result = q.list_jobs(status="queued", has_transcript=None)
+    ids = [r["id"] for r in result]
+    assert j_audio in ids
+    assert j_import in ids
+
+
+def test_list_jobs_has_transcript_true_without_status_filter(db_path):
+    j_queued = q.create_job(label="imp-queued")
+    q.update_job(j_queued, transcript="text")
+    q.set_status(j_queued, "queued")
+    j_done = q.create_job(label="imp-done")
+    q.update_job(j_done, transcript="text")
+    q.set_status(j_done, "queued")
+    q.set_status(j_done, "done")
+    j_audio = q.create_job(label="audio")
+    q.set_status(j_audio, "queued")
+
+    result = q.list_jobs(has_transcript=True)
+    ids = [r["id"] for r in result]
+    assert j_queued in ids
+    assert j_done in ids
+    assert j_audio not in ids
+
+
+def test_list_jobs_has_transcript_false_treats_empty_string_as_no_transcript(db_path):
+    j = q.create_job(label="empty")
+    q.update_job(j, transcript="")
+    q.set_status(j, "queued")
+
+    result = q.list_jobs(status="queued", has_transcript=False)
+    ids = [r["id"] for r in result]
+    assert j in ids

@@ -32,33 +32,51 @@ MAX_RETRIES = 5     # max retries for generation errors before marking as error
 class Worker:
     def __init__(self, config_loader=None):
         self._config_loader = config_loader if config_loader is not None else cfg.load
-        self._thread = None
+        self._thread = None          # backward-compat alias → _audio_thread
+        self._audio_thread = None
+        self._import_thread = None
         self._stop_event = threading.Event()
         self.on_transcribing = None  # optional callback(bool) — wired to tray in main.py
         self.on_tooltip = None       # optional callback(str) — wired to tray.set_tooltip in main.py
 
     def start(self):
         self._stop_event.clear()
-        self._thread = threading.Thread(target=self._loop, daemon=True, name="worker")
-        self._thread.start()
-        logger.info("Started")
+        self._audio_thread = threading.Thread(target=self._loop, daemon=True, name="worker-audio")
+        self._import_thread = threading.Thread(target=self._import_loop, daemon=True, name="worker-import")
+        self._thread = self._audio_thread  # backward-compat alias
+        self._audio_thread.start()
+        self._import_thread.start()
+        logger.info("Started (audio + import tracks)")
 
     def stop(self):
         self._stop_event.set()
-        if self._thread:
-            self._thread.join(timeout=10)
+        if self._audio_thread:
+            self._audio_thread.join(timeout=10)
+        if self._import_thread:
+            self._import_thread.join(timeout=10)
         logger.info("Stopped")
 
     def _loop(self):
+        self._audio_loop()
+
+    def _audio_loop(self):
         while not self._stop_event.is_set():
             try:
                 self._process_next()
             except Exception as exc:
-                logger.error("Unexpected error in loop: %s", exc)
+                logger.error("Unexpected error in audio loop: %s", exc)
             self._stop_event.wait(POLL_INTERVAL)
 
-    def _process_next(self):
-        jobs = q.list_jobs(status="queued")
+    def _import_loop(self):
+        while not self._stop_event.is_set():
+            try:
+                self._process_next(audio_track=False)
+            except Exception as exc:
+                logger.error("Unexpected error in import loop: %s", exc)
+            self._stop_event.wait(POLL_INTERVAL)
+
+    def _process_next(self, audio_track: bool = True):
+        jobs = q.list_jobs(status="queued", has_transcript=not audio_track)
         if not jobs:
             return
 

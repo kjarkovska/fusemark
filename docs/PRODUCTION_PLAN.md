@@ -1079,7 +1079,9 @@ Changes: `keep_audio` migration added to `queue.py` init_db() · `worker.py` gai
 
 ---
 
-## Phase P9 — Update Notifications
+## ✅ Phase P9 — Update Notifications — DONE
+
+**Completed:** 2026-06-02. `app/updater.py` created — `check_for_update()` (24h throttle, respects `check_updates` flag, silent on network errors, caches result to config as `latest_known_version`/`latest_known_url`) + `get_cached_status()` · `GET /update-status` route reads cache without network call · `POST /open-url` opens URLs in system browser (https:// validated) · startup daemon thread in `main.py` calls `check_for_update()` after Flask starts · green update banner added to `index.html` (hidden by default, JS polls `/update-status` on load, Dismiss hides for session) · 2 new i18n strings (en+cs). Tests: 312 passed.
 
 **Goal:** App checks for new releases and shows a non-intrusive banner when one is available.
 
@@ -1143,10 +1145,15 @@ python -m app.main
 
 ---
 
-## Phase P11 — PyInstaller Packaging
+## ✅ Phase P10 — Two-Track Parallel Job Processing — DONE
 
-> **Note:** Phase P10 was removed (license key enforcement is not used — the app is open-source
-> GPL v3 with a paid convenience installer). Phase numbering jumps P9 → P11.
+**Completed:** 2026-06-05. SQLite WAL mode enabled in `init_db()` · `list_jobs()` gains `has_transcript: bool | None = None` parameter with composable SQL filter · `_process_next(audio_track: bool = True)` parameterised · `_audio_loop()` / `_import_loop()` added; `_loop()` preserved as alias pointing to `_audio_loop` for backward compatibility · `start()` spawns two daemon threads (`worker-audio`, `worker-import`); `stop()` joins both · `self._thread` kept as alias to `_audio_thread` for test compat · 6 new queue tests (WAL mode, `has_transcript` filter combinations) + 7 new worker tests (track filtering, generate-not-transcribe, thread lifecycle). Tests: 356 passed.
+
+**Problem solved:** While audio transcription ran (minutes, CPU-bound), text/VTT import jobs sat blocked in queue. With two tracks, import jobs complete in seconds while transcription is still in progress.
+
+---
+
+## Phase P11 — PyInstaller Packaging
 
 **Goal:** App builds to a single `.exe` that runs without Python installed.
 

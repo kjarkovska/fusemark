@@ -10,12 +10,12 @@ Audio never leaves the machine. Recording and processing are fully decoupled so 
 
 ## Current Status
 
-**v0.9.1: Bug fixes — datepicker popup now dark (color-scheme: dark); uploaded notes now use selected meeting date in content (date_str threaded through generate_notes in all providers); audio import modal pre-fills today's date; Tests: 334 passed.**
+**v0.9.2: P10 — two-track parallel worker (audio track + import track run as concurrent daemon threads); WAL mode on SQLite; `list_jobs(has_transcript)` filter; docs updated (CHANGES.md + PROJECT_KNOWLEDGE.md removed); Tests: 356 passed.**
 
 - `app/recorder.py` — dual-stream capture (WASAPI loopback + mic) via `pyaudiowpatch`; ffmpeg mixes to mp3
 - `app/config.py` — load/save `config.json`
-- `app/queue.py` — SQLite job queue, full CRUD, state machine, startup recovery
-- `app/worker.py` — fully wired: transcribe -> generate -> save note; re-fetches job after transcription (stale dict bug fix); accepts optional `config_loader` callable for testability
+- `app/queue.py` — SQLite job queue, full CRUD, state machine, startup recovery; WAL mode enabled in `init_db()`; `list_jobs(has_transcript=)` filter for two-track dispatch
+- `app/worker.py` — two-track parallel processing: audio track (transcribe→generate, `worker-audio` thread) + import track (generate-only, `worker-import` thread); `_loop` preserved as alias; re-fetches job after transcription (stale dict bug fix); accepts optional `config_loader` callable for testability
 - `app/transcriber.py` — faster-whisper wrapper, Czech forced, glossary initial_prompt, progress reporting to SQLite
 - `app/glossary.py` — load glossary.json, build Whisper prompt, add terms, open in VSCode
 - `app/notemaker.py` — Claude Haiku 3.5: generates Czech notes, suggests glossary terms; API key via keyring
@@ -45,7 +45,8 @@ Update this section at the end of every session.
 All project documentation lives in the [`docs/`](docs/) folder:
 
 - [`docs/BRIEF.md`](docs/BRIEF.md) — Product brief: goals, architecture, user flow, UI design, data model, cost estimate, and out-of-scope items.
-- [`docs/PLAN.md`](docs/PLAN.md) — Implementation plan: phased build order (Phase 1–6), project file structure, per-phase tasks and test commands, and recommendations for working with Claude Code.
+- [`docs/PRODUCTION_PLAN.md`](docs/PRODUCTION_PLAN.md) — Production roadmap: phased build order (P1–P12), file structure, per-phase tasks and test commands.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — As-built architecture analysis (module map, runtime diagram, state machine, hexagonal review).
 
 **Always read both docs files at the start of a session before making any changes.**
 
@@ -53,7 +54,7 @@ All project documentation lives in the [`docs/`](docs/) folder:
 
 The plan is phase-based. Start each session by stating which phase you are on:
 
-> "Read docs/BRIEF.md and docs/PLAN.md. We are working on Phase X — [phase goal]."
+> "Read docs/BRIEF.md and docs/PRODUCTION_PLAN.md. We are working on Phase X — [phase goal]."
 
 Work phase by phase. Each phase must reach a testable state before moving to the next. **Phase 1 (audio capture) is the highest risk** — test on real hardware before continuing.
 

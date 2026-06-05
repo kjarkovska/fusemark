@@ -148,3 +148,33 @@ def test_stop_calls_tray_set_recording_false(service_with_tray, tmp_path, monkey
     svc.stop()
 
     tray.set_recording.assert_called_with(False)
+
+
+def test_start_fires_on_recording_callback(service, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.config.DATA_DIR", str(tmp_path))
+    calls = []
+    service.on_recording = calls.append
+    with patch("app.recorder.Recorder", return_value=MagicMock()):
+        service.start()
+
+    assert calls == [True]
+
+
+def test_stop_fires_on_recording_callback_false(service, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.config.DATA_DIR", str(tmp_path))
+    calls = []
+    service.on_recording = calls.append
+    with patch("app.recorder.Recorder", return_value=MagicMock()):
+        service.start()
+    calls.clear()
+
+    service.stop()
+
+    assert calls == [False]
+
+
+def test_on_recording_not_required(service, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.config.DATA_DIR", str(tmp_path))
+    with patch("app.recorder.Recorder", return_value=MagicMock()):
+        service.start()
+    service.stop()  # no on_recording set — must not raise

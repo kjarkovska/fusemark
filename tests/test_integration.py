@@ -89,7 +89,7 @@ def test_happy_path_fields_persisted_in_db(w):
 def test_import_job_skips_transcription_and_reaches_done(w):
     worker, mocks = w
     job_id = _queued_job(audio_path=None, transcript="Pre-existing transcript")
-    worker._process_next()
+    worker._process_next(audio_track=False)
     mocks["transcribe"].assert_not_called()
     assert q.get_job(job_id)["status"] == "done"
 
@@ -128,7 +128,7 @@ def test_retryable_error_requeues_with_encoded_retry_count(w):
     worker, mocks = w
     mocks["generate"].side_effect = LLMRateLimitError("rate limit hit")
     job_id = _queued_job(transcript="some text")
-    worker._process_next()
+    worker._process_next(audio_track=False)
     job = q.get_job(job_id)
     assert job["status"] == "queued"
     assert job["error_message"].startswith("retry:1:")
@@ -141,7 +141,7 @@ def test_max_retries_exceeded_marks_permanent_error(w):
         transcript="text",
         error_message=f"retry:{MAX_RETRIES}:previous error",
     )
-    worker._process_next()
+    worker._process_next(audio_track=False)
     job = q.get_job(job_id)
     assert job["status"] == "error"
     assert f"after {MAX_RETRIES} retries" in job["error_message"]
@@ -155,7 +155,7 @@ def test_vault_path_not_set_requeues_job(w):
     worker, mocks = w
     mocks["cfg"].load.return_value = {"vault_path": "", "language_name": "Czech"}
     job_id = _queued_job(transcript="text")
-    worker._process_next()
+    worker._process_next(audio_track=False)
     assert q.get_job(job_id)["status"] == "queued"
 
 
@@ -168,7 +168,7 @@ def test_glossary_terms_persisted_as_json(w):
     terms = [{"canonical": "JIRA", "type": "product", "aliases": [], "context": "tracker"}]
     mocks["suggest"].return_value = terms
     job_id = _queued_job(transcript="text")
-    worker._process_next()
+    worker._process_next(audio_track=False)
     job = q.get_job(job_id)
     assert job["glossary_terms"] is not None
     assert json.loads(job["glossary_terms"])[0]["canonical"] == "JIRA"

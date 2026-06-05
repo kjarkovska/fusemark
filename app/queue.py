@@ -77,6 +77,7 @@ def _conn():
 def init_db():
     """Create the jobs table if it doesn't exist, and apply any pending column migrations."""
     with _conn() as con:
+        con.execute("PRAGMA journal_mode = WAL")
         con.execute(CREATE_TABLE)
         existing_cols = {row[1] for row in con.execute("PRAGMA table_info(jobs)").fetchall()}
         migrations = [
@@ -119,18 +120,22 @@ def get_job(job_id):
     return dict(row) if row else None
 
 
-def list_jobs(status=None):
-    """Return all jobs, optionally filtered by status, newest first."""
+def list_jobs(status: str | None = None, has_transcript: bool | None = None) -> list:
+    """Return all jobs, optionally filtered by status and/or transcript presence, newest first."""
+    conditions, params = [], []
+    if status:
+        conditions.append("status = ?")
+        params.append(status)
+    if has_transcript is True:
+        conditions.append("transcript IS NOT NULL AND transcript != ''")
+    elif has_transcript is False:
+        conditions.append("(transcript IS NULL OR transcript = '')")
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     with _conn() as con:
-        if status:
-            rows = con.execute(
-                "SELECT * FROM jobs WHERE status = ? ORDER BY created_at DESC",
-                (status,),
-            ).fetchall()
-        else:
-            rows = con.execute(
-                "SELECT * FROM jobs ORDER BY created_at DESC"
-            ).fetchall()
+        rows = con.execute(
+            f"SELECT * FROM jobs {where} ORDER BY created_at DESC",
+            params,
+        ).fetchall()
     return [dict(r) for r in rows]
 
 
