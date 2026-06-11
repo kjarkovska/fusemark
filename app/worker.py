@@ -13,13 +13,12 @@ import json
 import logging
 import os
 import threading
-import time
 
 logger = logging.getLogger(__name__)
 
 from app import queue as q
 from app import config as cfg
-from app.exceptions import ModelNotReadyError, LLMRateLimitError, LLMAuthError
+from app.exceptions import ModelNotReadyError, LLMRateLimitError
 from app.transcription import transcribe
 from app.llm import generate_notes, suggest_glossary_terms
 from app.notes import save_note, save_transcript

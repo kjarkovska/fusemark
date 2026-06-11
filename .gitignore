@@ -15,3 +15,13 @@ logs/
 ObsiNote.bat
 start_obsinote.vbs
 .claude/
+
+# Test / coverage artifacts
+.coverage
+coverage.json
+.pytest_cache/
+htmlcov/
+
+# Packaging artifacts (bundled at build time, not committed)
+installer/ffmpeg/*.exe
+installer/Output/

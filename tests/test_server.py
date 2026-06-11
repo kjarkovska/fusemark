@@ -3,7 +3,6 @@ import json
 import threading
 from unittest.mock import MagicMock, patch
 
-import pytest
 import app.queue as q
 
 
@@ -69,6 +68,33 @@ def test_import_blank_transcript(flask_client):
         content_type="application/json",
     )
     assert r.status_code == 400
+
+
+def test_import_transcript_too_large(flask_client):
+    import app.server as srv
+    big = "a" * (srv.MAX_TRANSCRIPT_CHARS + 1)
+    r = flask_client.post(
+        "/import-transcript",
+        data=json.dumps({"transcript": big}),
+        content_type="application/json",
+    )
+    assert r.status_code == 413
+
+
+def test_oversized_upload_returns_clean_json_413(flask_client):
+    import app.server as srv
+    orig = srv.app.config["MAX_CONTENT_LENGTH"]
+    srv.app.config["MAX_CONTENT_LENGTH"] = 10  # force the limit for this request
+    try:
+        r = flask_client.post(
+            "/import-audio",
+            data={"audio": (io.BytesIO(b"x" * 100), "test.mp3")},
+            content_type="multipart/form-data",
+        )
+        assert r.status_code == 413
+        assert "error" in r.get_json()  # JSON body, not Werkzeug's HTML page
+    finally:
+        srv.app.config["MAX_CONTENT_LENGTH"] = orig
 
 
 def test_import_creates_job(flask_client):
@@ -1002,7 +1028,6 @@ def test_test_llm_stored_no_key_returns_false(flask_client, monkeypatch):
 # ------------------------------------------------------------------
 
 def test_update_check_mocked_response(flask_client, tmp_path, monkeypatch):
-    import io
     import app.config as cfg
     monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
     cfg.save({**cfg.DEFAULTS, "setup_complete": True})

@@ -32,6 +32,8 @@ from app.worker import Worker
 from app.tray import TrayIcon
 from app import server
 
+logger = logging.getLogger(__name__)
+
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 _ASSETS = os.path.join(_PROJECT_ROOT, "assets")
 
@@ -46,8 +48,8 @@ _hwnd = None
 def _setup_logging():
     from app import config as cfg
     config = cfg.load()
-    level_name = config.get("log_level", "DEBUG").upper()
-    file_level = getattr(logging, level_name, logging.DEBUG)
+    level_name = config.get("log_level", "INFO").upper()
+    file_level = getattr(logging, level_name, logging.INFO)
 
     logs_dir = os.path.join(cfg.DATA_DIR, "logs")
     os.makedirs(logs_dir, exist_ok=True)
@@ -139,6 +141,15 @@ def main():
         sys.exit(0)
 
     _setup_logging()
+
+    # Warn early if ffmpeg is missing — recording/import fail without it, and the
+    # underlying subprocess error is otherwise cryptic.
+    from app.utils import ffmpeg_available
+    if not ffmpeg_available():
+        logger.error(
+            "ffmpeg not found — recording and audio import will fail. Install ffmpeg "
+            "and add it to PATH, or (packaged build) place ffmpeg.exe next to the app."
+        )
 
     # Give ObsiNote a unique Windows identity — prevents grouping under python.exe
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ObsiNote.App")

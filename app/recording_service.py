@@ -10,9 +10,13 @@ also delegate here — so nothing outside this class touches the recorder.
 import logging
 import os
 import threading
+from typing import TYPE_CHECKING
 
 from app import config as cfg
 from app import queue as q
+
+if TYPE_CHECKING:  # avoid importing pyaudiowpatch at module load; Recorder is lazily imported in start()
+    from app.recorder import Recorder
 
 logger = logging.getLogger(__name__)
 

@@ -28,7 +28,7 @@ DEFAULTS = {
     "whisper_model": "large-v3-turbo",
     "whisper_model_dir": os.path.join(
         os.environ.get("LOCALAPPDATA", DATA_DIR), "ObsiNote", "models"),
-    "log_level": "DEBUG",
+    "log_level": "INFO",
     "default_template": "",
     "mode": "private",
     "transcription_provider": "whisper_local",

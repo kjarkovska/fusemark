@@ -2,7 +2,6 @@ import datetime
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
 import app.config as cfg
 import app.updater as updater
 

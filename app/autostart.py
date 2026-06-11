@@ -20,7 +20,11 @@ APP_NAME = "ObsiNote"
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VBS_PATH = os.path.join(PROJECT_ROOT, "start_obsinote.vbs")
-# TODO P11: when packaged, point VBS to installed ObsiNote.exe, not pythonw -m app.main
+
+
+def _is_frozen() -> bool:
+    """True when running from a PyInstaller-packaged build (an installed .exe)."""
+    return getattr(sys, "frozen", False)
 
 
 def _pythonw():
@@ -42,7 +46,13 @@ def _write_vbs():
 
 
 def _get_launch_cmd():
-    """Return the registry command: wscript launches the .vbs silently."""
+    """Return the registry Run command.
+
+    Packaged build: launch the installed ObsiNote.exe directly (sys.executable
+    is the app itself). Dev: wscript runs the .vbs launcher silently.
+    """
+    if _is_frozen():
+        return f'"{sys.executable}"'
     wscript = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "wscript.exe")
     return f'"{wscript}" "{VBS_PATH}"'
 
@@ -58,7 +68,8 @@ def is_enabled():
 
 
 def enable():
-    _write_vbs()
+    if not _is_frozen():
+        _write_vbs()  # dev only — packaged builds launch the .exe directly
     cmd = _get_launch_cmd()
     key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_PATH, 0, winreg.KEY_SET_VALUE)
     winreg.SetValueEx(key, APP_NAME, 0, winreg.REG_SZ, cmd)

@@ -1,21 +1,25 @@
+# Versions are pinned to the known-good set the app was built and tested against.
+# When upgrading, bump one line, run the full test suite, and verify recording +
+# transcription on real hardware before committing.
+
 # Phase 1 — Audio Capture
-pyaudiowpatch     # WASAPI loopback support on Windows (replaces sounddevice for this use case)
+pyaudiowpatch==0.2.12.8   # WASAPI loopback support on Windows (replaces sounddevice for this use case)
 # stdlib: wave, subprocess, tempfile, threading — no extra installs needed
 # system dep: ffmpeg must be in PATH (for mp3 encoding and mixing)
 
 # Phase 2 — Job Queue (no extra deps, uses built-in sqlite3)
 
 # Phase 3 — Transcription
-faster-whisper
+faster-whisper==1.2.1
 
 # Phase 4 — Note Generation
-anthropic
-openai
-mistralai
-keyring
+anthropic==0.84.0
+openai==2.36.0
+mistralai==2.4.5
+keyring==25.7.0
 
 # Phase 5 — UI & Tray
-flask
-pystray
-Pillow
-pywebview
+flask==3.1.3
+pystray==0.19.5
+Pillow==12.1.1
+pywebview==6.2.1

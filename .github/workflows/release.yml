@@ -1,0 +1,35 @@
+name: Release build
+
+# On a version tag, build the PyInstaller onedir on a Windows runner and upload it
+# as an artifact. Signing + Inno Setup + clean-VM testing are done locally by the
+# maintainer (a code-signing certificate must never live in public CI).
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build (PyInstaller)
+        run: pyinstaller installer/build.spec
+
+      - name: Upload unsigned build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ObsiNote-unsigned-${{ github.ref_name }}
+          path: dist/ObsiNote/
