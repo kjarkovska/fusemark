@@ -24,6 +24,8 @@ def load_template(vault_path, template_name):
     """Load a template file; return None if not found (caller falls back to built-in)."""
     if not vault_path or not template_name:
         return None
+    # Guard against path traversal — only the bare file stem is allowed.
+    template_name = os.path.basename(template_name)
     path = os.path.join(vault_path, "ObsiNote", "Templates", f"{template_name}.md")
     if not os.path.exists(path):
         logger.warning("Template '%s' not found — using built-in", template_name)

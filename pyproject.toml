@@ -1,0 +1,21 @@
+# Tooling configuration only. Runtime version lives in app/version.py (single
+# source of truth); dependencies live in requirements.txt. This file deliberately
+# has no [project] table so there is only one place to bump the version.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["venv", "build", "dist", "installer"]
+
+[tool.ruff.lint]
+# Pyflakes only: catches real bugs (undefined names, unused imports/variables)
+# without imposing whitespace/style churn on a single-maintainer codebase.
+# Run `ruff format` manually if you want style cleanup; it isn't a CI gate.
+select = ["F"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # imports in package __init__ are intentional re-exports
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

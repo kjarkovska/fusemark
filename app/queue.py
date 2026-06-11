@@ -236,7 +236,7 @@ def _run_test():
     assert recovered >= 1
     stuck = get_job(stuck_id)
     assert stuck["status"] == "queued", f"Expected 'queued', got {stuck['status']}"
-    print(f"  recovered -> queued OK")
+    print("  recovered -> queued OK")
 
     # Clean up test jobs
     delete_job(job_id)

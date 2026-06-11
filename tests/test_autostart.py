@@ -57,3 +57,27 @@ def test_get_launch_cmd_references_vbs_and_wscript():
     cmd = autostart._get_launch_cmd()
     assert "wscript.exe" in cmd.lower()
     assert autostart.VBS_PATH in cmd
+
+
+def test_get_launch_cmd_uses_exe_directly_when_frozen():
+    exe = r"C:\Program Files\ObsiNote\ObsiNote.exe"
+    with patch.object(autostart.sys, "frozen", True, create=True), \
+         patch.object(autostart.sys, "executable", exe):
+        cmd = autostart._get_launch_cmd()
+    assert cmd == f'"{exe}"'
+    assert "wscript" not in cmd.lower()
+
+
+def test_enable_skips_vbs_when_frozen(tmp_path):
+    vbs = tmp_path / "start.vbs"
+    exe = r"C:\Program Files\ObsiNote\ObsiNote.exe"
+    with patch.object(autostart, "VBS_PATH", str(vbs)), \
+         patch.object(autostart.sys, "frozen", True, create=True), \
+         patch.object(autostart.sys, "executable", exe), \
+         patch("winreg.OpenKey"), \
+         patch("winreg.SetValueEx") as mock_set, \
+         patch("winreg.CloseKey"):
+        autostart.enable()
+    assert not vbs.exists()  # packaged build needs no VBS launcher
+    _, args, _ = mock_set.mock_calls[0]
+    assert "ObsiNote.exe" in args[4]

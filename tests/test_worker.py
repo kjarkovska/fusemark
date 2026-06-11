@@ -1,5 +1,4 @@
-import threading
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 import pytest
 
 from app.exceptions import ModelNotReadyError
@@ -187,8 +186,11 @@ def test_retryable_error_increments_retry_count(mocks):
     w._process_next()
 
     update_calls = mocks["q"].update_job.call_args_list
-    retry_call = next(c for c in update_calls if c.kwargs.get("status") == "queued" or
-                      (c.args[1:] and "queued" in str(c)))
+    # A re-queue (status back to "queued") must have happened.
+    assert any(
+        c.kwargs.get("status") == "queued" or (c.args[1:] and "queued" in str(c))
+        for c in update_calls
+    )
     # Check error_message starts with "retry:1:"
     error_msgs = [
         c.kwargs.get("error_message", "") or (c.args[2] if len(c.args) > 2 else "")

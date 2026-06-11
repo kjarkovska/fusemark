@@ -6,6 +6,19 @@ Local meeting notes app for Windows 11. Records audio, transcribes locally with 
 
 ---
 
+## Get ObsiNote
+
+Two ways to install — the app is identical either way:
+
+- **Paid installer (easiest)** — a signed Windows installer, no Python setup needed.
+  Available on Gumroad *(link added at launch)*. Buying it funds development; you are
+  paying for the packaging convenience, not the code.
+- **From source (free)** — clone and run, as described below.
+
+The source is licensed under **GPL v3** — see [License](#license).
+
+---
+
 ## Requirements
 
 - Windows 11
@@ -164,6 +177,24 @@ Whisper models are stored in `%LOCALAPPDATA%\ObsiNote\models\` (local disk, not 
 
 **Ctrl+C doesn't stop the app**
 - Use tray icon → Quit, or: `taskkill /f /im python.exe`
+
+---
+
+## Privacy
+
+Audio is processed entirely on your machine and is never uploaded. Only the text
+transcript and any notes/context you type are sent to your chosen LLM provider to
+generate the meeting note. API keys are stored in Windows Credential Manager. See
+[docs/PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md) for full details.
+
+---
+
+## License
+
+ObsiNote is free software under the **GNU General Public License v3.0** — see
+[LICENSE](LICENSE). You may use, study, modify, and redistribute it. If you
+distribute it (as source or as a binary), you must make the complete corresponding
+source available under GPL v3.
 
 ---
 

@@ -21,6 +21,7 @@ Routes:
 """
 
 import json
+import logging
 import os
 import threading
 import time as _time
@@ -31,15 +32,29 @@ from app import config as cfg
 from app import queue as q
 from app.exceptions import LLMAuthError, LLMRateLimitError
 from app.i18n import get_strings
-from app.recorder import Recorder, list_devices as list_audio_devices
+from app.recorder import Recorder
 from app.recording_service import RecordingService
 from app.version import VERSION
+
+logger = logging.getLogger(__name__)
 
 app = Flask(
     __name__,
     template_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates"),
     static_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)), "static"),
 )
+
+# Cap request bodies (mainly audio uploads) to guard against disk-fill / OOM.
+app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 MB
+
+# Largest transcript accepted via paste/import, in characters.
+MAX_TRANSCRIPT_CHARS = 2_000_000
+
+
+@app.errorhandler(413)
+def _request_too_large(_err):
+    return jsonify({"error": "Soubor je příliš velký (max 500 MB)."}), 413
+
 
 _recording_service = RecordingService()
 
@@ -132,6 +147,8 @@ def route_import_transcript():
     transcript = (data.get("transcript") or "").strip()
     if not transcript:
         return jsonify({"error": "transcript required"}), 400
+    if len(transcript) > MAX_TRANSCRIPT_CHARS:
+        return jsonify({"error": "transcript too large"}), 413
 
     job_id = q.create_job(
         label=data.get("label", ""),
@@ -506,9 +523,11 @@ def update_check_route():
             cfg.save(config)
             return jsonify({"ok": True, "update_available": False,
                             "version": "", "url": "", "checked_at": now})
-        return jsonify({"ok": False, "error": str(exc)}), 500
-    except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        logger.warning("Update check HTTP error %s", exc.code)
+        return jsonify({"ok": False, "error": "Update check failed"}), 500
+    except Exception:
+        logger.exception("Update check failed")
+        return jsonify({"ok": False, "error": "Update check failed"}), 500
 
 
 @app.route("/update-status", methods=["GET"])
@@ -620,8 +639,9 @@ def wizard_test_llm():
         return jsonify({"ok": False, "error": str(exc)})
     except LLMRateLimitError as exc:
         return jsonify({"ok": False, "error": str(exc)})
-    except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)})
+    except Exception:
+        logger.exception("Wizard LLM test failed")
+        return jsonify({"ok": False, "error": "Connection test failed"})
 
 
 @app.route("/wizard/test-recording", methods=["POST"])

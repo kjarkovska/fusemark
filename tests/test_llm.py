@@ -32,7 +32,6 @@ def test_generate_notes_dispatches_to_anthropic():
 
 
 def test_generate_notes_dispatches_to_openai():
-    import app.llm.openai_provider  # ensure module is registered as package attribute
     from app.llm import generate_notes
 
     with patch("app.llm.cfg") as mock_cfg, \
@@ -44,7 +43,6 @@ def test_generate_notes_dispatches_to_openai():
 
 
 def test_generate_notes_dispatches_to_mistral():
-    import app.llm.mistral_provider  # ensure module is registered as package attribute
     from app.llm import generate_notes
 
     with patch("app.llm.cfg") as mock_cfg, \
@@ -69,7 +67,6 @@ def test_suggest_glossary_terms_unknown_provider_raises():
 
 
 def test_suggest_glossary_terms_dispatches_to_anthropic():
-    import app.llm.anthropic_provider  # ensure module is registered as package attribute
     from app.llm import suggest_glossary_terms
 
     with patch("app.llm.cfg") as mock_cfg, \
@@ -82,7 +79,6 @@ def test_suggest_glossary_terms_dispatches_to_anthropic():
 
 
 def test_suggest_glossary_terms_dispatches_to_openai():
-    import app.llm.openai_provider
     from app.llm import suggest_glossary_terms
 
     with patch("app.llm.cfg") as mock_cfg, \
@@ -95,7 +91,6 @@ def test_suggest_glossary_terms_dispatches_to_openai():
 
 
 def test_suggest_glossary_terms_dispatches_to_mistral():
-    import app.llm.mistral_provider
     from app.llm import suggest_glossary_terms
 
     with patch("app.llm.cfg") as mock_cfg, \
@@ -141,7 +136,6 @@ def _make_anthropic_mock(text="# Meeting Note"):
 
 
 def test_anthropic_auto_detect_uses_match_instruction():
-    import anthropic as ant
     from app.llm.anthropic_provider import generate_notes
 
     mock_client = _make_anthropic_mock()
@@ -431,7 +425,7 @@ def test_mistral_set_api_key_writes_to_keyring():
 
 
 def test_mistral_rate_limit_raises_llm_rate_limit_error():
-    from app.llm.mistral_provider import generate_notes, _handle_mistral_error
+    from app.llm.mistral_provider import _handle_mistral_error
 
     exc = Exception("429 rate limit exceeded")
     exc.status_code = 429

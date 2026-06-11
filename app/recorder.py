@@ -19,7 +19,6 @@ import argparse
 import logging
 import os
 import subprocess
-import sys
 import tempfile
 import threading
 import time
@@ -238,12 +237,6 @@ def list_devices():
     try:
         print("\nAvailable audio devices:")
         print("-" * 70)
-        wasapi_idx = None
-        try:
-            wasapi_idx = pa.get_host_api_info_by_type(pyaudio.paWASAPI)["index"]
-        except Exception:
-            pass
-
         default_in = pa.get_default_input_device_info()["index"]
         try:
             wasapi = pa.get_host_api_info_by_type(pyaudio.paWASAPI)
