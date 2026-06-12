@@ -1,15 +1,15 @@
-; setup.iss — Inno Setup script for ObsiNote (Phase P11 packaging).
+; setup.iss — Inno Setup script for FuseMark (Phase P11 packaging).
 ; Build: open in Inno Setup Compiler (6.3+) and Build, or: iscc installer\setup.iss
-; Output: installer\Output\ObsiNoteSetup.exe
+; Output: installer\Output\FuseMarkSetup.exe
 ;
-; Prerequisites: run `pyinstaller installer/build.spec` first (produces dist\ObsiNote\),
+; Prerequisites: run `pyinstaller installer/build.spec` first (produces dist\FuseMark\),
 ; and place ffmpeg.exe + ffprobe.exe in installer\ffmpeg\ (see ffmpeg\README.md).
 ;
 ; MyAppVersion must match app/version.py at release time (see installer/README.md).
 
-#define MyAppName "ObsiNote"
+#define MyAppName "FuseMark"
 #define MyAppVersion "0.9.3"
-#define MyAppExeName "ObsiNote.exe"
+#define MyAppExeName "FuseMark.exe"
 
 [Setup]
 ; Keep this GUID stable across releases so upgrades replace the prior install.
@@ -22,7 +22,7 @@ DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}
 LicenseFile=..\LICENSE
 OutputDir=Output
-OutputBaseFilename=ObsiNoteSetup
+OutputBaseFilename=FuseMarkSetup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -52,10 +52,10 @@ Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
-; The app writes its own HKCU\...\Run\ObsiNote autostart value at runtime.
+; The app writes its own HKCU\...\Run\FuseMark autostart value at runtime.
 ; dontcreatekey: do not write it during install; uninsdeletevalue: remove it on
 ; uninstall so Windows does not try to launch a deleted exe at next login.
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "ObsiNote"; Flags: dontcreatekey uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "FuseMark"; Flags: dontcreatekey uninsdeletevalue
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
@@ -81,7 +81,7 @@ begin
   // Warn and offer the download — never hard-fail the install.
   if (CurStep = ssPostInstall) and (not WebView2Installed) then
   begin
-    if MsgBox('Microsoft Edge WebView2 Runtime was not found. ObsiNote needs it to '
+    if MsgBox('Microsoft Edge WebView2 Runtime was not found. FuseMark needs it to '
       + 'display its window. Open the free download page now?',
       mbConfirmation, MB_YESNO) = IDYES then
       ShellExec('open', 'https://developer.microsoft.com/microsoft-edge/webview2/',

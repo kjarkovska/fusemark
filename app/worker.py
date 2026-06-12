@@ -1,5 +1,5 @@
 """
-worker.py — Background job processor for ObsiNote
+worker.py — Background job processor for FuseMark
 
   queued -> transcribing -> generating -> done
 
@@ -91,13 +91,13 @@ class Worker:
                 q.update_job(job_id, status="error", error_message=str(exc))
                 logger.error("Job %s model not ready: %s", job_id, exc)
                 if self.on_tooltip:
-                    self.on_tooltip("ObsiNote")
+                    self.on_tooltip("FuseMark")
                 return
             except Exception as exc:
                 q.update_job(job_id, status="error", error_message=f"Transcription failed: {exc}")
                 logger.error("Job %s transcription error: %s", job_id, exc)
                 if self.on_tooltip:
-                    self.on_tooltip("ObsiNote")
+                    self.on_tooltip("FuseMark")
                 return
             job = q.get_job(job_id)  # re-fetch to pick up transcript
         # else: transcript pre-populated (imported) — skip directly to generation
@@ -118,20 +118,20 @@ class Worker:
                 q.update_job(job_id, status="error", error_message=f"Generation failed after {MAX_RETRIES} retries: {exc}")
                 logger.error("Job %s exceeded max retries: %s", job_id, exc)
             if self.on_tooltip:
-                self.on_tooltip("ObsiNote")
+                self.on_tooltip("FuseMark")
             return
         except Exception as exc:
             q.update_job(job_id, status="error", error_message=f"Generation failed: {exc}")
             logger.error("Job %s generation error: %s", job_id, exc)
             if self.on_tooltip:
-                self.on_tooltip("ObsiNote")
+                self.on_tooltip("FuseMark")
             return
 
         q.set_status(job_id, "done")
         self._maybe_delete_recording(job_id)
         logger.info("Job %s done", job_id)
         if self.on_tooltip:
-            self.on_tooltip("ObsiNote")
+            self.on_tooltip("FuseMark")
 
     def _transcribe(self, job_id, job):
         label = job.get("label") or "Porada"
@@ -139,7 +139,7 @@ class Worker:
         if self.on_transcribing:
             self.on_transcribing(True)
         if self.on_tooltip:
-            self.on_tooltip(f"ObsiNote — Přepisuji: {label}")
+            self.on_tooltip(f"FuseMark — Přepisuji: {label}")
         try:
             audio_path = job.get("audio_path") or job.get("recording_path")
             if not audio_path:
@@ -154,7 +154,7 @@ class Worker:
         label = job.get("label") or "Porada"
         q.set_status(job_id, "generating")
         if self.on_tooltip:
-            self.on_tooltip(f"ObsiNote — Generuji poznámky: {label}")
+            self.on_tooltip(f"FuseMark — Generuji poznámky: {label}")
         config = self._config_loader()
         vault_path = config.get("vault_path", "")
         if not vault_path:

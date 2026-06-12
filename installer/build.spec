@@ -1,13 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-build.spec — PyInstaller spec for ObsiNote (Phase P11 packaging).
+build.spec — PyInstaller spec for FuseMark (Phase P11 packaging).
 
 Build:
     pip install pyinstaller
     pyinstaller installer/build.spec
 
 Output:
-    dist/ObsiNote/ObsiNote.exe   (onedir — Inno Setup wraps this directory)
+    dist/FuseMark/FuseMark.exe   (onedir — Inno Setup wraps this directory)
 
 Notes:
   - onedir (not onefile): avoids slow self-extraction on every launch.
@@ -16,7 +16,7 @@ Notes:
     Missing them means the app launches but recording / transcription silently fail.
   - The Whisper model is downloaded at runtime to whisper_model_dir; it is never bundled.
   - ffmpeg.exe / ffprobe.exe are NOT bundled here — Inno Setup installs them next to
-    ObsiNote.exe (ffmpeg_exe() in app/utils.py finds them via sys.frozen).
+    FuseMark.exe (ffmpeg_exe() in app/utils.py finds them via sys.frozen).
 """
 
 import os
@@ -91,7 +91,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="ObsiNote",
+    name="FuseMark",
     debug=False,
     strip=False,
     upx=False,            # UPX can corrupt native DLLs — leave off
@@ -106,5 +106,5 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=False,
-    name="ObsiNote",
+    name="FuseMark",
 )

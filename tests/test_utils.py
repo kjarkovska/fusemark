@@ -9,7 +9,7 @@ def test_ffmpeg_exe_returns_bare_string_in_dev():
 
 
 def test_ffmpeg_exe_returns_bundled_path_when_frozen(tmp_path):
-    fake_exe = str(tmp_path / "ObsiNote.exe")
+    fake_exe = str(tmp_path / "FuseMark.exe")
     with patch.object(sys, "frozen", True, create=True), \
          patch.object(sys, "executable", fake_exe):
         result = utils.ffmpeg_exe()
@@ -27,7 +27,7 @@ def test_ffmpeg_available_false_when_not_on_path():
 
 
 def test_ffmpeg_available_checks_file_next_to_exe_when_frozen(tmp_path):
-    fake_exe = str(tmp_path / "ObsiNote.exe")
+    fake_exe = str(tmp_path / "FuseMark.exe")
     with patch.object(sys, "frozen", True, create=True), \
          patch.object(sys, "executable", fake_exe):
         assert utils.ffmpeg_available() is False

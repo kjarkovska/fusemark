@@ -1,4 +1,4 @@
-# ObsiNote — Product Brief
+# FuseMark — Product Brief
 
 **Version:** 0.9.2  
 **Date:** June 2026
@@ -63,7 +63,7 @@ Audio capture (WASAPI loopback + mic — separate streams)
 | System integration | `pystray` (tray icon) |
 | Job queue | SQLite (via Python `sqlite3`, WAL mode) |
 | API key storage | Windows Credential Manager (via `keyring`) |
-| Glossary | `glossary.json` in `%APPDATA%\ObsiNote\` |
+| Glossary | `glossary.json` in `%APPDATA%\FuseMark\` |
 | Output | Markdown → Obsidian vault |
 | i18n | English / Czech UI (configurable) |
 

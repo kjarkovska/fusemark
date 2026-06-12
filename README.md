@@ -1,4 +1,4 @@
-# ObsiNote
+# FuseMark
 
 Local meeting notes app for Windows 11. Records audio, transcribes locally with faster-whisper, generates structured notes via your choice of LLM API, saves to an Obsidian vault (or any folder).
 
@@ -6,7 +6,7 @@ Local meeting notes app for Windows 11. Records audio, transcribes locally with 
 
 ---
 
-## Get ObsiNote
+## Get FuseMark
 
 Two ways to install — the app is identical either way:
 
@@ -69,7 +69,7 @@ API keys are stored in Windows Credential Manager — never in files or config.
 3. Click **Stop recording** — audio is saved and the job is queued immediately
 4. The app is ready to record the next meeting right away
 5. Transcription and note generation happen in the background
-6. When done, the note appears in `<vault>/ObsiNote/Meetings/<folder>/<date> <label>.md`
+6. When done, the note appears in `<vault>/FuseMark/Meetings/<folder>/<date> <label>.md`
 7. Review glossary term suggestions in the jobs panel if any appear
 
 **Import without recording:** use **Import transcript** to paste or upload a `.txt`/`.md`/`.vtt` transcript, or **Import audio** to process an existing `.mp3`/`.wav`/`.m4a`/`.ogg`/`.flac` file.
@@ -95,7 +95,7 @@ To use the BT headset mic instead of the built-in mic:
 
 ## Glossary
 
-The glossary lives at `<vault>/ObsiNote/Glossary.md` as a Markdown table (falls back to `%APPDATA%\ObsiNote\` if no vault is configured). The app uses it to:
+The glossary lives at `<vault>/FuseMark/Glossary.md` as a Markdown table (falls back to `%APPDATA%\FuseMark\` if no vault is configured). The app uses it to:
 - Improve Whisper transcription accuracy (canonical forms + aliases as hotwords)
 - Guide the LLM to use correct spelling in generated notes
 
@@ -106,7 +106,7 @@ After each meeting, the LLM suggests up to 5 new terms found in the transcript. 
 
 ## Output Note Structure
 
-Notes are saved to `<vault>/ObsiNote/Meetings/<folder>/<date> <label>.md`:
+Notes are saved to `<vault>/FuseMark/Meetings/<folder>/<date> <label>.md`:
 
 ```markdown
 ---
@@ -134,19 +134,19 @@ tags: [meeting]
 
 ## Data Storage
 
-All user data is stored in `%APPDATA%\ObsiNote\`:
+All user data is stored in `%APPDATA%\FuseMark\`:
 
 ```
-%APPDATA%\ObsiNote\
+%APPDATA%\FuseMark\
 ├── config.json       — app settings
 ├── jobs.db           — processing queue
-├── logs\obsinote.log
+├── logs\fusemark.log
 └── recordings\       — .mp3 files (auto-deleted after processing if configured)
 ```
 
-The glossary is stored in the vault at `<vault>/ObsiNote/Glossary.md` (falls back to `%APPDATA%\ObsiNote\Glossary.md` if no vault is configured).
+The glossary is stored in the vault at `<vault>/FuseMark/Glossary.md` (falls back to `%APPDATA%\FuseMark\Glossary.md` if no vault is configured).
 
-Whisper models are stored in `%LOCALAPPDATA%\ObsiNote\models\` (local disk, not a network path).
+Whisper models are stored in `%LOCALAPPDATA%\FuseMark\models\` (local disk, not a network path).
 
 ---
 
@@ -173,7 +173,7 @@ Whisper models are stored in `%LOCALAPPDATA%\ObsiNote\models\` (local disk, not 
 
 **API key error**
 - Go to Settings, enter your key and click Save key
-- Keys are stored in Windows Credential Manager under `ObsiNote-Anthropic`, `ObsiNote-OpenAI`, or `ObsiNote-Mistral`
+- Keys are stored in Windows Credential Manager under `FuseMark-Anthropic`, `FuseMark-OpenAI`, or `FuseMark-Mistral`
 
 **Ctrl+C doesn't stop the app**
 - Use tray icon → Quit, or: `taskkill /f /im python.exe`
@@ -191,7 +191,7 @@ generate the meeting note. API keys are stored in Windows Credential Manager. Se
 
 ## License
 
-ObsiNote is free software under the **GNU General Public License v3.0** — see
+FuseMark is free software under the **GNU General Public License v3.0** — see
 [LICENSE](LICENSE). You may use, study, modify, and redistribute it. If you
 distribute it (as source or as a binary), you must make the complete corresponding
 source available under GPL v3.

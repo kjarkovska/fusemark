@@ -11,7 +11,7 @@ from app.glossary import load as load_glossary
 logger = logging.getLogger(__name__)
 
 MODEL = "claude-haiku-4-5-20251001"
-KEYRING_SERVICE = "ObsiNote-Anthropic"
+KEYRING_SERVICE = "FuseMark-Anthropic"
 KEYRING_USERNAME = "api_key"
 
 NOTE_TEMPLATE = """\

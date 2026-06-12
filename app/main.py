@@ -1,5 +1,5 @@
 """
-main.py — Entrypoint for ObsiNote
+main.py — Entrypoint for FuseMark
 
 Starts four components:
   1. Worker thread  — background job processor
@@ -53,7 +53,7 @@ def _setup_logging():
 
     logs_dir = os.path.join(cfg.DATA_DIR, "logs")
     os.makedirs(logs_dir, exist_ok=True)
-    log_path = os.path.join(logs_dir, "obsinote.log")
+    log_path = os.path.join(logs_dir, "fusemark.log")
 
     fmt = logging.Formatter("%(asctime)s [%(levelname)-8s] %(name)s: %(message)s")
 
@@ -135,7 +135,7 @@ def _win32_set_icons(small_path=None, big_path=None):
 
 def main():
     # Single-instance guard — create a named mutex; exit if another instance owns it
-    _mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Global\\ObsiNote")
+    _mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Global\\FuseMark")
     if ctypes.windll.kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
         import sys
         sys.exit(0)
@@ -151,8 +151,8 @@ def main():
             "and add it to PATH, or (packaged build) place ffmpeg.exe next to the app."
         )
 
-    # Give ObsiNote a unique Windows identity — prevents grouping under python.exe
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ObsiNote.App")
+    # Give FuseMark a unique Windows identity — prevents grouping under python.exe
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("FuseMark.App")
 
     icons = _build_icons()
 
@@ -168,7 +168,7 @@ def main():
 
     # Create pywebview window before webview.start()
     window = webview.create_window(
-        "ObsiNote",
+        "FuseMark",
         "http://127.0.0.1:5000",
         width=960,
         height=720,
@@ -185,7 +185,7 @@ def main():
             _hwnd = None
         if not _hwnd:
             ctypes.windll.user32.FindWindowW.restype = ctypes.c_void_p
-            _hwnd = ctypes.windll.user32.FindWindowW(None, "ObsiNote")
+            _hwnd = ctypes.windll.user32.FindWindowW(None, "FuseMark")
         # Remove title-bar icon; set taskbar icon only
         user32 = ctypes.windll.user32
         user32.SendMessageW.restype = ctypes.c_long

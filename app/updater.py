@@ -47,7 +47,7 @@ def check_for_update(force: bool = False) -> dict | None:
     try:
         req = urllib.request.Request(
             RELEASES_URL,
-            headers={"User-Agent": f"ObsiNote/{VERSION}"},
+            headers={"User-Agent": f"FuseMark/{VERSION}"},
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read())

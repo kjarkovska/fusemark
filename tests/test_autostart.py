@@ -60,7 +60,7 @@ def test_get_launch_cmd_references_vbs_and_wscript():
 
 
 def test_get_launch_cmd_uses_exe_directly_when_frozen():
-    exe = r"C:\Program Files\ObsiNote\ObsiNote.exe"
+    exe = r"C:\Program Files\FuseMark\FuseMark.exe"
     with patch.object(autostart.sys, "frozen", True, create=True), \
          patch.object(autostart.sys, "executable", exe):
         cmd = autostart._get_launch_cmd()
@@ -70,7 +70,7 @@ def test_get_launch_cmd_uses_exe_directly_when_frozen():
 
 def test_enable_skips_vbs_when_frozen(tmp_path):
     vbs = tmp_path / "start.vbs"
-    exe = r"C:\Program Files\ObsiNote\ObsiNote.exe"
+    exe = r"C:\Program Files\FuseMark\FuseMark.exe"
     with patch.object(autostart, "VBS_PATH", str(vbs)), \
          patch.object(autostart.sys, "frozen", True, create=True), \
          patch.object(autostart.sys, "executable", exe), \
@@ -80,4 +80,4 @@ def test_enable_skips_vbs_when_frozen(tmp_path):
         autostart.enable()
     assert not vbs.exists()  # packaged build needs no VBS launcher
     _, args, _ = mock_set.mock_calls[0]
-    assert "ObsiNote.exe" in args[4]
+    assert "FuseMark.exe" in args[4]

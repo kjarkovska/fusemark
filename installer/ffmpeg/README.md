@@ -1,7 +1,7 @@
 # Bundled ffmpeg
 
 Place **`ffmpeg.exe`** and **`ffprobe.exe`** in this folder before building the installer.
-They are bundled by `setup.iss` next to `ObsiNote.exe`, where `ffmpeg_exe()`
+They are bundled by `setup.iss` next to `FuseMark.exe`, where `ffmpeg_exe()`
 (`app/utils.py`, `sys.frozen` branch) finds them.
 
 These binaries are **not committed to git** (see `.gitignore`) — they are large and
@@ -15,6 +15,6 @@ Download a static Windows build, e.g. from <https://www.gyan.dev/ffmpeg/builds/>
 
 ## Licensing note
 
-ffmpeg is distributed under LGPL/GPL depending on the build. Since ObsiNote ships
+ffmpeg is distributed under LGPL/GPL depending on the build. Since FuseMark ships
 under **GPL v3**, bundling a GPL ffmpeg build is compatible. Keep a copy of the
 ffmpeg licence with your distribution.

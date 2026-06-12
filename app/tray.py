@@ -1,5 +1,5 @@
 """
-tray.py — System tray icon for ObsiNote
+tray.py — System tray icon for FuseMark
 
 States:
   idle          — grey icon, menu shows Start Recording
@@ -124,9 +124,9 @@ class TrayIcon:
     def run_detached(self):
         """Start the tray icon in a background thread (non-blocking)."""
         self._icon = pystray.Icon(
-            "obsinote",
+            "fusemark",
             ICON_IDLE,
-            "ObsiNote",
+            "FuseMark",
             menu=self._menu(),
         )
         self._icon.run_detached()

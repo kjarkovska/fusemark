@@ -12,7 +12,7 @@ from app.glossary import load as load_glossary
 logger = logging.getLogger(__name__)
 
 MODEL = "gpt-4o-mini"
-KEYRING_SERVICE = "ObsiNote-OpenAI"
+KEYRING_SERVICE = "FuseMark-OpenAI"
 KEYRING_USERNAME = "api_key"
 
 NOTE_TEMPLATE = """\

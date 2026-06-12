@@ -41,8 +41,8 @@ def test_templates_empty_dir(flask_client):
 
 
 def test_templates_lists_files(flask_client, tmp_vault):
-    (tmp_vault / "ObsiNote" / "Templates" / "Meeting.md").write_text("t", encoding="utf-8")
-    (tmp_vault / "ObsiNote" / "Templates" / "Standup.md").write_text("t", encoding="utf-8")
+    (tmp_vault / "FuseMark" / "Templates" / "Meeting.md").write_text("t", encoding="utf-8")
+    (tmp_vault / "FuseMark" / "Templates" / "Standup.md").write_text("t", encoding="utf-8")
     r = flask_client.get("/api/templates")
     assert r.get_json() == ["Meeting", "Standup"]
 
@@ -332,7 +332,7 @@ def test_api_key_anthropic_saved(flask_client):
         )
     assert r.status_code == 200
     assert r.get_json()["ok"] is True
-    mock_set.assert_called_once_with("ObsiNote-Anthropic", "api_key", "sk-ant-test")
+    mock_set.assert_called_once_with("FuseMark-Anthropic", "api_key", "sk-ant-test")
 
 
 def test_api_key_openai_saved(flask_client):
@@ -344,7 +344,7 @@ def test_api_key_openai_saved(flask_client):
             content_type="application/json",
         )
     assert r.status_code == 200
-    mock_set.assert_called_once_with("ObsiNote-OpenAI", "api_key", "sk-openai-test")
+    mock_set.assert_called_once_with("FuseMark-OpenAI", "api_key", "sk-openai-test")
 
 
 def test_api_key_mistral_saved(flask_client):
@@ -356,7 +356,7 @@ def test_api_key_mistral_saved(flask_client):
             content_type="application/json",
         )
     assert r.status_code == 200
-    mock_set.assert_called_once_with("ObsiNote-Mistral", "api_key", "ms-test")
+    mock_set.assert_called_once_with("FuseMark-Mistral", "api_key", "ms-test")
 
 
 def test_jobs_list_after_import(flask_client):
@@ -606,7 +606,7 @@ def test_open_log_found_calls_startfile(flask_client, tmp_path, monkeypatch):
     monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
-    (log_dir / "obsinote.log").write_text("log content")
+    (log_dir / "fusemark.log").write_text("log content")
     with patch("app.server.os.startfile") as mock_sf:
         r = flask_client.post("/open-log")
     assert r.status_code == 200

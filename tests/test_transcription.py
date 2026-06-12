@@ -26,7 +26,7 @@ def test_ffmpeg_exe_dev_mode():
 
 
 def test_ffmpeg_exe_frozen(tmp_path):
-    fake_exe = str(tmp_path / "obsinote.exe")
+    fake_exe = str(tmp_path / "fusemark.exe")
     with patch.object(sys, "frozen", True, create=True), \
          patch.object(sys, "executable", fake_exe):
         result = ffmpeg_exe()

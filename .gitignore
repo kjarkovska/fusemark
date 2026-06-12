@@ -12,8 +12,8 @@ test.mp3
 recordings/
 assets/*.ico
 logs/
-ObsiNote.bat
-start_obsinote.vbs
+FuseMark.bat
+start_fusemark.vbs
 .claude/
 
 # Test / coverage artifacts

@@ -1,7 +1,7 @@
 """
-glossary.py — Glossary management for ObsiNote
+glossary.py — Glossary management for FuseMark
 
-Stores the glossary as a Markdown table at {vault}/ObsiNote/Glossary.md.
+Stores the glossary as a Markdown table at {vault}/FuseMark/Glossary.md.
 Falls back to {project_root}/Glossary.md if vault_path is not configured.
 
 Public API (all backward-compatible):
@@ -33,7 +33,7 @@ def glossary_path(vault_path=None):
         from app import config as cfg
         vault_path = cfg.load().get("vault_path", "")
     if vault_path:
-        return os.path.join(vault_path, "ObsiNote", "Glossary.md")
+        return os.path.join(vault_path, "FuseMark", "Glossary.md")
     logger.warning(
         "vault_path not configured — glossary stored in data directory. "
         "Configure vault path in Settings to move it to the vault."
@@ -76,7 +76,7 @@ def _parse_table(lines):
 def _terms_to_table_lines(terms):
     """Serialise a list of term dicts to Markdown table lines."""
     lines = [
-        "# ObsiNote Glossary",
+        "# FuseMark Glossary",
         "",
         "| Term | Aliases | Context | Type |",
         "|------|---------|---------|------|",
@@ -185,7 +185,7 @@ def open_in_obsidian(vault_path=None):
         logger.warning("vault_path not set — cannot open glossary in Obsidian")
         return
     vault_name = os.path.basename(vault_path)
-    uri = f"obsidian://open?vault={vault_name}&file=ObsiNote/Glossary"
+    uri = f"obsidian://open?vault={vault_name}&file=FuseMark/Glossary"
     try:
         os.startfile(uri)
     except Exception as exc:

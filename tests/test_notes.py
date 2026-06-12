@@ -2,7 +2,7 @@ import app.notes as notes
 
 
 def test_load_template_reads_existing(tmp_vault):
-    tdir = tmp_vault / "ObsiNote" / "Templates"
+    tdir = tmp_vault / "FuseMark" / "Templates"
     (tdir / "Meeting.md").write_text("hello", encoding="utf-8")
     assert notes.load_template(str(tmp_vault), "Meeting") == "hello"
 

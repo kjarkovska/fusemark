@@ -2,7 +2,7 @@
 app/transcription/local.py — faster-whisper local transcription provider
 
 Transcribes an audio file using a local faster-whisper model stored in
-whisper_model_dir (defaults to %LOCALAPPDATA%/ObsiNote/models).
+whisper_model_dir (defaults to %LOCALAPPDATA%/FuseMark/models).
 
 Raises ModelNotReadyError if the model has not been downloaded yet.
 """

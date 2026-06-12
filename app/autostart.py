@@ -1,7 +1,7 @@
 """
 autostart.py — Windows auto-start management via the registry
 
-Adds/removes a Run key so ObsiNote launches with Windows.
+Adds/removes a Run key so FuseMark launches with Windows.
 Uses HKEY_CURRENT_USER so no admin rights are required.
 
 A .vbs launcher is written to the project root so wscript.exe can start
@@ -16,10 +16,10 @@ import winreg
 logger = logging.getLogger(__name__)
 
 REG_PATH = r"Software\Microsoft\Windows\CurrentVersion\Run"
-APP_NAME = "ObsiNote"
+APP_NAME = "FuseMark"
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VBS_PATH = os.path.join(PROJECT_ROOT, "start_obsinote.vbs")
+VBS_PATH = os.path.join(PROJECT_ROOT, "start_fusemark.vbs")
 
 
 def _is_frozen() -> bool:
@@ -48,7 +48,7 @@ def _write_vbs():
 def _get_launch_cmd():
     """Return the registry Run command.
 
-    Packaged build: launch the installed ObsiNote.exe directly (sys.executable
+    Packaged build: launch the installed FuseMark.exe directly (sys.executable
     is the app itself). Dev: wscript runs the .vbs launcher silently.
     """
     if _is_frozen():
