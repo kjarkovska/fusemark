@@ -1,4 +1,4 @@
-// app.js — ObsiNote frontend logic
+// app.js — FuseMark frontend logic
 
 let recording = false;
 let timerInterval = null;

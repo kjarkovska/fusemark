@@ -1,6 +1,6 @@
 name: CI
 
-# Lint + tests on every push to main and every PR. ObsiNote is Windows-only
+# Lint + tests on every push to main and every PR. FuseMark is Windows-only
 # (WASAPI loopback via pyaudiowpatch), so CI runs on a Windows runner.
 
 on:

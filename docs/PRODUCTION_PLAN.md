@@ -1,4 +1,4 @@
-# ObsiNote — Production Roadmap Plan
+# FuseMark — Production Roadmap Plan
 **Target:** Shippable v1.0 for general public, open-source code + paid installer, Windows 10/11
 
 > This document is written for Claude Code. Read it fully before starting any phase.
@@ -7,17 +7,17 @@
 
 ---
 
-## ⚠ Before Starting — Name Trademark Risk
+## Product Name — FuseMark
 
-**"ObsiNote" is too close to "Obsidian" (Dynalist Inc.) to use publicly.** Obsidian is a
-registered brand in exactly the target market — users who want to save Markdown notes into
-an Obsidian vault. The name sounds like a portmanteau of "Obsidian" + "Note" and will cause
-user confusion and potential trademark claims.
+The product is named **FuseMark**. The earlier working title "ObsiNote" was dropped before
+public release: it was too close to "Obsidian" (Dynalist Inc.), a registered brand in exactly
+the target market, and read as a portmanteau of "Obsidian" + "Note" that risked user confusion
+and potential trademark claims.
 
-**Choose a different product name before any public announcement, Gumroad listing, or
-code signing.** The app's functionality is completely independent of Obsidian (it writes
-plain Markdown files). The name should reflect the recording/transcription/notes angle, not
-the Obsidian integration. Throughout this document "ObsiNote" is used as a placeholder only.
+FuseMark's functionality is independent of any single notes app — it writes plain Markdown
+files into whatever vault or notes folder the user points it at (Obsidian, Logseq, or any
+other Markdown-based tool). Confirm there is no trademark conflict for "FuseMark" before code
+signing and the Gumroad listing.
 
 ---
 
@@ -76,7 +76,7 @@ Changes are additive and modular — each module gets a clean interface, impleme
 ## File Structure After All Phases
 
 ```
-obsinote/
+fusemark/
 ├── app/
 │   ├── main.py                  # unchanged except %APPDATA% paths + port selection
 │   ├── server.py                # new routes: /setup, /wizard, /update-check, /recordings/cleanup
@@ -124,21 +124,21 @@ obsinote/
 
 ## Data & Config Location
 
-**All user data moves to `%APPDATA%\ObsiNote\`** — the install directory is read-only on most machines.
+**All user data moves to `%APPDATA%\FuseMark\`** — the install directory is read-only on most machines.
 
 ```
-%APPDATA%\ObsiNote\
+%APPDATA%\FuseMark\
 ├── config.json       # all settings
 ├── glossary.json     # user's glossary
 ├── jobs.db           # SQLite queue
 ├── logs\
-│   └── obsinote.log
+│   └── fusemark.log
 └── recordings\       # .mp3 files (if not auto-deleted)
 ```
 
 `config.py` must export a `DATA_DIR` constant:
 ```python
-DATA_DIR = os.path.join(os.environ["APPDATA"], "ObsiNote")
+DATA_DIR = os.path.join(os.environ["APPDATA"], "FuseMark")
 ```
 All modules that currently reference `PROJECT_ROOT` for data files must switch to `DATA_DIR`.
 The install directory itself contains only code, assets, and ffmpeg.
@@ -155,7 +155,7 @@ The install directory itself contains only code, assets, and ffmpeg.
   "language": "cs",
   "language_name": "Czech",
   "whisper_model": "large-v3-turbo",
-  "whisper_model_dir": "%LOCALAPPDATA%\\ObsiNote\\models",
+  "whisper_model_dir": "%LOCALAPPDATA%\\FuseMark\\models",
   "vault_path": "",
   "output_device": null,
   "input_device": null,
@@ -175,9 +175,9 @@ The install directory itself contains only code, assets, and ffmpeg.
 not part of `DEFAULTS` in `config.py`. They appear in `config.json` only after the first
 update check runs — do not initialise them in the defaults dict.
 
-The `whisper_model_dir` value shown above (`%LOCALAPPDATA%\\ObsiNote\\models`) is illustrative.
+The `whisper_model_dir` value shown above (`%LOCALAPPDATA%\\FuseMark\\models`) is illustrative.
 The actual value stored in `config.json` is the expanded path computed at init time, e.g.
-`C:\Users\KJ\AppData\Local\ObsiNote\models`. Config loading never expands environment variables
+`C:\Users\KJ\AppData\Local\FuseMark\models`. Config loading never expands environment variables
 — Python expands them once when building the default and writes the resolved path.
 
 Valid `transcription_provider` values: `"whisper_local"` only in v1.0. `"openai_whisper"` is
@@ -189,7 +189,7 @@ field in config now so v1.1 users need no migration.
 
 `setup_complete: false` triggers the wizard on next launch.
 
-`whisper_model_dir` defaults to `%LOCALAPPDATA%\ObsiNote\models` — `%LOCALAPPDATA%` is always
+`whisper_model_dir` defaults to `%LOCALAPPDATA%\FuseMark\models` — `%LOCALAPPDATA%` is always
 a local disk path even on domain-joined machines where `%APPDATA%` may be redirected to a
 network share. Never use `%USERPROFILE%\.cache\huggingface` as the default.
 
@@ -301,10 +301,10 @@ by inspecting the HuggingFace cache directory, which varies by `HF_HOME`.
 
 ## ✅ Phase P1 — Data Directory & Config Migration — DONE
 
-**Goal:** All user data reads/writes from `%APPDATA%\ObsiNote\`. App must still launch and work.
+**Goal:** All user data reads/writes from `%APPDATA%\FuseMark\`. App must still launch and work.
 
 **Completed:** 2026-05-07. All user data (config, DB, logs, recordings) reads/writes from
-`%APPDATA%\ObsiNote\`. `whisper_model_dir` defaults to `%LOCALAPPDATA%\ObsiNote\models`.
+`%APPDATA%\FuseMark\`. `whisper_model_dir` defaults to `%LOCALAPPDATA%\FuseMark\models`.
 `glossary_terms` column added to jobs DB. Flask runs with `threaded=True`. Tests: 88 passed.
 
 **Why first:** Every subsequent phase touches config or data paths. Getting this right now prevents double-fixing later.
@@ -315,7 +315,7 @@ by inspecting the HuggingFace cache directory, which varies by `HF_HOME`.
 - Add `WHISPER_MODEL_SIZES` dict to `config.py` (used by Settings UI in P7)
 - `config.py` load/save: use `DATA_DIR/config.json`
 - `config.py` defaults: add `whisper_model_dir` defaulting to
-  `os.path.join(os.environ.get("LOCALAPPDATA", DATA_DIR), "ObsiNote", "models")`
+  `os.path.join(os.environ.get("LOCALAPPDATA", DATA_DIR), "FuseMark", "models")`
 - `queue.py`: switch `DB_PATH` to `DATA_DIR/jobs.db`. Extend `init_db()` to migrate all
   columns that will be added in future phases so each later phase does not need to touch
   `init_db()` again. Columns to add if missing (beyond what already exists):
@@ -330,7 +330,7 @@ by inspecting the HuggingFace cache directory, which varies by `HF_HOME`.
 
 - `glossary.py`: use `DATA_DIR/glossary.json` — copy existing `glossary.json` from project
   root if found and the `DATA_DIR` version doesn't exist yet (one-time silent migration)
-- `main.py` logging: use `DATA_DIR/logs/obsinote.log`
+- `main.py` logging: use `DATA_DIR/logs/fusemark.log`
 - `recorder.py`: use `DATA_DIR/recordings/` for `.mp3` files
 - `server.py`: add `threaded=True` to the `app.run()` call:
   ```python
@@ -348,10 +348,10 @@ by inspecting the HuggingFace cache directory, which varies by `HF_HOME`.
 
 ```bash
 python -m app.main
-# Verify %APPDATA%\ObsiNote\ directory is created on first launch
+# Verify %APPDATA%\FuseMark\ directory is created on first launch
 # Verify config.json, jobs.db appear there
-# Record a short clip — verify .mp3 appears in %APPDATA%\ObsiNote\recordings\
-# Check logs\obsinote.log exists
+# Record a short clip — verify .mp3 appears in %APPDATA%\FuseMark\recordings\
+# Check logs\fusemark.log exists
 # Verify jobs.db has glossary_terms column: sqlite3 jobs.db "PRAGMA table_info(jobs);"
 ```
 
@@ -397,7 +397,7 @@ uses `ffmpeg_exe()`. Worker imports `transcribe` from `app.transcription` and ca
   - Remove hardcoded `language="cs"` — use the `language` parameter
   - `initial_prompt` (glossary) passed in as parameter, not fetched inside
   - Pass `download_root=config.get("whisper_model_dir")` to `WhisperModel()` so the model
-    is stored in `%LOCALAPPDATA%\ObsiNote\models` rather than the HuggingFace default cache
+    is stored in `%LOCALAPPDATA%\FuseMark\models` rather than the HuggingFace default cache
   - Raise `ModelNotReadyError` (from `app.exceptions`) with message
     `"Whisper model not downloaded — go to Settings to download it."` if the model is absent
 - **`app/transcription/cloud.py` is out of scope for v1.0** — cloud transcription (OpenAI
@@ -447,7 +447,7 @@ python -m app.main
 
 **Goal:** `notemaker.py` becomes `app/llm/anthropic_provider.py` behind a clean interface. Add OpenAI and Mistral providers. File-writing moves to `app/notes.py`.
 
-**Completed:** 2026-05-07. `app/notes.py` created with `save_note`, `save_transcript`, `list_templates`, `load_template` (moved verbatim from `notemaker.py`). `app/llm/` package created: `anthropic_provider.py`, `openai_provider.py`, `mistral_provider.py` each implement `generate_notes(transcript, label, folder, scratch_notes, extra_context, language)` and `suggest_glossary_terms(transcript)`. Keyring services: `ObsiNote-Anthropic`, `ObsiNote-OpenAI`, `ObsiNote-Mistral`. `app/llm/__init__.py` dispatches based on `llm_provider` config. Worker updated: uses `app.llm` and `app.notes`, catches `LLMRateLimitError` for retry, writes glossary terms to `glossary_terms` column (not `error_message`). `notemaker.py` deleted. Server updated. `openai` and `mistralai` added to `requirements.txt`. Tests: 130 passed.
+**Completed:** 2026-05-07. `app/notes.py` created with `save_note`, `save_transcript`, `list_templates`, `load_template` (moved verbatim from `notemaker.py`). `app/llm/` package created: `anthropic_provider.py`, `openai_provider.py`, `mistral_provider.py` each implement `generate_notes(transcript, label, folder, scratch_notes, extra_context, language)` and `suggest_glossary_terms(transcript)`. Keyring services: `FuseMark-Anthropic`, `FuseMark-OpenAI`, `FuseMark-Mistral`. `app/llm/__init__.py` dispatches based on `llm_provider` config. Worker updated: uses `app.llm` and `app.notes`, catches `LLMRateLimitError` for retry, writes glossary terms to `glossary_terms` column (not `error_message`). `notemaker.py` deleted. Server updated. `openai` and `mistralai` added to `requirements.txt`. Tests: 130 passed.
 
 ### Tasks
 
@@ -473,7 +473,7 @@ python -m app.main
         lang_instruction = f"Always write in {language}."
     system_prompt = f"You are a meeting notes assistant. {lang_instruction}"
     ```
-  - API key from keyring: service `"ObsiNote-Anthropic"`, username `"api_key"` (unchanged)
+  - API key from keyring: service `"FuseMark-Anthropic"`, username `"api_key"` (unchanged)
   - Raise `LLMRateLimitError` on rate limit; `LLMAuthError` on auth failure (from `app.exceptions`)
 - Keep `notemaker.py` as a thin shim that imports from `app/llm/` and `app/notes.py` for
   backwards compat during transition — delete it at end of this phase once worker is updated
@@ -481,12 +481,12 @@ python -m app.main
   - `generate_notes(...)` and `suggest_glossary_terms(...)` with identical signatures
   - System prompt uses same `lang_instruction` pattern as Anthropic provider
   - Model: `gpt-4o-mini`
-  - API key from keyring: service `"ObsiNote-OpenAI"`, username `"api_key"`
+  - API key from keyring: service `"FuseMark-OpenAI"`, username `"api_key"`
   - Same JSON stripping for glossary suggestions as the Anthropic provider
   - Raise `LLMRateLimitError` / `LLMAuthError` from `app.exceptions`
 - Create `app/llm/mistral_provider.py`
   - Model: `mistral-small-latest`
-  - API key from keyring: service `"ObsiNote-Mistral"`, username `"api_key"`
+  - API key from keyring: service `"FuseMark-Mistral"`, username `"api_key"`
   - Use `mistralai` package (`pip install mistralai`)
   - Same interface and exception pattern
 - Create `app/llm/__init__.py`
@@ -1101,7 +1101,7 @@ Changes: `keep_audio` migration added to `queue.py` init_db() · `worker.py` gai
 
   logger = logging.getLogger(__name__)
   CURRENT_VERSION = __version__
-  RELEASES_URL = "https://api.github.com/repos/YOUR_GITHUB_ORG/obsinote/releases/latest"
+  RELEASES_URL = "https://api.github.com/repos/YOUR_GITHUB_ORG/fusemark/releases/latest"
 
   def check_for_update() -> dict | None:
       """Returns {version, url, notes} if newer version available, else None."""
@@ -1123,7 +1123,7 @@ Changes: `keep_audio` migration added to `queue.py` init_db() · `worker.py` gai
 
 - Add update banner to `index.html`:
   - Hidden by default; shown via `GET /update-status` polling on page load
-  - Banner text: "ObsiNote {version} is available. [Download]"
+  - Banner text: "FuseMark {version} is available. [Download]"
   - [Download] opens the release URL using `webbrowser.open(url)` (stdlib) — do NOT use
     `os.startfile(url)`, which relies on the URL having a registered file handler and can
     silently do nothing if the system default for HTTP is not a browser
@@ -1199,16 +1199,16 @@ python -m app.main
 
 - Add `installer/ffmpeg/` directory — place `ffmpeg.exe` and `ffprobe.exe` here before
   building. These are bundled by Inno Setup into the install directory.
-  For local testing of the PyInstaller output (`dist/obsinote/obsinote.exe`) before running
-  Inno Setup, copy `ffmpeg.exe` and `ffprobe.exe` directly into `dist/obsinote/` — the
+  For local testing of the PyInstaller output (`dist/fusemark/fusemark.exe`) before running
+  Inno Setup, copy `ffmpeg.exe` and `ffprobe.exe` directly into `dist/fusemark/` — the
   `sys.frozen` path detection in `ffmpeg_exe()` looks for them next to the executable.
 
-- `autostart.py`: when packaged, the VBS launcher must point to `ObsiNote.exe`, not
+- `autostart.py`: when packaged, the VBS launcher must point to `FuseMark.exe`, not
   `pythonw.exe -m app.main`. Update `_pythonw()` and `_write_vbs()` to detect `sys.frozen`.
 
 - Create `installer/setup.iss` (Inno Setup script):
-  - Install to `{commonpf64}\ObsiNote` (Program Files)
-  - Bundle the PyInstaller `dist/obsinote/` directory
+  - Install to `{commonpf64}\FuseMark` (Program Files)
+  - Bundle the PyInstaller `dist/fusemark/` directory
   - Bundle `installer/ffmpeg/ffmpeg.exe` and `ffprobe.exe` → install directory
   - Create Start Menu shortcut
   - Create Desktop shortcut (optional, user can decline)
@@ -1219,7 +1219,7 @@ python -m app.main
     missing on Windows 10). If absent, show a download prompt — do not hard-fail install.
   - **Autostart cleanup on uninstall:** add an `[UninstallRun]` entry (or a
     `[Registry]` delete section) that removes the autostart key written by `autostart.py`
-    (`HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\ObsiNote`). Without this, users
+    (`HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\FuseMark`). Without this, users
     who enabled autostart will see a Windows error dialog on every subsequent login after
     uninstalling, because Windows tries to launch a now-missing executable.
   - Display `LICENSE` (GPL v3) during install via Inno Setup's `LicenseFile` directive.
@@ -1240,8 +1240,8 @@ python -m app.main
     download. Best user experience.
   - Signing procedure (run after PyInstaller, before Inno Setup, and again on the installer):
     ```
-    signtool sign /tr http://timestamp.digicert.com /td sha256 /fd sha256 /a dist\obsinote\obsinote.exe
-    signtool sign /tr http://timestamp.digicert.com /td sha256 /fd sha256 /a ObsiNoteSetup.exe
+    signtool sign /tr http://timestamp.digicert.com /td sha256 /fd sha256 /a dist\fusemark\fusemark.exe
+    signtool sign /tr http://timestamp.digicert.com /td sha256 /fd sha256 /a FuseMarkSetup.exe
     ```
   - Add code signing as a required step in P12 pre-release checklist.
 
@@ -1252,12 +1252,12 @@ python -m app.main
 # 2. Activate venv
 # 3. pip install pyinstaller
 # 4. pyinstaller installer/build.spec
-# 5. Copy ffmpeg.exe and ffprobe.exe into dist/obsinote/ for local testing
-# 6. Test dist/obsinote/obsinote.exe directly — verify it launches AND verify recording works
+# 5. Copy ffmpeg.exe and ffprobe.exe into dist/fusemark/ for local testing
+# 6. Test dist/fusemark/fusemark.exe directly — verify it launches AND verify recording works
 #    (audio recording is the most common DLL failure point)
-# 7. Sign dist/obsinote/obsinote.exe with signtool (required before public release)
+# 7. Sign dist/fusemark/fusemark.exe with signtool (required before public release)
 # 8. Open installer/setup.iss in Inno Setup Compiler → Build
-# 9. Sign ObsiNoteSetup.exe with signtool
+# 9. Sign FuseMarkSetup.exe with signtool
 # 10. Test the resulting Setup.exe on a clean Windows 10 machine (no Python)
 ```
 
@@ -1290,7 +1290,7 @@ python -m app.main
   ctranslate2 internally, and its DLLs are not auto-detected by PyInstaller. Missing them
   causes transcription to silently fail (app launches fine, model loads, but no output)
 - The Whisper model is stored at `whisper_model_dir` (from config, defaulting to
-  `%LOCALAPPDATA%\ObsiNote\models`) — never bundled in the installer
+  `%LOCALAPPDATA%\FuseMark\models`) — never bundled in the installer
 - Inno Setup uninstaller must clean up the autostart registry key
 
 ---
@@ -1318,7 +1318,7 @@ python -m app.main
       Mistral) for note generation. Audio never leaves the machine.
     - In Cloud mode: audio is additionally sent to the OpenAI Whisper API for transcription.
   - Where API keys are stored: Windows Credential Manager only. Never in files, never in logs.
-  - Where user data is stored: `%APPDATA%\ObsiNote\` and `%LOCALAPPDATA%\ObsiNote\models\`.
+  - Where user data is stored: `%APPDATA%\FuseMark\` and `%LOCALAPPDATA%\FuseMark\models\`.
     No cloud sync. User controls deletion.
   - Contact email for privacy queries.
   - Required for GDPR compliance (developer and primary audience are EU-based). Link this
@@ -1337,7 +1337,7 @@ python -m app.main
 - Set log level default to `"INFO"` in config defaults (was `"DEBUG"` during development)
 
 - Add a "Send log to developer" section in Settings (user-initiated only):
-  - **"Copy log to clipboard" button** — reads last 200 lines of `obsinote.log`, writes to
+  - **"Copy log to clipboard" button** — reads last 200 lines of `fusemark.log`, writes to
     clipboard via `subprocess.run(['clip'], input=text, encoding='utf-8', shell=True)` (Windows
     built-in `clip` command, no extra dependency). User can then paste into an email or issue.
   - **"Open log file" button** — `os.startfile(log_path)` opens the file in the default text
@@ -1351,11 +1351,11 @@ python -m app.main
 
 - **Pre-release checklist:**
   ```
-  [ ] Choose final product name — confirm no trademark conflict with "Obsidian" / Dynalist
+  [x] Final product name chosen: FuseMark — confirm no trademark conflict before signing
   [ ] Replace YOUR_GITHUB_ORG in updater.py with actual GitHub repo path
   [ ] Remove the YOUR_GITHUB_ORG guard log warning from updater.py
   [ ] Verify app/version.py reads "1.0.0" (set in P11)
-  [ ] Sign obsinote.exe and ObsiNoteSetup.exe with signtool
+  [ ] Sign fusemark.exe and FuseMarkSetup.exe with signtool
   [ ] Submit signed installer to Microsoft malware portal for whitelisting:
       https://www.microsoft.com/en-us/wdsi/filesubmission
       (free, typically resolves within days — prevents Defender false-positive flags)
@@ -1370,7 +1370,7 @@ python -m app.main
   ```
 
 - Gumroad setup:
-  - Create product under the final product name (not "ObsiNote" — see trademark note above)
+  - Create product under the final product name (not "FuseMark" — see trademark note above)
   - Price: €19 (one-time)
   - **Do not enable license key generation** — the app does no key validation
   - Upload the signed installer `.exe` as the download file
@@ -1425,7 +1425,7 @@ System dependencies (bundled in installer, not in requirements.txt):
 - **Claude JSON fences** — strip markdown fences before `json.loads()` in all providers
 - **Stale dict bug** — always re-fetch job from SQLite after transcription step in worker
 - **Port conflict** — if port 5000 is taken, try 5001–5010; pass chosen port to pywebview URL
-- **Single instance** — a Windows named mutex `"Global\\ObsiNote"` is already created in
+- **Single instance** — a Windows named mutex `"Global\\FuseMark"` is already created in
   `main.py` on startup; a second launch detects `ERROR_ALREADY_EXISTS` and exits immediately.
   Do not remove this — duplicate instances would race on the same SQLite job queue.
 - **Flask `threaded=True`** — set in P1 and must never be removed. SSE model download

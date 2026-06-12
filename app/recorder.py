@@ -1,5 +1,5 @@
 """
-recorder.py — Audio capture for ObsiNote
+recorder.py — Audio capture for FuseMark
 
 Captures two separate streams simultaneously:
   - System audio via WASAPI loopback (pyaudiowpatch)
@@ -271,7 +271,7 @@ def list_devices():
 
 def main():
     parser = argparse.ArgumentParser(
-        description="ObsiNote recorder — Phase 1 CLI test"
+        description="FuseMark recorder — Phase 1 CLI test"
     )
     parser.add_argument(
         "--test",

@@ -31,5 +31,5 @@ jobs:
       - name: Upload unsigned build
         uses: actions/upload-artifact@v4
         with:
-          name: ObsiNote-unsigned-${{ github.ref_name }}
-          path: dist/ObsiNote/
+          name: FuseMark-unsigned-${{ github.ref_name }}
+          path: dist/FuseMark/

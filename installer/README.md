@@ -1,9 +1,9 @@
-# Building the ObsiNote installer (Phase P11)
+# Building the FuseMark installer (Phase P11)
 
-This folder packages ObsiNote into a signed Windows installer.
+This folder packages FuseMark into a signed Windows installer.
 
-- `build.spec` — PyInstaller spec (produces `dist\ObsiNote\ObsiNote.exe`, onedir).
-- `setup.iss` — Inno Setup script (wraps `dist\` + ffmpeg into `ObsiNoteSetup.exe`).
+- `build.spec` — PyInstaller spec (produces `dist\FuseMark\FuseMark.exe`, onedir).
+- `setup.iss` — Inno Setup script (wraps `dist\` + ffmpeg into `FuseMarkSetup.exe`).
 - `ffmpeg\` — drop `ffmpeg.exe` / `ffprobe.exe` here before building (see `ffmpeg\README.md`).
 
 ## One-time setup
@@ -19,15 +19,15 @@ This folder packages ObsiNote into a signed Windows installer.
 pyinstaller installer\build.spec
 
 # local smoke test BEFORE making the installer — copy ffmpeg next to the exe:
-copy installer\ffmpeg\ffmpeg.exe  dist\ObsiNote\
-copy installer\ffmpeg\ffprobe.exe dist\ObsiNote\
-dist\ObsiNote\ObsiNote.exe
+copy installer\ffmpeg\ffmpeg.exe  dist\FuseMark\
+copy installer\ffmpeg\ffprobe.exe dist\FuseMark\
+dist\FuseMark\FuseMark.exe
 #   -> verify the window opens AND that recording works (PortAudio/ctranslate2 DLLs
 #      are the usual packaging failure points — they fail silently if missing).
 
 # sign the app exe (see "Code signing" below), then build the installer:
 iscc installer\setup.iss
-#   -> produces installer\Output\ObsiNoteSetup.exe
+#   -> produces installer\Output\FuseMarkSetup.exe
 
 # sign the installer too, then test on a clean Windows VM with NO Python installed.
 ```
@@ -47,8 +47,8 @@ Windows SmartScreen blocks unknown-publisher executables. Sign **both** the app 
 and the installer:
 
 ```powershell
-signtool sign /tr http://timestamp.digicert.com /td sha256 /fd sha256 /a dist\ObsiNote\ObsiNote.exe
-signtool sign /tr http://timestamp.digicert.com /td sha256 /fd sha256 /a installer\Output\ObsiNoteSetup.exe
+signtool sign /tr http://timestamp.digicert.com /td sha256 /fd sha256 /a dist\FuseMark\FuseMark.exe
+signtool sign /tr http://timestamp.digicert.com /td sha256 /fd sha256 /a installer\Output\FuseMarkSetup.exe
 ```
 
 Certificate options (evaluate cost vs. UX):
@@ -67,7 +67,7 @@ Certificate options (evaluate cost vs. UX):
 - [ ] Recording works (system audio + mic) — no PortAudio/DLL errors in the log
 - [ ] Transcription works (model downloads to `whisper_model_dir`)
 - [ ] Note generation works (all providers)
-- [ ] Auto-start toggle works (and points at `ObsiNote.exe`, not pythonw)
-- [ ] Uninstaller removes app files; user data in `%APPDATA%\ObsiNote` is preserved
-- [ ] Uninstaller removes the `HKCU\...\Run\ObsiNote` autostart value
+- [ ] Auto-start toggle works (and points at `FuseMark.exe`, not pythonw)
+- [ ] Uninstaller removes app files; user data in `%APPDATA%\FuseMark` is preserved
+- [ ] Uninstaller removes the `HKCU\...\Run\FuseMark` autostart value
 - [ ] SmartScreen does not block the signed installer

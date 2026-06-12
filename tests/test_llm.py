@@ -120,7 +120,7 @@ def test_anthropic_set_api_key_writes_to_keyring():
     with patch("app.llm.anthropic_provider.keyring.set_password") as mock_set:
         set_api_key("sk-test")
 
-    mock_set.assert_called_once_with("ObsiNote-Anthropic", "api_key", "sk-test")
+    mock_set.assert_called_once_with("FuseMark-Anthropic", "api_key", "sk-test")
 
 
 # ------------------------------------------------------------------
@@ -350,7 +350,7 @@ def test_openai_set_api_key_writes_to_keyring():
     with patch("app.llm.openai_provider.keyring.set_password") as mock_set:
         set_api_key("sk-openai")
 
-    mock_set.assert_called_once_with("ObsiNote-OpenAI", "api_key", "sk-openai")
+    mock_set.assert_called_once_with("FuseMark-OpenAI", "api_key", "sk-openai")
 
 
 def test_openai_auto_detect_language_instruction():
@@ -421,7 +421,7 @@ def test_mistral_set_api_key_writes_to_keyring():
     with patch("app.llm.mistral_provider.keyring.set_password") as mock_set:
         set_api_key("ms-key")
 
-    mock_set.assert_called_once_with("ObsiNote-Mistral", "api_key", "ms-key")
+    mock_set.assert_called_once_with("FuseMark-Mistral", "api_key", "ms-key")
 
 
 def test_mistral_rate_limit_raises_llm_rate_limit_error():

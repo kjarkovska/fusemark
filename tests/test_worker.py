@@ -323,7 +323,7 @@ def test_on_tooltip_called_after_done(mocks):
     w = Worker()
     w.on_tooltip = tooltip
     w._process_next()
-    tooltip.assert_called_with("ObsiNote")
+    tooltip.assert_called_with("FuseMark")
 
 
 def test_on_tooltip_called_on_model_not_ready(mocks):
@@ -333,7 +333,7 @@ def test_on_tooltip_called_on_model_not_ready(mocks):
     w = Worker()
     w.on_tooltip = tooltip
     w._process_next()
-    tooltip.assert_called_with("ObsiNote")
+    tooltip.assert_called_with("FuseMark")
 
 
 def test_on_tooltip_called_on_transcription_error(mocks):
@@ -342,7 +342,7 @@ def test_on_tooltip_called_on_transcription_error(mocks):
     w = Worker()
     w.on_tooltip = tooltip
     w._process_next()
-    tooltip.assert_called_with("ObsiNote")
+    tooltip.assert_called_with("FuseMark")
 
 
 def test_on_transcribing_callbacks_fired(mocks):

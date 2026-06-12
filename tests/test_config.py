@@ -81,7 +81,7 @@ def test_data_dir_is_under_appdata():
     appdata = os.environ.get("APPDATA", "")
     assert appdata, "APPDATA env var not set"
     assert cfg.DATA_DIR.startswith(appdata)
-    assert "ObsiNote" in cfg.DATA_DIR
+    assert "FuseMark" in cfg.DATA_DIR
 
 
 def test_defaults_contain_p1_keys(tmp_path, monkeypatch):

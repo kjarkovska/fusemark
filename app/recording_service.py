@@ -1,5 +1,5 @@
 """
-recording_service.py — Recording lifecycle for ObsiNote
+recording_service.py — Recording lifecycle for FuseMark
 
 Owns the recorder instance and current-job state that previously lived as
 module-level globals in server.py.  Flask routes delegate here; main.py
@@ -67,7 +67,7 @@ class RecordingService:
 
         if self._tray:
             self._tray.set_recording(True)
-            self._tray.set_tooltip("ObsiNote — Nahrávám")
+            self._tray.set_tooltip("FuseMark — Nahrávám")
         if self.on_recording:
             self.on_recording(True)
 
@@ -96,7 +96,7 @@ class RecordingService:
 
         if self._tray:
             self._tray.set_recording(False)
-            self._tray.set_tooltip("ObsiNote")
+            self._tray.set_tooltip("FuseMark")
         if self.on_recording:
             self.on_recording(False)
 

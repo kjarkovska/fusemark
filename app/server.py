@@ -1,5 +1,5 @@
 """
-server.py — Flask web server for ObsiNote
+server.py — Flask web server for FuseMark
 
 Routes:
   GET  /              — main UI
@@ -164,7 +164,7 @@ def route_import_transcript():
 
     tray = _recording_service.tray
     if tray:
-        tray.set_tooltip("ObsiNote — Zpracovávám import")
+        tray.set_tooltip("FuseMark — Zpracovávám import")
 
     return jsonify({"job_id": job_id})
 
@@ -205,7 +205,7 @@ def route_import_audio():
 
     tray = _recording_service.tray
     if tray:
-        tray.set_tooltip("ObsiNote — Zpracovávám import")
+        tray.set_tooltip("FuseMark — Zpracovávám import")
 
     return jsonify({"job_id": job_id})
 
@@ -501,7 +501,7 @@ def update_check_route():
     try:
         req = urllib.request.Request(
             updater.RELEASES_URL,
-            headers={"User-Agent": f"ObsiNote/{VERSION}"},
+            headers={"User-Agent": f"FuseMark/{VERSION}"},
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read())
@@ -556,7 +556,7 @@ def route_open_glossary():
 
 @app.route("/open-log", methods=["POST"])
 def route_open_log():
-    log_path = os.path.join(cfg.DATA_DIR, "logs", "obsinote.log")
+    log_path = os.path.join(cfg.DATA_DIR, "logs", "fusemark.log")
     if not os.path.exists(log_path):
         return jsonify({"error": "Log file not found"}), 404
     os.startfile(log_path)
@@ -568,9 +568,9 @@ def route_api_key_status():
     """Return masked hint for each provider's stored key, without exposing the key."""
     import keyring
     providers = {
-        "anthropic": ("ObsiNote-Anthropic", "api_key"),
-        "openai":    ("ObsiNote-OpenAI",    "api_key"),
-        "mistral":   ("ObsiNote-Mistral",   "api_key"),
+        "anthropic": ("FuseMark-Anthropic", "api_key"),
+        "openai":    ("FuseMark-OpenAI",    "api_key"),
+        "mistral":   ("FuseMark-Mistral",   "api_key"),
     }
     result = {}
     for provider, (service, username) in providers.items():
@@ -753,10 +753,10 @@ def _get_devices():
 
 
 def _get_vault_folders(vault_path):
-    """Return existing subfolders under vault/ObsiNote/Meetings/ for the dropdown."""
+    """Return existing subfolders under vault/FuseMark/Meetings/ for the dropdown."""
     if not vault_path:
         return ["Other"]
-    meetings_dir = os.path.join(vault_path, "ObsiNote", "Meetings")
+    meetings_dir = os.path.join(vault_path, "FuseMark", "Meetings")
     if not os.path.isdir(meetings_dir):
         return ["Other"]
     folders = [

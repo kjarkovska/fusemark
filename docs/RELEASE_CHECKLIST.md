@@ -5,7 +5,7 @@ in [`installer/README.md`](../installer/README.md); this is the ordered to-do li
 
 ## 0. Name & trademark (do this first)
 
-- [ ] **Decide the final product name.** "ObsiNote" is too close to "Obsidian"
+- [ ] **Decide the final product name.** "FuseMark" is too close to "Obsidian"
       (Dynalist Inc.) and risks confusion/trademark claims. Everything below depends
       on the chosen name.
 - [ ] Once chosen, update the name in: `installer/setup.iss`, `README.md`, the Gumroad
@@ -22,11 +22,11 @@ in [`installer/README.md`](../installer/README.md); this is the ordered to-do li
 ## 2. Build & sign
 
 - [ ] `pyinstaller installer/build.spec`
-- [ ] Smoke-test `dist\ObsiNote\ObsiNote.exe` with ffmpeg copied alongside —
+- [ ] Smoke-test `dist\FuseMark\FuseMark.exe` with ffmpeg copied alongside —
       window opens **and recording works** (DLL failure point)
-- [ ] Sign `dist\ObsiNote\ObsiNote.exe` with `signtool`
+- [ ] Sign `dist\FuseMark\FuseMark.exe` with `signtool`
 - [ ] Build installer: `iscc installer\setup.iss`
-- [ ] Sign `installer\Output\ObsiNoteSetup.exe` with `signtool`
+- [ ] Sign `installer\Output\FuseMarkSetup.exe` with `signtool`
 
 ## 3. Verify on a clean machine
 

@@ -1,4 +1,4 @@
-# ObsiNote — Architecture Analysis
+# FuseMark — Architecture Analysis
 
 **Date:** 2026-06-05 (updated after P10 — two-track worker)  
 **Scope:** Current as-built architecture (P10 + Refactor R1) + hexagonal architecture review
@@ -83,7 +83,7 @@ stateDiagram-v2
 
 ```mermaid
 graph LR
-    subgraph proc["ObsiNote Process"]
+    subgraph proc["FuseMark Process"]
         recorder["RecordingService<br/>+ Recorder"]
         worker["Worker"]
         flask["Flask server"]

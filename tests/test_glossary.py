@@ -5,22 +5,22 @@ import app.glossary as gl
 
 @pytest.fixture
 def vault(tmp_path):
-    (tmp_path / "ObsiNote").mkdir()
+    (tmp_path / "FuseMark").mkdir()
     return str(tmp_path)
 
 
 @pytest.fixture
 def patched_path(vault, monkeypatch):
     """Make glossary_path() return a deterministic temp path for functions that don't accept vault_path."""
-    expected = os.path.join(vault, "ObsiNote", "Glossary.md")
+    expected = os.path.join(vault, "FuseMark", "Glossary.md")
     monkeypatch.setattr(gl, "glossary_path", lambda vp=None: expected)
     return expected
 
 
 def _write_glossary(vault, rows):
-    path = os.path.join(vault, "ObsiNote", "Glossary.md")
+    path = os.path.join(vault, "FuseMark", "Glossary.md")
     lines = [
-        "# ObsiNote Glossary",
+        "# FuseMark Glossary",
         "",
         "| Term | Aliases | Context | Type |",
         "|------|---------|---------|------|",
@@ -134,7 +134,7 @@ def test_add_terms_partial_dedup(vault, patched_path):
 
 def test_glossary_path_with_vault():
     result = gl.glossary_path("/my/vault")
-    assert result == os.path.join("/my/vault", "ObsiNote", "Glossary.md")
+    assert result == os.path.join("/my/vault", "FuseMark", "Glossary.md")
 
 
 def test_glossary_path_without_vault(monkeypatch):
@@ -151,9 +151,9 @@ def test_glossary_path_without_vault(monkeypatch):
 
 def test_load_skips_row_with_fewer_than_4_columns(vault):
     """A table row with < 4 pipe-delimited cells must be silently skipped."""
-    path = os.path.join(vault, "ObsiNote", "Glossary.md")
+    path = os.path.join(vault, "FuseMark", "Glossary.md")
     with open(path, "w", encoding="utf-8") as f:
-        f.write("# ObsiNote Glossary\n\n")
+        f.write("# FuseMark Glossary\n\n")
         f.write("| Term | Aliases | Context | Type |\n")
         f.write("|------|---------|---------|------|\n")
         f.write("| Jira | Yira | Issue tracker | product |\n")  # valid
@@ -169,7 +169,7 @@ def test_load_skips_row_with_fewer_than_4_columns(vault):
 
 def test_migrate_if_needed_noop_when_no_json(tmp_path, monkeypatch):
     """No glossary.json present → function returns without creating Glossary.md."""
-    glossary_md = tmp_path / "ObsiNote" / "Glossary.md"
+    glossary_md = tmp_path / "FuseMark" / "Glossary.md"
     monkeypatch.setattr(gl, "_LEGACY_JSON_PATH", str(tmp_path / "missing.json"))
     monkeypatch.setattr(gl, "glossary_path", lambda vp=None: str(glossary_md))
 
@@ -186,7 +186,7 @@ def test_migrate_if_needed_converts_json_to_md(tmp_path, monkeypatch):
     terms = [{"canonical": "JIRA", "aliases": ["Yira"], "context": "Issue tracker", "type": "product"}]
     legacy_json.write_text(json.dumps({"terms": terms}), encoding="utf-8")
 
-    glossary_md = tmp_path / "ObsiNote" / "Glossary.md"
+    glossary_md = tmp_path / "FuseMark" / "Glossary.md"
     monkeypatch.setattr(gl, "_LEGACY_JSON_PATH", str(legacy_json))
     monkeypatch.setattr(gl, "glossary_path", lambda vp=None: str(glossary_md))
 
@@ -203,7 +203,7 @@ def test_migrate_if_needed_preserves_json_on_failure(tmp_path, monkeypatch):
     legacy_json = tmp_path / "glossary.json"
     legacy_json.write_text("not valid json", encoding="utf-8")
 
-    glossary_md = tmp_path / "ObsiNote" / "Glossary.md"
+    glossary_md = tmp_path / "FuseMark" / "Glossary.md"
     monkeypatch.setattr(gl, "_LEGACY_JSON_PATH", str(legacy_json))
     monkeypatch.setattr(gl, "glossary_path", lambda vp=None: str(glossary_md))
 

@@ -2,7 +2,7 @@ import json
 import os
 import shutil
 
-DATA_DIR = os.path.join(os.environ["APPDATA"], "ObsiNote")
+DATA_DIR = os.path.join(os.environ["APPDATA"], "FuseMark")
 
 SUPPORTED_LANGUAGES = [
     {"code": "cs",   "name": "Czech"},
@@ -27,7 +27,7 @@ DEFAULTS = {
     "input_device": None,
     "whisper_model": "large-v3-turbo",
     "whisper_model_dir": os.path.join(
-        os.environ.get("LOCALAPPDATA", DATA_DIR), "ObsiNote", "models"),
+        os.environ.get("LOCALAPPDATA", DATA_DIR), "FuseMark", "models"),
     "log_level": "INFO",
     "default_template": "",
     "mode": "private",

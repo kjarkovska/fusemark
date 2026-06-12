@@ -2,25 +2,25 @@
 
 _Last updated: 2026-06-11_
 
-ObsiNote is a local desktop application. It is designed so your meeting audio never
+FuseMark is a local desktop application. It is designed so your meeting audio never
 leaves your computer. This document explains exactly what data the app handles and
 where it goes.
 
 ## What the developer collects
 
-**Nothing.** ObsiNote has no analytics, no telemetry, and no developer-operated
+**Nothing.** FuseMark has no analytics, no telemetry, and no developer-operated
 servers. The developer cannot see your recordings, transcripts, notes, or settings.
 
 ## What stays on your machine
 
 - **Audio recordings** — captured and processed entirely locally; never uploaded.
-  Stored in `%APPDATA%\ObsiNote\recordings\` and optionally auto-deleted after
+  Stored in `%APPDATA%\FuseMark\recordings\` and optionally auto-deleted after
   processing.
 - **Transcripts and generated notes** — saved to your chosen output folder / Obsidian
-  vault, and in the local job database (`%APPDATA%\ObsiNote\jobs.db`).
-- **Settings** — `%APPDATA%\ObsiNote\config.json`.
-- **Logs** — `%APPDATA%\ObsiNote\logs\obsinote.log` (local only).
-- **Whisper transcription model** — downloaded once to `%LOCALAPPDATA%\ObsiNote\models\`.
+  vault, and in the local job database (`%APPDATA%\FuseMark\jobs.db`).
+- **Settings** — `%APPDATA%\FuseMark\config.json`.
+- **Logs** — `%APPDATA%\FuseMark\logs\fusemark.log` (local only).
+- **Whisper transcription model** — downloaded once to `%LOCALAPPDATA%\FuseMark\models\`.
 - **API keys** — stored in the **Windows Credential Manager**, never in files or config.
 
 ## What leaves your machine
@@ -53,8 +53,8 @@ other people, follow applicable laws on recording and consent in your jurisdicti
 
 ## Data deletion
 
-To remove all app data, uninstall the app and delete the `%APPDATA%\ObsiNote\` and
-`%LOCALAPPDATA%\ObsiNote\` folders. Notes already written to your vault are yours to
+To remove all app data, uninstall the app and delete the `%APPDATA%\FuseMark\` and
+`%LOCALAPPDATA%\FuseMark\` folders. Notes already written to your vault are yours to
 keep or delete.
 
 ## Contact

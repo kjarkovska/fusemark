@@ -11,7 +11,7 @@ from app.glossary import load as load_glossary
 logger = logging.getLogger(__name__)
 
 MODEL = "mistral-small-latest"
-KEYRING_SERVICE = "ObsiNote-Mistral"
+KEYRING_SERVICE = "FuseMark-Mistral"
 KEYRING_USERNAME = "api_key"
 
 NOTE_TEMPLATE = """\

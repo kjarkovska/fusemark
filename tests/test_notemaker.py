@@ -10,9 +10,9 @@ from app.notes import (
 
 @pytest.fixture
 def vault(tmp_path):
-    (tmp_path / "ObsiNote" / "Templates").mkdir(parents=True)
-    (tmp_path / "ObsiNote" / "Meetings" / "Other").mkdir(parents=True)
-    (tmp_path / "ObsiNote" / "Transcripts").mkdir(parents=True)
+    (tmp_path / "FuseMark" / "Templates").mkdir(parents=True)
+    (tmp_path / "FuseMark" / "Meetings" / "Other").mkdir(parents=True)
+    (tmp_path / "FuseMark" / "Transcripts").mkdir(parents=True)
     return str(tmp_path)
 
 
@@ -30,7 +30,7 @@ def test_list_templates_empty_vault_path():
 
 
 def test_list_templates_returns_sorted_stems(vault, tmp_path):
-    tdir = tmp_path / "ObsiNote" / "Templates"
+    tdir = tmp_path / "FuseMark" / "Templates"
     (tdir / "Standup.md").write_text("template", encoding="utf-8")
     (tdir / "Planning.md").write_text("template", encoding="utf-8")
     (tdir / "Review.md").write_text("template", encoding="utf-8")
@@ -40,7 +40,7 @@ def test_list_templates_returns_sorted_stems(vault, tmp_path):
 
 
 def test_list_templates_ignores_non_md(vault, tmp_path):
-    tdir = tmp_path / "ObsiNote" / "Templates"
+    tdir = tmp_path / "FuseMark" / "Templates"
     (tdir / "only.txt").write_text("x", encoding="utf-8")
     assert list_templates(vault) == []
 
@@ -61,14 +61,14 @@ def test_load_template_empty_args():
 
 def test_load_template_reads_content(vault, tmp_path):
     content = "# {{title}}\n\nDatum: {{date}}\n\n{{transcript}}"
-    (tmp_path / "ObsiNote" / "Templates" / "Meeting.md").write_text(content, encoding="utf-8")
+    (tmp_path / "FuseMark" / "Templates" / "Meeting.md").write_text(content, encoding="utf-8")
     result = load_template(vault, "Meeting")
     assert result == content
 
 
 def test_load_template_reads_utf8(vault, tmp_path):
     content = "# Šablona porady\n\nÚčastníci: {{title}}"
-    (tmp_path / "ObsiNote" / "Templates" / "Czech.md").write_text(content, encoding="utf-8")
+    (tmp_path / "FuseMark" / "Templates" / "Czech.md").write_text(content, encoding="utf-8")
     result = load_template(vault, "Czech")
     assert "Šablona" in result
     assert "Účastníci" in result
@@ -163,22 +163,22 @@ def test_save_transcript_sanitizes_filename(vault):
 # Template placeholder substitution (inline logic test)
 # ------------------------------------------------------------------
 
-def test_save_note_path_contains_obsinote_meetings(vault):
+def test_save_note_path_contains_fusemark_meetings(vault):
     path = save_note("content", "Sprint", "Team", vault, date_str="2026-01-01")
-    assert os.path.join("ObsiNote", "Meetings", "Team") in path
+    assert os.path.join("FuseMark", "Meetings", "Team") in path
 
 
-def test_save_transcript_path_contains_obsinote_transcripts(vault):
+def test_save_transcript_path_contains_fusemark_transcripts(vault):
     path = save_transcript("text", "Meeting", vault, date_str="2026-01-01")
     assert path is not None
-    assert os.path.join("ObsiNote", "Transcripts") in path
+    assert os.path.join("FuseMark", "Transcripts") in path
 
 
 def test_template_placeholder_substitution():
     raw = "# {{title}}\n\nDate: {{date}}\n\n{{transcript}}"
     today = "2026-04-20"
     title = "Sprint Review"
-    t_section = "[[ObsiNote/Transcripts/2026-04-20 Sprint Review]]"
+    t_section = "[[FuseMark/Transcripts/2026-04-20 Sprint Review]]"
     result = (
         raw
         .replace("{{date}}", today)
@@ -187,5 +187,5 @@ def test_template_placeholder_substitution():
     )
     assert "Sprint Review" in result
     assert "2026-04-20" in result
-    assert "[[ObsiNote/Transcripts" in result
+    assert "[[FuseMark/Transcripts" in result
     assert "{{" not in result

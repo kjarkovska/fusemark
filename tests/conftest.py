@@ -3,9 +3,9 @@ import pytest
 
 @pytest.fixture
 def tmp_vault(tmp_path):
-    (tmp_path / "ObsiNote" / "Templates").mkdir(parents=True)
-    (tmp_path / "ObsiNote" / "Meetings" / "Other").mkdir(parents=True)
-    (tmp_path / "ObsiNote" / "Transcripts").mkdir(parents=True)
+    (tmp_path / "FuseMark" / "Templates").mkdir(parents=True)
+    (tmp_path / "FuseMark" / "Meetings" / "Other").mkdir(parents=True)
+    (tmp_path / "FuseMark" / "Transcripts").mkdir(parents=True)
     return tmp_path
 
 

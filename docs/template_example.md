@@ -1,6 +1,6 @@
-# ObsiNote — Template Guide
+# FuseMark — Template Guide
 
-Templates let you customise the structure of the notes ObsiNote generates. A template tells the LLM what sections to produce and what to put in each one. ObsiNote ships with a built-in default template; you can add your own for different meeting types (1:1s, project kickoffs, retrospectives, etc.).
+Templates let you customise the structure of the notes FuseMark generates. A template tells the LLM what sections to produce and what to put in each one. FuseMark ships with a built-in default template; you can add your own for different meeting types (1:1s, project kickoffs, retrospectives, etc.).
 
 ---
 
@@ -9,7 +9,7 @@ Templates let you customise the structure of the notes ObsiNote generates. A tem
 Save template files as `.md` files in your Obsidian vault at:
 
 ```
-{your vault}/ObsiNote/Templates/
+{your vault}/FuseMark/Templates/
 ```
 
 The template name (without `.md`) will appear in the Template dropdown on the main screen and in the Import modals.
@@ -18,7 +18,7 @@ The template name (without `.md`) will appear in the Template dropdown on the ma
 
 ## How templates work
 
-When ObsiNote generates a note, it:
+When FuseMark generates a note, it:
 
 1. **Substitutes placeholders** — replaces `{date}` and `{title}` with the actual meeting date and name before sending anything to the LLM.
 2. **Sends the template to the LLM** — the LLM sees the substituted template as its output target and fills every section based on the transcript, scratch notes, and context you provided.
@@ -46,7 +46,7 @@ These YAML frontmatter fields are recognised by Obsidian and can be included in 
 
 | Field | Example | Notes |
 |---|---|---|
-| `date` | `{date}` | Always use `{date}` — ObsiNote enforces this value |
+| `date` | `{date}` | Always use `{date}` — FuseMark enforces this value |
 | `type` | `meeting` | Static; use any value meaningful to your vault |
 | `tags` | `[meeting, 1on1]` | Static per template; Obsidian uses these for filtering |
 | `project` | *(LLM fills)* | Leave blank — the LLM can infer from transcript if you ask |
@@ -83,12 +83,12 @@ You can use any heading text — these are not magic keywords. The LLM adapts to
 
 ```markdown
 ---
-date: {date}          ← always use {date} — ObsiNote fills this in
+date: {date}          ← always use {date} — FuseMark fills this in
 type: meeting         ← static; change per template type
 tags: [meeting]       ← static; add your own tags here
 ---
 
-# {title}            ← always use {title} — ObsiNote fills this in
+# {title}            ← always use {title} — FuseMark fills this in
 
 ## Participants
                       ← LLM fills: names extracted from transcript
