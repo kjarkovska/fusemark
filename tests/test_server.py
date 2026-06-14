@@ -588,7 +588,7 @@ def test_autostart_post_disable(flask_client):
 # ------------------------------------------------------------------
 
 def test_open_glossary_route(flask_client):
-    with patch("app.glossary.open_in_obsidian") as mock_open:
+    with patch("app.glossary.open_glossary") as mock_open:
         r = flask_client.post("/open-glossary")
     assert r.status_code == 200
     mock_open.assert_called_once()

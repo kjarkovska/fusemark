@@ -10,7 +10,7 @@ Public API (all backward-compatible):
   - build_whisper_prompt() — canonical terms + aliases as a Whisper hint string
   - add_terms(new_terms)  — append new terms, deduplicate by canonical name
   - migrate_if_needed()   — one-time migration from legacy glossary.json
-  - open_in_obsidian()    — open Glossary.md in Obsidian via URI scheme
+  - open_glossary()       — open Glossary.md in the notes app (Obsidian URI or default handler)
 """
 
 import logging
@@ -176,17 +176,29 @@ def migrate_if_needed():
         logger.error("Glossary migration failed (glossary.json preserved): %s", exc)
 
 
-def open_in_obsidian(vault_path=None):
-    """Open Glossary.md in Obsidian via the obsidian:// URI scheme."""
+def open_glossary(vault_path=None):
+    """Open Glossary.md in the user's notes app.
+
+    If the vault is an Obsidian vault (has a ``.obsidian/`` folder), use the
+    ``obsidian://`` URI scheme so it opens in Obsidian. Otherwise open the
+    Markdown file directly in the system default handler (Logseq, editor, …).
+    """
     if vault_path is None:
         from app import config as cfg
         vault_path = cfg.load().get("vault_path", "")
     if not vault_path:
-        logger.warning("vault_path not set — cannot open glossary in Obsidian")
+        logger.warning("vault_path not set — cannot open glossary")
         return
-    vault_name = os.path.basename(vault_path)
-    uri = f"obsidian://open?vault={vault_name}&file=FuseMark/Glossary"
+    is_obsidian_vault = os.path.isdir(os.path.join(vault_path, ".obsidian"))
     try:
-        os.startfile(uri)
+        if is_obsidian_vault:
+            vault_name = os.path.basename(vault_path)
+            os.startfile(f"obsidian://open?vault={vault_name}&file=FuseMark/Glossary")
+        else:
+            md_path = glossary_path(vault_path)
+            if not os.path.exists(md_path):
+                logger.warning("Glossary file not found, nothing to open: %s", md_path)
+                return
+            os.startfile(md_path)
     except Exception as exc:
-        logger.error("Could not open Obsidian URI: %s", exc)
+        logger.error("Could not open glossary: %s", exc)

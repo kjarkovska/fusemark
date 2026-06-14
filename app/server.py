@@ -549,8 +549,8 @@ def open_url_route():
 
 @app.route("/open-glossary", methods=["POST"])
 def route_open_glossary():
-    from app.glossary import open_in_obsidian
-    open_in_obsidian()
+    from app.glossary import open_glossary
+    open_glossary()
     return jsonify({"ok": True})
 
 
