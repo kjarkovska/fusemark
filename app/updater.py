@@ -9,7 +9,7 @@ from app.version import VERSION
 
 logger = logging.getLogger(__name__)
 
-RELEASES_URL = "https://api.github.com/repos/kjarkovska/note-taker/releases/latest"
+RELEASES_URL = "https://api.github.com/repos/kjarkovska/fusemark/releases/latest"
 _THROTTLE_HOURS = 24
 
 
