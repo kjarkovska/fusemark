@@ -214,15 +214,16 @@ def test_migrate_if_needed_preserves_json_on_failure(tmp_path, monkeypatch):
 
 
 # ------------------------------------------------------------------
-# open_in_obsidian()
+# open_glossary()
 # ------------------------------------------------------------------
 
-def test_open_in_obsidian_calls_startfile_with_obsidian_uri(tmp_path, monkeypatch):
+def test_open_glossary_obsidian_vault_uses_uri(tmp_path, monkeypatch):
     import app.config as cfg
     monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
-    vault = str(tmp_path / "MyVault")
+    vault = tmp_path / "MyVault"
+    (vault / ".obsidian").mkdir(parents=True)  # marks it as an Obsidian vault
     with __import__("unittest.mock", fromlist=["patch"]).patch("os.startfile") as mock_start:
-        gl.open_in_obsidian(vault_path=vault)
+        gl.open_glossary(vault_path=str(vault))
     mock_start.assert_called_once()
     uri = mock_start.call_args[0][0]
     assert uri.startswith("obsidian://")
@@ -230,10 +231,35 @@ def test_open_in_obsidian_calls_startfile_with_obsidian_uri(tmp_path, monkeypatc
     assert "Glossary" in uri
 
 
-def test_open_in_obsidian_no_vault_does_not_call_startfile(tmp_path, monkeypatch):
+def test_open_glossary_non_obsidian_opens_md_file(tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    vault = tmp_path / "Notes"  # no .obsidian folder -> not an Obsidian vault
+    md = vault / "FuseMark" / "Glossary.md"
+    md.parent.mkdir(parents=True)
+    md.write_text("# Glossary", encoding="utf-8")
+    with __import__("unittest.mock", fromlist=["patch"]).patch("os.startfile") as mock_start:
+        gl.open_glossary(vault_path=str(vault))
+    mock_start.assert_called_once()
+    opened = mock_start.call_args[0][0]
+    assert not opened.startswith("obsidian://")
+    assert opened.endswith("Glossary.md")
+
+
+def test_open_glossary_non_obsidian_missing_file_does_not_call_startfile(tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    vault = tmp_path / "Notes"
+    vault.mkdir()  # no .obsidian, and no Glossary.md created
+    with __import__("unittest.mock", fromlist=["patch"]).patch("os.startfile") as mock_start:
+        gl.open_glossary(vault_path=str(vault))
+    mock_start.assert_not_called()
+
+
+def test_open_glossary_no_vault_does_not_call_startfile(tmp_path, monkeypatch):
     import app.config as cfg
     monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
     cfg.save({**cfg.DEFAULTS, "vault_path": ""})
     with __import__("unittest.mock", fromlist=["patch"]).patch("os.startfile") as mock_start:
-        gl.open_in_obsidian(vault_path="")
+        gl.open_glossary(vault_path="")
     mock_start.assert_not_called()
