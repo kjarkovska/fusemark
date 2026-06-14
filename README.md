@@ -32,8 +32,8 @@ The source is licensed under **GPL v3** — see [License](#license).
 ## Installation
 
 ```bash
-git clone https://github.com/kjarkovska/note-taker.git
-cd note-taker
+git clone https://github.com/kjarkovska/fusemark.git
+cd fusemark
 python -m venv venv
 venv\Scripts\pip install -r requirements.txt
 ```
