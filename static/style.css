@@ -212,6 +212,14 @@ select::-ms-expand { display: none; }
   text-underline-offset: 2px;
 }
 .update-link:hover { opacity: 0.8; }
+
+/* Settings > Updates: the injected "GitHub" link is a bare <a>, so it would use
+   the browser default (dark blue, red when clicked). Match the section headings
+   (blue), keep that on :visited, and go white on click instead of red. */
+#update-result a,
+#update-result a:visited { color: var(--blue-text); text-decoration: underline; text-underline-offset: 2px; }
+#update-result a:hover { opacity: 0.8; }
+#update-result a:active { color: var(--fg-strong); }
 .update-dismiss {
   margin-left: auto;
   background: none;
