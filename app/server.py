@@ -533,6 +533,8 @@ def update_check_route():
 @app.route("/update-status", methods=["GET"])
 def update_status_route():
     import app.updater as updater
+    if not cfg.load().get("check_updates", True):
+        return jsonify({"available": False, "version": "", "url": ""})
     return jsonify(updater.get_cached_status())
 
 

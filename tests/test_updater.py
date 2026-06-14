@@ -131,6 +131,17 @@ def test_update_status_route_not_available_by_default(flask_client):
     assert r.get_json()["available"] is False
 
 
+def test_update_status_route_suppressed_when_check_disabled(flask_client, tmp_path, monkeypatch):
+    """Cached update data must not surface when check_updates is off."""
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    cfg.save({**cfg.DEFAULTS, "check_updates": False,
+              "latest_known_version": "99.0.0", "latest_known_url": "https://github.com/x"})
+    r = flask_client.get("/update-status")
+    data = r.get_json()
+    assert data["available"] is False
+    assert data["version"] == ""
+
+
 # ------------------------------------------------------------------
 # /open-url route
 # ------------------------------------------------------------------
