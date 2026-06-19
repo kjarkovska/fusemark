@@ -1,0 +1,16 @@
+From this meeting transcript, identify up to 5 unusual terms, abbreviations, or proper nouns that are not common words in any language.
+
+Transcript:
+{transcript}
+
+Existing glossary (skip these terms):
+{existing_terms}
+
+Return a JSON array. Each element has keys:
+  "canonical" — the correct form of the term
+  "aliases"   — list of spelling variants (can be empty)
+  "context"   — brief explanation (1 sentence)
+  "type"      — one of: product, abbreviation, person, company, other
+
+If no suitable terms are found, return an empty array [].
+Return only JSON, no other text.

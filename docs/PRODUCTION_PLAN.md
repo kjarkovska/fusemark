@@ -1,5 +1,5 @@
 # FuseMark — Production Roadmap Plan
-**Target:** Shippable v1.0 for general public, open-source code + paid installer, Windows 10/11
+**Target:** Shippable v1.0 for general public, fully open-source (GPL v3), Windows 10/11
 
 > This document is written for Claude Code. Read it fully before starting any phase.
 > Each phase ends with a testable, stable state. Never start a new phase on top of broken code.
@@ -16,25 +16,22 @@ and potential trademark claims.
 
 FuseMark's functionality is independent of any single notes app — it writes plain Markdown
 files into whatever vault or notes folder the user points it at (Obsidian, Logseq, or any
-other Markdown-based tool). Confirm there is no trademark conflict for "FuseMark" before code
-signing and the Gumroad listing.
+other Markdown-based tool).
 
 ---
 
 ## Distribution Model
 
 The source code is **GPL v3-licensed and publicly available on GitHub**. Anyone can clone the
-repo and run the app for free.
+repo and run the app for free. A signed pre-built Windows installer is published as a GitHub
+release asset for users who prefer not to set up a Python environment.
 
-The **Gumroad listing sells a pre-compiled Windows installer** as a convenience product
-(~€19, one-time). Buyers get a signed `.exe` that works immediately — no Python environment,
-no build toolchain, no dependency management. The value is the packaging and setup work,
-not access to the code.
+Voluntary support via [GitHub Sponsors](https://github.com/sponsors/kjarkovska) — no paywall,
+no license keys, no paid tier.
 
-**GPL v3 copyleft implications:** anyone who distributes the source code or a compiled
-binary — including the Gumroad installer — must also make the complete corresponding source
-available under GPL v3. This is satisfied by linking to the public GitHub repo from the
-Gumroad product page. It also prevents competitors from taking the code, compiling it, and
+**GPL v3 copyleft implications:** anyone who distributes the source code or a compiled binary
+must also make the complete corresponding source available under GPL v3. This is satisfied by
+the public GitHub repo. It also prevents competitors from taking the code, compiling it, and
 selling a closed binary without releasing their source.
 
 **The `LICENSE` file containing the full GPL v3 text must be committed to the repository
@@ -44,7 +41,6 @@ Implications for the plan:
 - No license key validation, no trial period, no paywall mechanics anywhere in the app.
 - `main.py` does not call any license check on startup.
 - The Settings UI has no license section.
-- Gumroad is configured as a simple file download — license key generation is disabled.
 - A `LICENSE` file (GPL v3) lives at the repo root and is displayed during install.
 
 ---
@@ -63,7 +59,7 @@ Production v1.0 adds:
 7. **Single `.exe` installer** — PyInstaller + Inno Setup, ffmpeg bundled
 8. **Update notifications** — check GitHub releases, show banner in UI
 9. **Recording housekeeping** — size display, auto-cleanup option
-10. **Gumroad listing** — paid pre-compiled installer for convenience; source code is GPL v3-licensed
+10. **Free distribution + optional sponsorship** — pre-compiled installer offered as a free GitHub release; voluntary support via GitHub Sponsors; source code is GPL v3-licensed
 11. **UI language (Czech / English)** — all user-facing strings switchable; English is the default for new installs (P5.5)
 12. **Audio file import** — dedicated "Import audio" button and modal; uploads `.mp3`/`.wav`/`.m4a`/`.ogg`/`.flac` for transcription + note generation; optional scratch notes attached; complete as of 2026-05-15
 
@@ -1297,14 +1293,14 @@ python -m app.main
 
 ## Phase P12 — Final Polish & Release Prep
 
-**Goal:** Documented, tested, GPL v3-licensed, ready to list on Gumroad.
+**Goal:** Documented, tested, GPL v3-licensed, ready for public open-source release.
 
 ### Tasks
 
 - Write `README.md` for end users (not developers):
   - What it does (one paragraph)
   - System requirements: Windows 10/11, internet for cloud mode or API calls
-  - Two install paths: (1) download the pre-built installer from Gumroad, or (2) clone the
+  - Two install paths: (1) download the pre-built installer from the GitHub release, or (2) clone the
     repo and run from source (Python 3.11+, see requirements.txt)
   - First launch walkthrough (3 sentences — wizard handles the rest)
   - FAQ: "Where are my notes?", "Where is my data stored?", "How do I change the language?",
@@ -1322,12 +1318,12 @@ python -m app.main
     No cloud sync. User controls deletion.
   - Contact email for privacy queries.
   - Required for GDPR compliance (developer and primary audience are EU-based). Link this
-    document from the Gumroad product page and from the app's Settings → About section.
+    document from the GitHub repo and from the app's Settings → About section.
 
 - Add a `LICENSE` file at the repo root containing the full GPL v3 license text.
   Obtain the canonical text from https://www.gnu.org/licenses/gpl-3.0.txt — do not
   paraphrase or shorten it. Inno Setup displays this during install (already wired in P11).
-  Link from the GitHub repo and from the Gumroad product description.
+  Link from the GitHub repo README.
   **This file must be committed before the repository is made public.**
 
 - Review all UI strings — replace any remaining hardcoded Czech labels with the configured
@@ -1346,8 +1342,7 @@ python -m app.main
     it unreliable for log data. Never auto-send anything.
 
 - Add support channel link to Settings → About section: a GitHub issues URL or support
-  email address. Without this, frustrated customers dispute charges with their bank instead
-  of contacting you. Also set this email on the Gumroad product page under "Support email".
+  email address.
 
 - **Pre-release checklist:**
   ```
@@ -1362,23 +1357,13 @@ python -m app.main
   [ ] Test update banner end-to-end: temporarily set __version__ = "0.0.1" in app/version.py,
       point RELEASES_URL at a real release, verify banner appears, then restore "1.0.0"
   [ ] Set log_level default to "INFO" in config.py
-  [ ] Privacy policy URL live and linked from Gumroad product page
+  [ ] Privacy policy linked from repo README
   [ ] GPL v3 LICENSE file present at repo root and displayed during install
-  [ ] Support email set on Gumroad product page
+  [ ] FUNDING.yml committed — GitHub Sponsors button visible on repo
   [ ] git tag v1.0.0
-  [ ] Push tag and source to GitHub — repo must be public before Gumroad listing goes live
+  [ ] Push tag — release workflow builds installer artifact
+  [ ] Upload signed installer as asset on the v1.0.0 GitHub release
   ```
-
-- Gumroad setup:
-  - Create product under the final product name (not "FuseMark" — see trademark note above)
-  - Price: €19 (one-time)
-  - **Do not enable license key generation** — the app does no key validation
-  - Upload the signed installer `.exe` as the download file
-  - Link privacy policy in product description
-  - Link GitHub repo in product description — "Source code available on GitHub under GPL v3"
-  - Set support email
-  - Write a product description emphasising: local/private, one-time payment, no subscription,
-    user brings their own API keys (and therefore controls their own API costs), open source
 
 - Tag the release on GitHub: `git tag v1.0.0`
 

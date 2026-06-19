@@ -266,6 +266,11 @@
           <div class="field">
             <button class="btn-secondary btn-full" onclick="openGlossary()">{{ t.btn_open_glossary }}</button>
           </div>
+          <div class="field">
+            <button class="btn-secondary btn-full" onclick="openPromptsFolder()">{{ t.btn_open_prompts }}</button>
+            <p class="field-hint">{{ t.hint_prompts }}</p>
+            <div id="prompts-status" style="margin-top:6px;font-size:0.8rem;"></div>
+          </div>
         </section>
 
       </div>
@@ -446,6 +451,33 @@
     async function openGlossary() {
       await fetch('/open-glossary', {method: 'POST'});
     }
+
+    async function openPromptsFolder() {
+      await fetch('/open-prompts-folder', {method: 'POST'});
+      loadPromptsStatus();
+    }
+
+    async function loadPromptsStatus() {
+      const el = document.getElementById('prompts-status');
+      if (!el) return;
+      try {
+        const items = await fetch('/api/prompts-status').then(r => r.json());
+        const invalid = items.filter(i => i.status === 'invalid');
+        if (invalid.length) {
+          el.style.color = '#f59e0b';
+          el.innerHTML = invalid
+            .map(i => window.STRINGS.msg_prompts_invalid.replace('{file}', i.file))
+            .join('<br>');
+          return;
+        }
+        const custom = items.filter(i => i.status === 'custom').length;
+        el.style.color = 'var(--text-muted)';
+        el.textContent = custom
+          ? window.STRINGS.msg_prompts_custom.replace('{n}', custom)
+          : window.STRINGS.msg_prompts_default;
+      } catch (_) {}
+    }
+    loadPromptsStatus();
 
     async function openLog() {
       const res = await fetch('/open-log', {method: 'POST'});

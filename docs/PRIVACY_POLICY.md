@@ -59,4 +59,4 @@ keep or delete.
 
 ## Contact
 
-Questions about this policy: `<support-email>` _(fill in before publishing)_.
+Questions about this policy: karla@jarkovska.eu

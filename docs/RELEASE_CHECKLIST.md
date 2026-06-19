@@ -3,20 +3,16 @@
 A single page to follow when cutting the first public release. Build mechanics live
 in [`installer/README.md`](../installer/README.md); this is the ordered to-do list.
 
-## 0. Name & trademark (do this first)
+## 0. Name & trademark
 
-- [ ] **Decide the final product name.** "FuseMark" is too close to "Obsidian"
-      (Dynalist Inc.) and risks confusion/trademark claims. Everything below depends
-      on the chosen name.
-- [ ] Once chosen, update the name in: `installer/setup.iss`, `README.md`, the Gumroad
-      listing, and (if the GitHub repo is renamed) `RELEASES_URL` in `app/updater.py`.
+- [x] Final product name chosen: **FuseMark**
 
 ## 1. Code & docs
 
-- [ ] `app/version.py` `VERSION` = `1.0.0`
+- [x] `app/version.py` `VERSION` = `1.0.0`
 - [ ] `installer/setup.iss` `MyAppVersion` = `1.0.0` (matches version.py)
-- [ ] `<support-email>` filled in `docs/PRIVACY_POLICY.md`
-- [ ] `LICENSE` (GPL v3) present at repo root
+- [x] `<support-email>` filled in `docs/PRIVACY_POLICY.md`
+- [x] `LICENSE` (GPL v3) present at repo root
 - [ ] `ruff check app tests` clean and `pytest` green (CI is green)
 
 ## 2. Build & sign
@@ -39,10 +35,9 @@ in [`installer/README.md`](../installer/README.md); this is the ordered to-do li
 
 ## 4. Publish
 
-- [ ] Push the source to a **public** GitHub repo (must be public, with `LICENSE`,
-      before Gumroad goes live — GPL v3 requires source availability)
+- [x] Push the source to a **public** GitHub repo (with `LICENSE`)
+- [x] Set up [GitHub Sponsors](https://github.com/sponsors/kjarkovska) and add `FUNDING.yml`
 - [ ] `git tag v1.0.0 && git push --tags` (triggers the release build workflow)
-- [ ] Create the Gumroad product: final name, €19 one-time, **no licence-key
-      generation**, upload the signed installer, link the GitHub repo and the privacy
-      policy, set the support email
+- [ ] Upload signed installer as a release asset on the `v1.0.0` GitHub release
 - [ ] Verify the in-app update banner end-to-end against the published GitHub release
+- [ ] Set repo description and topics for discoverability

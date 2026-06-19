@@ -556,6 +556,19 @@ def route_open_glossary():
     return jsonify({"ok": True})
 
 
+@app.route("/open-prompts-folder", methods=["POST"])
+def route_open_prompts_folder():
+    from app.prompts import open_prompts_folder
+    open_prompts_folder()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/prompts-status", methods=["GET"])
+def route_prompts_status():
+    from app.prompts import validate_user_prompts
+    return jsonify(validate_user_prompts())
+
+
 @app.route("/open-log", methods=["POST"])
 def route_open_log():
     log_path = os.path.join(cfg.DATA_DIR, "logs", "fusemark.log")

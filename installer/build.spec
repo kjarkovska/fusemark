@@ -53,6 +53,7 @@ datas = (
         (os.path.join(PROJECT_ROOT, "templates"), "templates"),
         (os.path.join(PROJECT_ROOT, "static"), "static"),
         (ASSETS, "assets"),
+        (os.path.join(PROJECT_ROOT, "app", "prompt_defaults"), os.path.join("app", "prompt_defaults")),
     ]
     + collect_data_files("faster_whisper")
     + collect_data_files("ctranslate2")

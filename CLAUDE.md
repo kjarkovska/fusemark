@@ -10,7 +10,9 @@ Audio never leaves the machine. Recording and processing are fully decoupled so 
 
 ## Current Status
 
-**v0.9.4: app renamed ObsiNote → FuseMark (final public name). Tests: 366 passed.**
+**v1.0.0: open-source release — Gumroad dropped, GitHub Sponsors added, all docs updated. LLM prompts externalized to %APPDATA%\FuseMark\prompts\ for user editing. Tests: 389 passed.**
+
+Post-review hardening (still on `feat/go-live-opensource`, folded into the v1.0 PR): bundled-defaults dir renamed `app/prompts/` → `app/prompt_defaults/` to remove the module/dir name clash with `app/prompts.py` (user-facing `%APPDATA%\FuseMark\prompts\` path unchanged); `_load()` now wraps the bundled read and raises a clear `RuntimeError` instead of leaking `FileNotFoundError` on the note-generation path; `open_prompts_folder()` seeds each missing default per-file (forward-compat for future prompts + delete-to-reset) instead of only on an empty folder; `validate_user_prompts()` + `GET /api/prompts-status` + Settings status line surface invalid user prompts (previously silent, log-only).
 
 - `app/recorder.py` — dual-stream capture (WASAPI loopback + mic) via `pyaudiowpatch`; ffmpeg mixes to mp3
 - `app/config.py` — load/save `config.json`

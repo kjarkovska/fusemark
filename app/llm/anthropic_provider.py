@@ -7,54 +7,13 @@ import keyring
 
 from app.exceptions import LLMAuthError, LLMRateLimitError
 from app.glossary import load as load_glossary
+from app import prompts
 
 logger = logging.getLogger(__name__)
 
 MODEL = "claude-haiku-4-5-20251001"
 KEYRING_SERVICE = "FuseMark-Anthropic"
 KEYRING_USERNAME = "api_key"
-
-NOTE_TEMPLATE = """\
----
-date: {date}
-type: meeting
-tags: [meeting]
----
-
-# {title}
-
-## Participants
-
-## Context
-
-## Summary
-
-## Decisions
-
-## Action Items
-- [ ] Task — responsible person
-
-## Notes
-"""
-
-TERM_SUGGESTION_PROMPT = """\
-From this meeting transcript, identify up to 5 unusual terms, abbreviations, or proper nouns \
-that are not common words in any language.
-
-Transcript:
-{transcript}
-
-Existing glossary (skip these terms):
-{existing_terms}
-
-Return a JSON array. Each element has keys:
-  "canonical" — the correct form of the term
-  "aliases"   — list of spelling variants (can be empty)
-  "context"   — brief explanation (1 sentence)
-  "type"      — one of: product, abbreviation, person, company, other
-
-If no suitable terms are found, return an empty array [].
-Return only JSON, no other text."""
 
 
 def _get_api_key():
@@ -90,24 +49,17 @@ def generate_notes(transcript, label="", folder="", scratch_notes="", extra_cont
     glossary = load_glossary()
     today = date_str or date.today().isoformat()
     title = label or "Meeting"
-    template = NOTE_TEMPLATE.format(date=today, title=title)
+    template = prompts.build_note_template(date=today, title=title)
 
     if language == "Auto-detect":
         lang_instruction = "Match the language of the transcript exactly."
     else:
         lang_instruction = f"Always write in {language}."
 
-    system = (
-        f"You are a meeting notes assistant. {lang_instruction}\n"
-        "Generate structured meeting notes from the transcript according to the template.\n\n"
-        f"Output template:\n{template}\n\n"
-        "Company glossary (use canonical forms and correct spelling):\n"
-        f"{json.dumps(glossary, ensure_ascii=False, indent=2)}\n\n"
-        "Instructions:\n"
-        "- Use the glossary for correct spelling of terms.\n"
-        "- Format action items as checkboxes: - [ ] Task — responsible person\n"
-        "- If information is missing from the transcript, leave the section empty.\n"
-        "- Fill only sections that have data from the transcript."
+    system = prompts.build_note_system(
+        lang_instruction=lang_instruction,
+        template=template,
+        glossary=json.dumps(glossary, ensure_ascii=False, indent=2),
     )
 
     user_parts = [f"Transcript:\n{transcript}"]
@@ -141,7 +93,7 @@ def suggest_glossary_terms(transcript):
     glossary = load_glossary()
     existing = [t["canonical"] for t in glossary.get("terms", [])]
 
-    prompt = TERM_SUGGESTION_PROMPT.format(
+    prompt = prompts.build_term_suggestion(
         transcript=transcript,
         existing_terms=", ".join(existing) if existing else "none",
     )
