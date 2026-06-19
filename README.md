@@ -8,12 +8,9 @@ Local meeting notes app for Windows 11. Records audio, transcribes locally with 
 
 ## Get FuseMark
 
-Two ways to install — the app is identical either way:
+FuseMark is **free and open-source** (GPL v3). Clone the repo and run from source — no installer needed.
 
-- **Paid installer (easiest)** — a signed Windows installer, no Python setup needed.
-  Available on Gumroad *(link added at launch)*. Buying it funds development; you are
-  paying for the packaging convenience, not the code.
-- **From source (free)** — clone and run, as described below.
+If FuseMark saves you time, consider [sponsoring on GitHub](https://github.com/sponsors/kjarkovska) ☕
 
 The source is licensed under **GPL v3** — see [License](#license).
 

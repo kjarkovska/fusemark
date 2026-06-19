@@ -10,7 +10,7 @@ Audio never leaves the machine. Recording and processing are fully decoupled so 
 
 ## Current Status
 
-**v0.9.4: app renamed ObsiNote → FuseMark (final public name). Tests: 366 passed.**
+**v1.0.0: open-source release — Gumroad dropped, GitHub Sponsors added, all docs updated. Tests: 369 passed.**
 
 - `app/recorder.py` — dual-stream capture (WASAPI loopback + mic) via `pyaudiowpatch`; ffmpeg mixes to mp3
 - `app/config.py` — load/save `config.json`
