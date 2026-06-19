@@ -266,6 +266,9 @@
           <div class="field">
             <button class="btn-secondary btn-full" onclick="openGlossary()">{{ t.btn_open_glossary }}</button>
           </div>
+          <div class="field">
+            <button class="btn-secondary btn-full" onclick="openPromptsFolder()">{{ t.btn_open_prompts }}</button>
+          </div>
         </section>
 
       </div>
@@ -445,6 +448,10 @@
 
     async function openGlossary() {
       await fetch('/open-glossary', {method: 'POST'});
+    }
+
+    async function openPromptsFolder() {
+      await fetch('/open-prompts-folder', {method: 'POST'});
     }
 
     async function openLog() {

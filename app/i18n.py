@@ -107,6 +107,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "label_log_level": "Log level",
         "btn_open_log": "Open log",
         "btn_open_glossary": "Open glossary",
+        "btn_open_prompts": "Open prompts folder",
         "btn_save_settings": "Save settings",
         # Settings inline JS messages
         "msg_saved": "Saved.",
@@ -306,6 +307,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "label_log_level": "Úroveň logování",
         "btn_open_log": "Otevřít log",
         "btn_open_glossary": "Otevřít slovník",
+        "btn_open_prompts": "Otevřít složku promptů",
         "btn_save_settings": "Uložit nastavení",
         # Settings inline JS messages
         "msg_saved": "Uloženo.",

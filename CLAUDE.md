@@ -10,7 +10,7 @@ Audio never leaves the machine. Recording and processing are fully decoupled so 
 
 ## Current Status
 
-**v1.0.0: open-source release — Gumroad dropped, GitHub Sponsors added, all docs updated. Tests: 369 passed.**
+**v1.0.0: open-source release — Gumroad dropped, GitHub Sponsors added, all docs updated. LLM prompts externalized to %APPDATA%\FuseMark\prompts\ for user editing. Tests: 383 passed.**
 
 - `app/recorder.py` — dual-stream capture (WASAPI loopback + mic) via `pyaudiowpatch`; ffmpeg mixes to mp3
 - `app/config.py` — load/save `config.json`
