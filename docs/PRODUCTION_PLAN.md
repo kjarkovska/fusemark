@@ -59,7 +59,7 @@ Production v1.0 adds:
 7. **Single `.exe` installer** — PyInstaller + Inno Setup, ffmpeg bundled
 8. **Update notifications** — check GitHub releases, show banner in UI
 9. **Recording housekeeping** — size display, auto-cleanup option
-10. **Gumroad listing** — paid pre-compiled installer for convenience; source code is GPL v3-licensed
+10. **Free distribution + optional sponsorship** — pre-compiled installer offered as a free GitHub release; voluntary support via GitHub Sponsors; source code is GPL v3-licensed
 11. **UI language (Czech / English)** — all user-facing strings switchable; English is the default for new installs (P5.5)
 12. **Audio file import** — dedicated "Import audio" button and modal; uploads `.mp3`/`.wav`/`.m4a`/`.ogg`/`.flac` for transcription + note generation; optional scratch notes attached; complete as of 2026-05-15
 
