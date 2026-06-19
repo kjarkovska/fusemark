@@ -3,10 +3,10 @@ prompts.py — Centralized LLM prompt management for FuseMark.
 
 Two-layer resolution per prompt (per-prompt granularity):
   1. User override: %APPDATA%\\FuseMark\\prompts\\<file> — if present and valid
-  2. Bundled default: app/prompts/<file> — shipped with the app
+  2. Bundled default: app/prompt_defaults/<file> — shipped with the app
 
-Editing: Settings → Open prompts folder copies the bundled defaults into the
-APPDATA prompts folder on first open so the user has a starting point.
+Editing: Settings → Open prompts folder seeds any missing bundled default into
+the APPDATA prompts folder, so the user always has every prompt to edit.
 """
 
 import logging
@@ -14,7 +14,7 @@ import os
 
 logger = logging.getLogger(__name__)
 
-_BUNDLED_DIR = os.path.join(os.path.dirname(__file__), "prompts")
+_BUNDLED_DIR = os.path.join(os.path.dirname(__file__), "prompt_defaults")
 
 _PROMPTS = {
     "note_template": {
@@ -68,8 +68,17 @@ def _load(name: str) -> str:
                 meta["file"], exc,
             )
 
-    with open(bundled_path, "r", encoding="utf-8") as f:
-        return f.read()
+    try:
+        with open(bundled_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except OSError as exc:
+        # The bundled default is the last-resort fallback — there is nothing
+        # below it. Fail loudly with context instead of leaking a bare
+        # FileNotFoundError up the note-generation path.
+        raise RuntimeError(
+            f"Bundled prompt {meta['file']!r} is missing or unreadable at "
+            f"{bundled_path!r}. This is a packaging error — reinstall FuseMark."
+        ) from exc
 
 
 def build_note_template(date: str, title: str) -> str:
@@ -87,19 +96,46 @@ def build_term_suggestion(transcript: str, existing_terms: str) -> str:
                        existing_terms=existing_terms)
 
 
+def validate_user_prompts() -> list:
+    """Report each prompt's status for the Settings UI.
+
+    Status is one of:
+      "default" — no user override; the bundled default is in use
+      "custom"  — a valid user override is in use
+      "invalid" — a user override exists but was rejected (bundled default used)
+    """
+    user_dir = _user_dir()
+    results = []
+    for name, meta in _PROMPTS.items():
+        entry = {"name": name, "file": meta["file"], "status": "default", "error": ""}
+        user_path = os.path.join(user_dir, meta["file"])
+        if os.path.exists(user_path):
+            try:
+                with open(user_path, "r", encoding="utf-8") as f:
+                    _validate(f.read(), meta["required"])
+                entry["status"] = "custom"
+            except Exception as exc:
+                entry["status"] = "invalid"
+                entry["error"] = str(exc)
+        results.append(entry)
+    return results
+
+
 def open_prompts_folder() -> None:
-    """Open the user prompts folder, pre-populating it with bundled defaults on first open."""
+    """Open the user prompts folder, seeding any missing bundled defaults."""
     user_dir = _user_dir()
     os.makedirs(user_dir, exist_ok=True)
-    if not os.listdir(user_dir):
-        for meta in _PROMPTS.values():
-            src = os.path.join(_BUNDLED_DIR, meta["file"])
-            dst = os.path.join(user_dir, meta["file"])
-            if os.path.exists(src) and not os.path.exists(dst):
-                with open(src, "r", encoding="utf-8") as f:
-                    content = f.read()
-                with open(dst, "w", encoding="utf-8") as f:
-                    f.write(content)
+    # Seed each missing default individually (not gated on an empty folder), so
+    # prompts added in later versions are copied for existing users too, and
+    # deleting a file then reopening restores its default.
+    for meta in _PROMPTS.values():
+        src = os.path.join(_BUNDLED_DIR, meta["file"])
+        dst = os.path.join(user_dir, meta["file"])
+        if os.path.exists(src) and not os.path.exists(dst):
+            with open(src, "r", encoding="utf-8") as f:
+                content = f.read()
+            with open(dst, "w", encoding="utf-8") as f:
+                f.write(content)
     try:
         os.startfile(user_dir)
     except Exception as exc:

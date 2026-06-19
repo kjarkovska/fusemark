@@ -1238,3 +1238,18 @@ def test_route_stop_saves_scratch_notes_before_stopping(flask_client, monkeypatc
     assert r.status_code == 200
     job = q.get_job(job_id)
     assert job["scratch_notes"] == "budget approved, next steps: TBD"
+
+
+# ------------------------------------------------------------------
+# Prompts status route
+# ------------------------------------------------------------------
+
+def test_prompts_status_route(flask_client, monkeypatch, tmp_path):
+    import app.prompts as pm
+    monkeypatch.setattr(pm, "_user_dir", lambda: str(tmp_path / "prompts"))
+    r = flask_client.get("/api/prompts-status")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert isinstance(data, list)
+    assert {e["name"] for e in data} == set(pm._PROMPTS.keys())
+    assert all(e["status"] == "default" for e in data)

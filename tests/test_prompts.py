@@ -114,17 +114,63 @@ def test_build_term_suggestion_substitutes_placeholders(tmp_path, monkeypatch):
 
 
 # ------------------------------------------------------------------
+# _load — bundled missing raises a clear error (no silent crash on the
+# note-generation path)
+# ------------------------------------------------------------------
+
+def test_load_raises_runtime_error_when_bundled_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr(pm, "_user_dir", lambda: str(tmp_path / "prompts"))
+    monkeypatch.setattr(pm, "_BUNDLED_DIR", str(tmp_path / "nonexistent"))
+    with pytest.raises(RuntimeError, match="packaging error"):
+        pm._load("note_template")
+
+
+# ------------------------------------------------------------------
+# validate_user_prompts
+# ------------------------------------------------------------------
+
+def test_validate_user_prompts_all_default_when_no_overrides(tmp_path, monkeypatch):
+    monkeypatch.setattr(pm, "_user_dir", lambda: str(tmp_path / "prompts"))
+    statuses = {e["name"]: e["status"] for e in pm.validate_user_prompts()}
+    assert len(statuses) == len(pm._PROMPTS)
+    assert set(statuses.values()) == {"default"}
+
+
+def test_validate_user_prompts_reports_custom(tmp_path, monkeypatch):
+    user_dir = tmp_path / "prompts"
+    user_dir.mkdir()
+    (user_dir / "note_template.md").write_text("ok {date} {title}", encoding="utf-8")
+    monkeypatch.setattr(pm, "_user_dir", lambda: str(user_dir))
+    by_name = {e["name"]: e for e in pm.validate_user_prompts()}
+    assert by_name["note_template"]["status"] == "custom"
+
+
+def test_validate_user_prompts_reports_invalid(tmp_path, monkeypatch):
+    user_dir = tmp_path / "prompts"
+    user_dir.mkdir()
+    (user_dir / "note_template.md").write_text("no placeholders", encoding="utf-8")
+    monkeypatch.setattr(pm, "_user_dir", lambda: str(user_dir))
+    by_name = {e["name"]: e for e in pm.validate_user_prompts()}
+    assert by_name["note_template"]["status"] == "invalid"
+    assert by_name["note_template"]["error"]
+
+
+# ------------------------------------------------------------------
 # open_prompts_folder
 # ------------------------------------------------------------------
+
+def _patch_startfile():
+    return __import__("unittest.mock", fromlist=["patch"]).patch("os.startfile")
+
 
 def test_open_prompts_folder_creates_dir_and_copies_defaults(tmp_path, monkeypatch):
     user_dir = tmp_path / "prompts"
     monkeypatch.setattr(pm, "_user_dir", lambda: str(user_dir))
-    with __import__("unittest.mock", fromlist=["patch"]).patch("os.startfile"):
+    with _patch_startfile():
         pm.open_prompts_folder()
     assert user_dir.exists()
     files = list(user_dir.iterdir())
-    assert len(files) == 3
+    assert len(files) == len(pm._PROMPTS)
 
 
 def test_open_prompts_folder_does_not_overwrite_existing(tmp_path, monkeypatch):
@@ -133,6 +179,19 @@ def test_open_prompts_folder_does_not_overwrite_existing(tmp_path, monkeypatch):
     existing = user_dir / "note_template.md"
     existing.write_text("my custom template {date} {title}", encoding="utf-8")
     monkeypatch.setattr(pm, "_user_dir", lambda: str(user_dir))
-    with __import__("unittest.mock", fromlist=["patch"]).patch("os.startfile"):
+    with _patch_startfile():
         pm.open_prompts_folder()
     assert existing.read_text(encoding="utf-8") == "my custom template {date} {title}"
+
+
+def test_open_prompts_folder_seeds_missing_when_partially_populated(tmp_path, monkeypatch):
+    # A non-empty folder must still receive any default it lacks (forward-compat
+    # for prompts added later; also acts as delete-to-reset).
+    user_dir = tmp_path / "prompts"
+    user_dir.mkdir()
+    (user_dir / "note_template.md").write_text("custom {date} {title}", encoding="utf-8")
+    monkeypatch.setattr(pm, "_user_dir", lambda: str(user_dir))
+    with _patch_startfile():
+        pm.open_prompts_folder()
+    seeded = {p.name for p in user_dir.iterdir()}
+    assert seeded == {meta["file"] for meta in pm._PROMPTS.values()}

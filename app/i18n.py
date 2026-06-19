@@ -108,6 +108,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "btn_open_log": "Open log",
         "btn_open_glossary": "Open glossary",
         "btn_open_prompts": "Open prompts folder",
+        "hint_prompts": "Customize how notes are generated. Invalid edits are ignored — the built-in default is used.",
+        "msg_prompts_default": "Using built-in prompts.",
+        "msg_prompts_custom": "Custom prompts active: {n}.",
+        "msg_prompts_invalid": "⚠ {file} is invalid and was ignored — using the built-in default. Restore the missing placeholder or delete the file to reset.",
         "btn_save_settings": "Save settings",
         # Settings inline JS messages
         "msg_saved": "Saved.",
@@ -308,6 +312,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "btn_open_log": "Otevřít log",
         "btn_open_glossary": "Otevřít slovník",
         "btn_open_prompts": "Otevřít složku promptů",
+        "hint_prompts": "Přizpůsobte, jak se generují poznámky. Neplatné úpravy se ignorují — použije se vestavěný výchozí.",
+        "msg_prompts_default": "Používají se vestavěné prompty.",
+        "msg_prompts_custom": "Aktivní vlastní prompty: {n}.",
+        "msg_prompts_invalid": "⚠ {file} je neplatný a byl ignorován — použije se vestavěný výchozí. Doplňte chybějící zástupný symbol nebo soubor smažte pro obnovení.",
         "btn_save_settings": "Uložit nastavení",
         # Settings inline JS messages
         "msg_saved": "Uloženo.",
