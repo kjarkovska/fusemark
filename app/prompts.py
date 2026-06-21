@@ -11,6 +11,7 @@ the APPDATA prompts folder, so the user always has every prompt to edit.
 
 import logging
 import os
+from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,12 @@ def _validate(text: str, required: list) -> None:
         raise ValueError(f"missing required placeholders: {missing}")
 
 
+@lru_cache(maxsize=None)
+def _read_prompt_file(path: str, mtime: float) -> str:
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
 def _load(name: str) -> str:
     meta = _PROMPTS[name]
     user_path = os.path.join(_user_dir(), meta["file"])
@@ -58,8 +65,8 @@ def _load(name: str) -> str:
 
     if os.path.exists(user_path):
         try:
-            with open(user_path, "r", encoding="utf-8") as f:
-                text = f.read()
+            mtime = os.path.getmtime(user_path)
+            text = _read_prompt_file(user_path, mtime)
             _validate(text, meta["required"])
             return text
         except Exception as exc:
@@ -69,8 +76,8 @@ def _load(name: str) -> str:
             )
 
     try:
-        with open(bundled_path, "r", encoding="utf-8") as f:
-            return f.read()
+        mtime = os.path.getmtime(bundled_path)
+        return _read_prompt_file(bundled_path, mtime)
     except OSError as exc:
         # The bundled default is the last-resort fallback — there is nothing
         # below it. Fail loudly with context instead of leaking a bare
@@ -111,8 +118,9 @@ def validate_user_prompts() -> list:
         user_path = os.path.join(user_dir, meta["file"])
         if os.path.exists(user_path):
             try:
-                with open(user_path, "r", encoding="utf-8") as f:
-                    _validate(f.read(), meta["required"])
+                mtime = os.path.getmtime(user_path)
+                text = _read_prompt_file(user_path, mtime)
+                _validate(text, meta["required"])
                 entry["status"] = "custom"
             except Exception as exc:
                 entry["status"] = "invalid"
@@ -132,8 +140,8 @@ def open_prompts_folder() -> None:
         src = os.path.join(_BUNDLED_DIR, meta["file"])
         dst = os.path.join(user_dir, meta["file"])
         if os.path.exists(src) and not os.path.exists(dst):
-            with open(src, "r", encoding="utf-8") as f:
-                content = f.read()
+            mtime = os.path.getmtime(src)
+            content = _read_prompt_file(src, mtime)
             with open(dst, "w", encoding="utf-8") as f:
                 f.write(content)
     try:
