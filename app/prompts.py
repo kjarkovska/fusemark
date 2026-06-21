@@ -11,6 +11,7 @@ the APPDATA prompts folder, so the user always has every prompt to edit.
 
 import logging
 import os
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -38,11 +39,11 @@ def _user_dir() -> str:
 
 
 def _substitute(text: str, **kwargs) -> str:
-    """Replace {key} placeholders using str.replace — safe for values containing braces."""
-    result = text
-    for key, value in kwargs.items():
-        result = result.replace("{" + key + "}", value)
-    return result
+    """Replace {key} placeholders using regex — safe for values containing braces."""
+    if not kwargs:
+        return text
+    pattern = re.compile(r"\{(" + "|".join(re.escape(k) for k in kwargs.keys()) + r")\}")
+    return pattern.sub(lambda m: str(kwargs[m.group(1)]), text)
 
 
 def _validate(text: str, required: list) -> None:

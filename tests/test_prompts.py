@@ -34,6 +34,12 @@ def test_substitute_leaves_unreferenced_placeholders():
     assert result == "A and {b}"
 
 
+def test_substitute_is_order_independent():
+    # If a is replaced with {b}, it should not then be replaced by b="C"
+    result = pm._substitute("{a} {b}", a="{b}", b="C")
+    assert result == "{b} C"
+
+
 # ------------------------------------------------------------------
 # _load — bundled default fallback
 # ------------------------------------------------------------------
