@@ -10,9 +10,11 @@ Audio never leaves the machine. Recording and processing are fully decoupled so 
 
 ## Current Status
 
-**v1.0.0: open-source release — Gumroad dropped, GitHub Sponsors added, all docs updated. LLM prompts externalized to %APPDATA%\FuseMark\prompts\ for user editing. Tests: 389 passed.**
+**v1.0.0 RELEASED — installer published to GitHub Releases (unsigned). Tests: 389 passed.**
 
-Post-review hardening (still on `feat/go-live-opensource`, folded into the v1.0 PR): bundled-defaults dir renamed `app/prompts/` → `app/prompt_defaults/` to remove the module/dir name clash with `app/prompts.py` (user-facing `%APPDATA%\FuseMark\prompts\` path unchanged); `_load()` now wraps the bundled read and raises a clear `RuntimeError` instead of leaking `FileNotFoundError` on the note-generation path; `open_prompts_folder()` seeds each missing default per-file (forward-compat for future prompts + delete-to-reset) instead of only on an empty folder; `validate_user_prompts()` + `GET /api/prompts-status` + Settings status line surface invalid user prompts (previously silent, log-only).
+Release build fixes: `app/main.py`, `app/server.py`, `app/tray.py`, `app/prompts.py` all updated to resolve asset/template/prompt-defaults paths from `sys._MEIPASS` when frozen (PyInstaller onedir); previously `__file__`-based paths pointed back at the source tree and caused `FileNotFoundError` on first launch of the packaged exe.
+
+Post-review hardening (merged via PR #29): bundled-defaults dir renamed `app/prompts/` → `app/prompt_defaults/` to remove the module/dir name clash with `app/prompts.py` (user-facing `%APPDATA%\FuseMark\prompts\` path unchanged); `_load()` now wraps the bundled read and raises a clear `RuntimeError` instead of leaking `FileNotFoundError` on the note-generation path; `open_prompts_folder()` seeds each missing default per-file (forward-compat for future prompts + delete-to-reset) instead of only on an empty folder; `validate_user_prompts()` + `GET /api/prompts-status` + Settings status line surface invalid user prompts (previously silent, log-only).
 
 - `app/recorder.py` — dual-stream capture (WASAPI loopback + mic) via `pyaudiowpatch`; ffmpeg mixes to mp3
 - `app/config.py` — load/save `config.json`
@@ -20,7 +22,7 @@ Post-review hardening (still on `feat/go-live-opensource`, folded into the v1.0 
 - `app/worker.py` — two-track parallel processing: audio track (transcribe→generate, `worker-audio` thread) + import track (generate-only, `worker-import` thread); `_loop` preserved as alias; re-fetches job after transcription (stale dict bug fix); accepts optional `config_loader` callable for testability
 - `app/transcriber.py` — faster-whisper wrapper, Czech forced, glossary initial_prompt, progress reporting to SQLite
 - `app/glossary.py` — load glossary.json, build Whisper prompt, add terms, open in VSCode
-- `app/notemaker.py` — Claude Haiku 3.5: generates Czech notes, suggests glossary terms; API key via keyring
+- `app/notemaker.py` — Claude Haiku 4.5 (+ OpenAI GPT-4o mini, Mistral Small): generates notes, suggests glossary terms; API key via keyring
 - `app/tray.py` — tray icon; icon bitmap only updated from main thread (Win32 safety); menu updates are thread-safe
 - `app/server.py` — Flask routes; delegates recording lifecycle to `RecordingService`
 - `app/recording_service.py` — recording start/stop, recorder state, tray notifications (extracted from server.py R1)

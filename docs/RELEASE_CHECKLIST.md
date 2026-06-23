@@ -10,19 +10,19 @@ in [`installer/README.md`](../installer/README.md); this is the ordered to-do li
 ## 1. Code & docs
 
 - [x] `app/version.py` `VERSION` = `1.0.0`
-- [ ] `installer/setup.iss` `MyAppVersion` = `1.0.0` (matches version.py)
+- [x] `installer/setup.iss` `MyAppVersion` = `1.0.0` (matches version.py)
 - [x] `<support-email>` filled in `docs/PRIVACY_POLICY.md`
 - [x] `LICENSE` (GPL v3) present at repo root
-- [ ] `ruff check app tests` clean and `pytest` green (CI is green)
+- [x] `ruff check app tests` clean and `pytest` green (389 passed)
 
 ## 2. Build & sign
 
-- [ ] `pyinstaller installer/build.spec`
-- [ ] Smoke-test `dist\FuseMark\FuseMark.exe` with ffmpeg copied alongside —
+- [x] `pyinstaller installer/build.spec`
+- [x] Smoke-test `dist\FuseMark\FuseMark.exe` with ffmpeg copied alongside —
       window opens **and recording works** (DLL failure point)
-- [ ] Sign `dist\FuseMark\FuseMark.exe` with `signtool`
-- [ ] Build installer: `iscc installer\setup.iss`
-- [ ] Sign `installer\Output\FuseMarkSetup.exe` with `signtool`
+- [ ] ~~Sign `dist\FuseMark\FuseMark.exe` with `signtool`~~ — shipping unsigned for v1.0.0
+- [x] Build installer: `iscc installer\setup.iss`
+- [ ] ~~Sign `installer\Output\FuseMarkSetup.exe` with `signtool`~~ — shipping unsigned for v1.0.0
 
 ## 3. Verify on a clean machine
 
@@ -37,7 +37,7 @@ in [`installer/README.md`](../installer/README.md); this is the ordered to-do li
 
 - [x] Push the source to a **public** GitHub repo (with `LICENSE`)
 - [x] Set up [GitHub Sponsors](https://github.com/sponsors/kjarkovska) and add `FUNDING.yml`
-- [ ] `git tag v1.0.0 && git push --tags` (triggers the release build workflow)
-- [ ] Upload signed installer as a release asset on the `v1.0.0` GitHub release
+- [x] `git tag v1.0.0 && git push --tags` (triggers the release build workflow)
+- [x] Upload installer as a release asset on the `v1.0.0` GitHub release
 - [ ] Verify the in-app update banner end-to-end against the published GitHub release
 - [ ] Set repo description and topics for discoverability
