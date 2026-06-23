@@ -16,6 +16,7 @@ Flask and the worker run on background threads.
 """
 
 import os
+import sys
 
 from PIL import Image
 import pystray
@@ -30,7 +31,8 @@ def _tint(path, color):
     return colored
 
 
-_ICON_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "icon.png")
+_BASE = sys._MEIPASS if getattr(sys, "frozen", False) else os.path.dirname(os.path.dirname(__file__))
+_ICON_PATH = os.path.join(_BASE, "assets", "icon.png")
 ICON_IDLE          = _tint(_ICON_PATH, (120, 120, 120, 255))
 ICON_RECORDING     = _tint(_ICON_PATH, (210,  40,  40, 255))
 ICON_TRANSCRIBING  = _tint(_ICON_PATH, ( 40, 120, 210, 255))

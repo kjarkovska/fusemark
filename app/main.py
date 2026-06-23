@@ -20,6 +20,7 @@ Usage:
 import ctypes
 import logging
 import os
+import sys
 import time
 import threading
 from logging.handlers import RotatingFileHandler
@@ -34,7 +35,7 @@ from app import server
 
 logger = logging.getLogger(__name__)
 
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
+_PROJECT_ROOT = sys._MEIPASS if getattr(sys, "frozen", False) else os.path.dirname(os.path.dirname(__file__))
 _ASSETS = os.path.join(_PROJECT_ROOT, "assets")
 
 # Cached window handle — set once the pywebview window finishes loading

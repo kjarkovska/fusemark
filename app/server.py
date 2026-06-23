@@ -23,6 +23,7 @@ Routes:
 import json
 import logging
 import os
+import sys
 import threading
 import time as _time
 
@@ -38,10 +39,11 @@ from app.version import VERSION
 
 logger = logging.getLogger(__name__)
 
+_BASE = sys._MEIPASS if getattr(sys, "frozen", False) else os.path.dirname(os.path.dirname(__file__))
 app = Flask(
     __name__,
-    template_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates"),
-    static_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)), "static"),
+    template_folder=os.path.join(_BASE, "templates"),
+    static_folder=os.path.join(_BASE, "static"),
 )
 
 # Cap request bodies (mainly audio uploads) to guard against disk-fill / OOM.

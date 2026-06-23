@@ -11,10 +11,15 @@ the APPDATA prompts folder, so the user always has every prompt to edit.
 
 import logging
 import os
+import sys
 
 logger = logging.getLogger(__name__)
 
-_BUNDLED_DIR = os.path.join(os.path.dirname(__file__), "prompt_defaults")
+_BUNDLED_DIR = (
+    os.path.join(sys._MEIPASS, "app", "prompt_defaults")
+    if getattr(sys, "frozen", False)
+    else os.path.join(os.path.dirname(__file__), "prompt_defaults")
+)
 
 _PROMPTS = {
     "note_template": {
