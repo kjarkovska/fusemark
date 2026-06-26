@@ -121,17 +121,19 @@ tags: [meeting]
 ## Action Items
 - [ ] Task — responsible person
 ## Notes
-
-<details><summary>Transcript</summary>
-[full transcript]
-</details>
 ```
+
+The raw transcript is saved separately to `<vault>/FuseMark/Transcripts/<date> <label>.md`.
+
+### Custom templates
+
+Place a `.md` file in `<vault>/FuseMark/Templates/` and select it in Settings → Default template. The template is passed to the LLM as the output structure — use any headings you like. If no custom template is selected, the built-in structure above is used.
 
 ---
 
 ## Data Storage
 
-All user data is stored in `%APPDATA%\FuseMark\`:
+App data in `%APPDATA%\FuseMark\`:
 
 ```
 %APPDATA%\FuseMark\
@@ -141,7 +143,17 @@ All user data is stored in `%APPDATA%\FuseMark\`:
 └── recordings\       — .mp3 files (auto-deleted after processing if configured)
 ```
 
-The glossary is stored in the vault at `<vault>/FuseMark/Glossary.md` (falls back to `%APPDATA%\FuseMark\Glossary.md` if no vault is configured).
+Vault data in `<vault>/FuseMark/`:
+
+```
+<vault>/FuseMark/
+├── Meetings\         — generated notes (<date> <label>.md)
+├── Transcripts\      — raw transcripts (<date> <label>.md)
+├── Templates\        — custom note templates (optional, .md files)
+└── Glossary.md       — term list used by Whisper and the LLM
+```
+
+The glossary falls back to `%APPDATA%\FuseMark\Glossary.md` if no vault is configured.
 
 Whisper models are stored in `%LOCALAPPDATA%\FuseMark\models\` (local disk, not a network path).
 
@@ -197,4 +209,15 @@ source available under GPL v3.
 
 ## Credits
 
-Tray icon: [Note Taking](https://icons8.com/icon/YSKL7LZMQpS1/note-taking) by [Icons8](https://icons8.com)
+FuseMark is built on top of excellent open-source work:
+
+- **[faster-whisper](https://github.com/SYSTRAN/faster-whisper)** — CTranslate2-based Whisper inference (Systran); turbo variant by [mobiuslabsgmbh](https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo)
+- **[PyAudioWPatch](https://github.com/s0d3s/PyAudioWPatch)** — WASAPI loopback capture on Windows
+- **[pystray](https://github.com/moses-palmer/pystray)** — system tray icon
+- **[pywebview](https://pywebview.flowrl.com/)** — native app window and folder picker dialog
+- **[Flask](https://flask.palletsprojects.com/)** — local web UI
+- **[Anthropic Python SDK](https://github.com/anthropics/anthropic-sdk-python)**, **[OpenAI Python SDK](https://github.com/openai/openai-python)**, **[Mistral Python client](https://github.com/mistralai/client-python)** — LLM provider integrations
+- **[keyring](https://github.com/jaraco/keyring)** — Windows Credential Manager API key storage
+- **[PyInstaller](https://pyinstaller.org/)** — app packaging
+- **[ffmpeg](https://ffmpeg.org/)** — audio mixing and encoding
+- Tray icon: [Note Taking](https://icons8.com/icon/YSKL7LZMQpS1/note-taking) by [Icons8](https://icons8.com)
