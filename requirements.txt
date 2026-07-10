@@ -21,7 +21,7 @@ keyring==25.7.0
 # Phase 5 — UI & Tray
 flask==3.1.3
 pystray==0.19.5
-Pillow==12.1.1
+Pillow==12.2.0
 pywebview==6.2.1
 
 # --- Transitive dependencies, pinned for reproducible builds -----------------
