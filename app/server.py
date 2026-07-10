@@ -22,6 +22,7 @@ Routes:
 
 import json
 import logging
+import mimetypes
 import os
 import sys
 import threading
@@ -29,6 +30,10 @@ import time as _time
 from urllib.parse import urlsplit
 
 from flask import Flask, jsonify, redirect, render_template, request, send_file
+
+# Not registered in the system mimetypes DB on all machines; self-hosted font
+# asset needs the correct Content-Type regardless of host registry state.
+mimetypes.add_type("font/woff2", ".woff2")
 
 from app import config as cfg
 from app import queue as q
