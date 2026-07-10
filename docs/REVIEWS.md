@@ -1,6 +1,112 @@
-# FuseMark — Technical Review
+# FuseMark — Technical Reviews
 
-**Date:** 2026-07-04
+Consolidated review log, newest first. One file for all reviews — do not create new per-review files; append here.
+
+| Date | Version | Scope | Findings filed as |
+|---|---|---|---|
+| [2026-07-10](#review-2026-07-10) | v1.0.1 | Full application review | #51–#60, comments on #44/#35 |
+| [2026-07-04](#review-2026-07-04) | v1.0.0 | Full codebase: security / technical / privacy / enhancements | #36–#45 |
+
+---
+
+# Review: 2026-07-10
+
+**Reviewer:** Claude (Fable 5)
+**Scope:** Full application review — functional correctness, reliability, security posture, docs consistency.
+**Posture:** Report only. No code was changed as part of this review.
+
+Version reviewed: v1.0.1 (`app/version.py`), branch `chore/pin-transitive-deps` (tip of main + dep pinning).
+
+Findings filed as GitHub issues on 2026-07-10:
+F1→[#51](https://github.com/kjarkovska/fusemark/issues/51), F2→comment on [#44](https://github.com/kjarkovska/fusemark/issues/44) (relabeled bug; cross-referenced [#35](https://github.com/kjarkovska/fusemark/issues/35)), R1→[#52](https://github.com/kjarkovska/fusemark/issues/52), R2→[#53](https://github.com/kjarkovska/fusemark/issues/53), R3→[#54](https://github.com/kjarkovska/fusemark/issues/54), R4→[#55](https://github.com/kjarkovska/fusemark/issues/55), R5→[#56](https://github.com/kjarkovska/fusemark/issues/56), R6→[#57](https://github.com/kjarkovska/fusemark/issues/57), M1→[#58](https://github.com/kjarkovska/fusemark/issues/58), M2–M5→[#59](https://github.com/kjarkovska/fusemark/issues/59), D1→[#60](https://github.com/kjarkovska/fusemark/issues/60).
+
+## TL;DR
+
+The app is in good shape: clean module boundaries, swappable providers, 393 passing tests (verified during this review; ruff clean), and the v1.0.1 hardening from the 2026-07-04 review (below) genuinely closed its findings — Host/Origin validation, keyring-only secrets, traversal guards, self-hosted fonts, dedicated progress columns, busy_timeout, quit-flush.
+
+Two features are **wired up but completely dead**, and they should be fixed (or removed) first:
+
+1. **F1 (bug):** The note-template picker — offered in the recorder, both import modals, and Settings — stores a choice that never reaches note generation. `notes.load_template()` has zero callers. Every note uses the bundled default template.
+2. **F2 (bug + wasted spend):** Glossary term suggestions are computed by a **second paid LLM call on every job** and stored in the DB, but no UI or route ever reads them, and `glossary.add_terms()` (the approve step) is unreachable. Confirms the suspicion behind #35.
+
+The single biggest architectural risk is **R1**: recordings are buffered entirely in RAM (~1.5–2 GB for a 2-hour meeting) and a crash loses all audio. Everything else is medium/low.
+
+## 1. Dead features (functional bugs)
+
+### F1 — [High] Selected note template is never used → [#51](https://github.com/kjarkovska/fusemark/issues/51)
+**Where:** Template pickers (recorder, import modals, Settings `default_template`); `app/recording_service.py:64` and the import routes persist `jobs.template`; `app/worker.py` `_generate()`; `app/llm/*`; `app/notes.py:23` `load_template()`.
+
+**Problem:** The choice is collected and stored but `worker._generate()` never passes `job["template"]` to `generate_notes()`, no provider accepts a template parameter, and `load_template()` — with its traversal guard and "caller falls back to built-in" docstring — has zero callers. Every note is generated from the bundled `note_template.md` (or the `%APPDATA%\FuseMark\prompts\` override) regardless of the pick. #27 (template-scoped prompt addendum) presumes this works.
+
+**Fix:** Thread `job["template"]` → `generate_notes()` → providers; load via `load_template()` into `build_note_system()` with fallback. Or remove the pickers.
+
+### F2 — [High] Glossary suggestions dead-end — every job pays for an invisible LLM call → [#44](https://github.com/kjarkovska/fusemark/issues/44) (comment), relates [#35](https://github.com/kjarkovska/fusemark/issues/35)
+**Where:** `app/worker.py` `_generate()` → `suggest_glossary_terms()`; `jobs.glossary_terms`; `glossary.add_terms()`.
+
+**Problem:** After every job the worker makes a second LLM call and stores the suggested terms, but no route, template, or line of `app.js` reads `glossary_terms`, and `add_terms()` has no callers — the approve/dismiss flow promised in the BRIEF is unreachable. Extra tokens + latency per meeting for output nobody can see. (The other half of the glossary loop — `build_whisper_prompt()` → Whisper `initial_prompt`, and the glossary embedded in note-generation system prompts — **is** wired correctly.)
+
+**Fix:** Build the approve/dismiss UI (#44), or short-circuit the suggestion call behind a config flag until it exists.
+
+## 2. Reliability
+
+### R1 — [High] Whole recordings buffered in RAM → [#52](https://github.com/kjarkovska/fusemark/issues/52)
+`app/recorder.py` accumulates all frames in memory: ~1.5–2 GB for a 2-hour meeting (48 kHz stereo int16 loopback + mono mic), with a further transient copy in `save()`'s `b"".join()`. Long/back-to-back meetings risk swap/OOM; crash mid-meeting loses all audio (recovery can only mark the job `error`). This is U2 from the 2026-07-04 review (below), never filed then. Fix: flush incrementally to temp WAVs during capture; ffmpeg step unchanged.
+
+### R2 — [Medium] Only rate limits retry; transient network/5xx errors hard-fail → [#53](https://github.com/kjarkovska/fusemark/issues/53)
+`worker._generate()` maps only `LLMRateLimitError` to `_RetryableError`. `APIConnectionError`, 500s, 529-overloaded fall through to the generic handler → immediate `status=error` on first attempt, despite the docstring's promise of automatic retry. Fix: providers raise a retryable `LLMTransientError` for connection/5xx/overloaded; keep auth/4xx hard.
+
+### R3 — [Medium] Unguarded recording start/stop/quit failure paths → [#54](https://github.com/kjarkovska/fusemark/issues/54)
+(1) `RecordingService.stop()`: if `r.save()` raises (ffmpeg failure, "Nothing was recorded"), the job strands in `recording` and `/stop` returns a raw 500 that `app.js` can't parse. (2) `main._quit()` calls `stop_recording()` unguarded — a failed flush aborts the whole quit (teardown + `os._exit` never run). (3) `Recorder.start()` leaks the open loopback stream + PyAudio instance if the mic open fails (realistic with BT headsets). Fix: try/except around save → mark job error; try/finally in `_quit()`; cleanup partial state in `start()`.
+
+### R4 — [Medium] Manual retry doesn't reset `retry_count` → [#55](https://github.com/kjarkovska/fusemark/issues/55)
+`route_job_retry` clears `error_message` but leaves `retry_count` at 5, so the next retryable failure sends the job straight back to `error` with no fresh budget. Fallout from the #47 migration. Fix: also set `retry_count=0`.
+
+### R5 — [Medium] Same date + label silently overwrites notes and transcripts → [#56](https://github.com/kjarkovska/fusemark/issues/56)
+`save_note()`/`save_transcript()` write `{date} {label}.md` with `"w"` — a second "Standup" the same day destroys the first one's note and transcript. Fix: uniquify new paths (` (2)`); let retries of the same job reuse their stored path.
+
+### R6 — [Medium] `config.json` writes non-atomic; read-modify-write races → [#57](https://github.com/kjarkovska/fusemark/issues/57)
+`config.save()` writes in place — a crash mid-write corrupts the file, and `load()` (called from `_setup_logging()`) then throws at startup: the app won't launch until the file is deleted manually. Separately, the background updater thread and settings routes do unsynchronized load→mutate→save and can drop each other's writes. Fix: temp file + `os.replace()`, a lock around mutations, and a defaults-with-backup fallback on `JSONDecodeError`.
+
+## 3. Minor
+
+### M1 — `max_tokens=4096` with no truncation check → [#58](https://github.com/kjarkovska/fusemark/issues/58)
+All three providers cap note output at 4096 tokens and never check `stop_reason`/`finish_reason` — long meetings can get notes cut off mid-sentence, saved as if complete. Haiku 4.5 supports up to 64K output tokens. Fix: raise the cap and treat truncation as an error.
+
+### M2 — `/jobs/<id>/audio` crashes on unknown job; allows deleting audio of queued jobs → [#59](https://github.com/kjarkovska/fusemark/issues/59)
+`get_job()` → `None` → `AttributeError` → 500; and the API (unlike the UI) permits deleting audio for a still-queued job, breaking its transcription.
+
+### M3 — `/wizard/test-recording` has no cleanup → [#59](https://github.com/kjarkovska/fusemark/issues/59)
+No try/finally around start/sleep/stop/save (leaks streams on failure); no guard against an active real recording.
+
+### M4 — Leftover progress magic strings in `app.js` → [#59](https://github.com/kjarkovska/fusemark/issues/59)
+`renderJob` still compares `job.extra_context` to `'transcribing:uploading'`/`'transcribing:processing'` — dead remnant of the pre-#47 progress hack that now matches against user-entered context text.
+
+### M5 — `/update-check` duplicates `updater.check_for_update()` → [#59](https://github.com/kjarkovska/fusemark/issues/59)
+The route reimplements the request/parse/cache/404 logic. Delegate via a `force=True` path.
+
+## 4. Documentation
+
+### D1 — CLAUDE.md drift → [#60](https://github.com/kjarkovska/fusemark/issues/60)
+Intro says "Claude Haiku 3.5"; tech-stack table lists `sounddevice`, `large-v3`, and Obsidian-only output. Code uses Haiku 4.5 (`claude-haiku-4-5-20251001`), `pyaudiowpatch`, `large-v3-turbo` default, any Markdown vault. BRIEF.md is current.
+
+## 5. What's in good shape
+
+- **Security posture** (verified against the 2026-07-04 findings): loopback-only Flask with Host/Origin validation on every route; keys only in Credential Manager with masked status endpoint; traversal guards on `folder`, `template_name`, wizard playback filename; `tojson` for template injection and consistent `esc()` in `app.js`; https-only `/open-url`; size caps + 413 handler; update check never auto-executes.
+- **Queue/worker design:** WAL + busy_timeout, two-track worker (audio vs. import), startup recovery incl. ghost `recording` jobs, dedicated progress/eta/retry_count columns.
+- **Packaging:** frozen-path handling (`sys._MEIPASS`) consistent across modules; pre-generated ICOs for read-only Program Files; frozen-aware autostart; WebView2 warn-not-fail.
+- **Tests:** 393 passing (run during this review), ruff clean.
+
+## Appendix — What was reviewed
+
+- All of `app/` (server, worker, queue, recorder, recording_service, transcription/*, llm/*, notes, glossary, prompts, updater, autostart, tray, config, main, utils, i18n, exceptions).
+- Frontend: `static/app.js`, `templates/*.html` (string injection, job rendering/escaping).
+- Packaging: `installer/setup.iss`; docs: `BRIEF.md`, `ARCHITECTURE.md`, `CLAUDE.md`, and the 2026-07-04 review below.
+- Test suite executed (`python -m pytest`): 393 passed. `ruff check`: clean.
+
+---
+
+# Review: 2026-07-04
+
 **Reviewer:** Claude (Fable 5)
 **Scope:** Full codebase review — security (local-first, realistic threat model), technical issues, and enhancements (technical + user).
 **Posture:** Report only. No code was changed as part of this review.
@@ -9,7 +115,7 @@ Version reviewed: v1.0.0 (`app/version.py`), branch `main`.
 
 All findings below were filed as GitHub issues [#36–#45](https://github.com/kjarkovska/fusemark/issues?q=is%3Aissue) on 2026-07-04 (T1→#36, S1→#37, S2→#38, S3→#39, T2→#40, T3→#41, P1→#42, U1→#43, U3→#44, U5/U6→#45).
 
----
+> **Status as of 2026-07-10:** S1/S2/S3 fixed in PR #46 (closed #37/#38/#39); T1/T2/T3 fixed in PR #47 (closed #36/#40/#41); P1 fixed in PR #48 (closed #42). Still open: U1 (#43), U3 (#44 — expanded by the 2026-07-10 review's F2), U5/U6 (#45). U2 was never filed in this round — now tracked as [#52](https://github.com/kjarkovska/fusemark/issues/52). U4 and B1–B4 remain unfiled.
 
 ## TL;DR
 
@@ -21,8 +127,6 @@ Two items stand out and deserve to be fixed first:
 2. **S1 (security, top priority):** The localhost Flask server does no `Host`/`Origin` validation and has no CSRF/token protection, so a malicious web page (via DNS rebinding) can read `/jobs`, which returns full meeting transcripts.
 
 Everything else is medium/low or enhancement-level.
-
----
 
 ## 1. Security / Vulnerabilities
 
@@ -69,8 +173,6 @@ Threat model: app stays on localhost, single user. Realistic vectors considered:
 - Update check: HTTPS to api.github.com with default cert verification, 24h throttle, silent on failure, and it **opens the releases page in the browser** rather than auto-downloading/executing — the safe design.
 - Frontend output is escaped via `esc()` in the jobs list; Jinja auto-escaping covers templates. (Minor nuance: `esc()` doesn't escape `'`, but the only value interpolated into an `onclick='…("${job.id}")'` context is a server-generated UUID, so there's no XSS path.)
 
----
-
 ## 2. Technical Issues / Bugs
 
 ### T1 — [High impact] Transcription progress corrupts `extra_context` and the note prompt
@@ -105,10 +207,8 @@ This directly degrades the core output. The `extra_context` column is being used
 
 **Fix:** Guard the casts and return 400 on invalid values.
 
-### T5 — [Low] `_enforce_size_limit` re-globs the recordings dir每 iteration
+### T5 — [Low] `_enforce_size_limit` re-globs the recordings dir every iteration
 **Where:** `app/worker.py:234-235` recomputes total dir size inside the per-job loop (O(n²)). n is small, so cosmetic — noted for completeness, not worth its own issue.
-
----
 
 ## 3. Privacy
 
@@ -118,8 +218,6 @@ This directly degrades the core output. The `extra_context` column is being used
 **Problem:** For an app whose headline promise is "audio never leaves the machine / local-first," every window open makes a request to Google, leaking the user's IP and app-usage timing. It also means the font silently fails when offline (an app explicitly designed to work without the cloud).
 
 **Fix:** Self-host Inter (woff2) under `static/fonts/`, reference it via `@font-face` in `static/style.css`, and drop the external `<link>`s. Offline-clean and CSP-friendly.
-
----
 
 ## 4. User-Facing Enhancements
 
@@ -141,16 +239,12 @@ After a job is `done`, `output_note_path` is known — let the user click to ope
 ### U6 — Actionable error messages
 Errors render raw exception text (`renderJob` → `job.error_message`). Map the common cases — no API key, model not downloaded, vault not set, ffmpeg missing — to plain-language guidance with a button to the relevant Settings section.
 
----
-
 ## 5. Bigger Bets (scope-changing — flagged separately)
 
 - **B1 — Speaker diarization** (who said what). Already "future" in the BRIEF; high value for meeting notes, meaningful effort.
 - **B2 — Optional local LLM** (Ollama / llama.cpp) for note generation → fully offline, zero-cost, zero-cloud. Aligns with the privacy positioning; large effort and a quality tradeoff to validate.
 - **B3 — Code signing / SmartScreen.** Already on the maintainer checklist. Worth prioritizing because the unsigned installer directly undercuts the "easy to share with friends" goal (SmartScreen scares non-technical users off).
 - **B4 — Per-job cost & latency display** with token estimation across providers, so users can see what each note costs.
-
----
 
 ## Appendix — What was reviewed
 - All of `app/` (server, worker, queue, recorder, recording_service, transcription, llm/*, notes, glossary, prompts, updater, autostart, tray, config, main, utils, i18n, exceptions).
