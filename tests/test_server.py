@@ -48,6 +48,45 @@ def test_templates_lists_files(flask_client, tmp_vault):
 
 
 # ------------------------------------------------------------------
+# Host/Origin validation (DNS rebinding + CSRF guard)
+# ------------------------------------------------------------------
+
+def test_spoofed_host_rejected(flask_client):
+    r = flask_client.get("/status", headers={"Host": "evil.com"})
+    assert r.status_code == 403
+
+
+def test_spoofed_host_rejected_on_post_route(flask_client):
+    r = flask_client.post(
+        "/import-transcript",
+        data=json.dumps({"transcript": "hello"}),
+        content_type="application/json",
+        headers={"Host": "evil.com"},
+    )
+    assert r.status_code == 403
+
+
+def test_cross_origin_request_rejected(flask_client):
+    r = flask_client.post(
+        "/start",
+        json={},
+        headers={"Origin": "https://evil.com"},
+    )
+    assert r.status_code == 403
+
+
+def test_same_origin_request_allowed(flask_client):
+    r = flask_client.get("/status", headers={"Origin": "http://127.0.0.1:5000"})
+    assert r.status_code == 200
+
+
+def test_default_test_client_requests_unaffected(flask_client):
+    # No explicit Host/Origin override — mirrors every other test in this file.
+    r = flask_client.get("/status")
+    assert r.status_code == 200
+
+
+# ------------------------------------------------------------------
 # Import transcript
 # ------------------------------------------------------------------
 

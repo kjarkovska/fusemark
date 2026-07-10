@@ -26,6 +26,7 @@ import os
 import sys
 import threading
 import time as _time
+from urllib.parse import urlsplit
 
 from flask import Flask, jsonify, redirect, render_template, request, send_file
 
@@ -56,6 +57,24 @@ MAX_TRANSCRIPT_CHARS = 2_000_000
 @app.errorhandler(413)
 def _request_too_large(_err):
     return jsonify({"error": "Soubor je příliš velký (max 500 MB)."}), 413
+
+
+# Loopback-only hostnames the app is ever legitimately reached on.
+_ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
+
+
+@app.before_request
+def _validate_host_and_origin():
+    """Reject requests whose Host isn't loopback (DNS rebinding) or whose
+    Origin is a different site (CSRF). Origin is absent on same-origin
+    requests from the app's own pywebview shell, so absence is allowed."""
+    host = urlsplit(f"//{request.host}").hostname
+    if host not in _ALLOWED_HOSTS:
+        return jsonify({"error": "Forbidden"}), 403
+
+    origin = request.headers.get("Origin")
+    if origin and urlsplit(origin).hostname not in _ALLOWED_HOSTS:
+        return jsonify({"error": "Forbidden"}), 403
 
 
 _recording_service = RecordingService()
