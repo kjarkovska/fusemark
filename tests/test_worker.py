@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.exceptions import ModelNotReadyError
-from app.worker import Worker, _parse_retry_count, _RetryableError
+from app.worker import Worker, _RetryableError
 
 
 def _make_job(overrides=None):
@@ -19,6 +19,7 @@ def _make_job(overrides=None):
         "recording_path": None,
         "created_at": "2026-01-01T10:00:00+00:00",
         "error_message": None,
+        "retry_count": 0,
     }
     if overrides:
         base.update(overrides)
@@ -59,34 +60,6 @@ def mocks():
             "job": job,
             "job_with_transcript": job_with_transcript,
         }
-
-
-# ------------------------------------------------------------------
-# _parse_retry_count()
-# ------------------------------------------------------------------
-
-def test_parse_retry_count_valid():
-    assert _parse_retry_count("retry:3:Connection error") == 3
-
-
-def test_parse_retry_count_zero():
-    assert _parse_retry_count("retry:0:something") == 0
-
-
-def test_parse_retry_count_empty():
-    assert _parse_retry_count("") == 0
-
-
-def test_parse_retry_count_none():
-    assert _parse_retry_count(None) == 0
-
-
-def test_parse_retry_count_unrelated_message():
-    assert _parse_retry_count("Transcription failed: oops") == 0
-
-
-def test_parse_retry_count_malformed():
-    assert _parse_retry_count("retry:abc:msg") == 0
 
 
 # ------------------------------------------------------------------
@@ -186,17 +159,14 @@ def test_retryable_error_increments_retry_count(mocks):
     w._process_next()
 
     update_calls = mocks["q"].update_job.call_args_list
-    # A re-queue (status back to "queued") must have happened.
+    # A re-queue (status back to "queued") must have happened, with retry_count=1
+    # and a clean (unprefixed) error_message.
     assert any(
-        c.kwargs.get("status") == "queued" or (c.args[1:] and "queued" in str(c))
+        c.kwargs.get("status") == "queued"
+        and c.kwargs.get("retry_count") == 1
+        and c.kwargs.get("error_message") == "rate limit"
         for c in update_calls
     )
-    # Check error_message starts with "retry:1:"
-    error_msgs = [
-        c.kwargs.get("error_message", "") or (c.args[2] if len(c.args) > 2 else "")
-        for c in update_calls
-    ]
-    assert any(str(msg).startswith("retry:1:") for msg in error_msgs)
 
 
 def test_retryable_error_requeues_job(mocks):
@@ -214,7 +184,7 @@ def test_retryable_error_requeues_job(mocks):
 
 def test_max_retries_marks_permanent_error(mocks):
     # Use pre-populated transcript so worker doesn't re-fetch job (which would reset error_message)
-    job = _make_job({"transcript": "text", "error_message": "retry:5:previous error"})
+    job = _make_job({"transcript": "text", "retry_count": 5})
     mocks["q"].list_jobs.return_value = [job]
     mocks["generate"].side_effect = _RetryableError("still failing")
 

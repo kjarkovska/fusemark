@@ -112,7 +112,8 @@ def transcribe_local(
                 eta_seconds = 0
             q.update_job(
                 job_id,
-                extra_context=f"transcribing:{progress_pct}%:eta:{eta_seconds}s",
+                progress=progress_pct,
+                eta=eta_seconds,
             )
 
     elapsed_total = time.time() - start

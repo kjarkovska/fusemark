@@ -124,14 +124,15 @@ def test_model_not_ready_persists_clean_error_message(w):
 # Retryable generation errors
 # ------------------------------------------------------------------
 
-def test_retryable_error_requeues_with_encoded_retry_count(w):
+def test_retryable_error_requeues_with_retry_count(w):
     worker, mocks = w
     mocks["generate"].side_effect = LLMRateLimitError("rate limit hit")
     job_id = _queued_job(transcript="some text")
     worker._process_next(audio_track=False)
     job = q.get_job(job_id)
     assert job["status"] == "queued"
-    assert job["error_message"].startswith("retry:1:")
+    assert job["retry_count"] == 1
+    assert job["error_message"] == "rate limit hit"
 
 
 def test_max_retries_exceeded_marks_permanent_error(w):
@@ -139,7 +140,7 @@ def test_max_retries_exceeded_marks_permanent_error(w):
     mocks["generate"].side_effect = _RetryableError("still failing")
     job_id = _queued_job(
         transcript="text",
-        error_message=f"retry:{MAX_RETRIES}:previous error",
+        retry_count=MAX_RETRIES,
     )
     worker._process_next(audio_track=False)
     job = q.get_job(job_id)
