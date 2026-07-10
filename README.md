@@ -220,3 +220,4 @@ FuseMark is built on top of excellent open-source work:
 - **[keyring](https://github.com/jaraco/keyring)** — Windows Credential Manager API key storage
 - **[PyInstaller](https://pyinstaller.org/)** — app packaging
 - **[ffmpeg](https://ffmpeg.org/)** — audio mixing and encoding
+- **[Inter](https://rsms.me/inter/)** — UI typeface (SIL OFL 1.1), self-hosted
