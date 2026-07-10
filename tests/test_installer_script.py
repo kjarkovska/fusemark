@@ -1,6 +1,8 @@
 import re
 from pathlib import Path
 
+from app.version import VERSION
+
 SETUP_ISS = Path(__file__).resolve().parents[1] / "installer" / "setup.iss"
 
 
@@ -32,3 +34,17 @@ def test_setup_iss_files_section_has_no_duplicate_entries():
         )
         assert key not in seen, f"Duplicate [Files] entry in setup.iss: {line}"
         seen.add(key)
+
+
+def test_setup_iss_version_matches_app_version():
+    """app/version.py and setup.iss MyAppVersion must be bumped together, or the
+    installer reports a different version than the app it contains. Failing here
+    (on every PR) beats discovering the mismatch at release-tag time — the
+    release workflow separately checks the git tag against app/version.py."""
+    text = SETUP_ISS.read_text(encoding="utf-8")
+    match = re.search(r'^#define\s+MyAppVersion\s+"([^"]+)"', text, re.MULTILINE)
+    assert match, "MyAppVersion define not found in setup.iss"
+    assert match.group(1) == VERSION, (
+        f"setup.iss MyAppVersion={match.group(1)!r} != app/version.py VERSION={VERSION!r} "
+        "— bump both together."
+    )

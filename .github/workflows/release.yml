@@ -1,16 +1,21 @@
 name: Release build
 
-# On a version tag, build the PyInstaller onedir on a Windows runner and upload it
-# as an artifact. Signing + Inno Setup + clean-VM testing are done locally by the
-# maintainer (a code-signing certificate must never live in public CI).
+# On a version tag, verify the tag matches the source version, run the full
+# test suite, then build the PyInstaller onedir on a Windows runner and upload
+# it as an artifact. Signing + Inno Setup + clean-VM testing are done locally
+# by the maintainer (a code-signing certificate must never live in public CI).
 
 on:
   push:
     tags: ["v*"]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -18,12 +23,28 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      # A tag like v1.0.2 must ship code that says it is 1.0.2. setup.iss
+      # consistency is covered by the test suite (test_installer_script.py).
+      - name: Verify tag matches app/version.py
+        run: |
+          $tag = "${{ github.ref_name }}".TrimStart("v")
+          $ver = python -c "from app.version import VERSION; print(VERSION)"
+          if ($tag -ne $ver) {
+            throw "Tag v$tag does not match app/version.py VERSION=$ver — bump the version (and setup.iss) before tagging."
+          }
+
+      # Never build a release artifact from a commit the tests haven't passed on.
+      - name: Test (pytest)
+        run: pytest
 
       - name: Build (PyInstaller)
         run: pyinstaller installer/build.spec
