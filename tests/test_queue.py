@@ -2,6 +2,11 @@ import pytest
 import app.queue as q
 
 
+def test_conn_sets_busy_timeout(db_path):
+    with q._conn() as con:
+        assert con.execute("PRAGMA busy_timeout").fetchone()[0] == 5000
+
+
 def test_create_job_defaults(db_path):
     job_id = q.create_job(label="Test", folder="Other")
     job = q.get_job(job_id)
@@ -66,8 +71,7 @@ def test_recover_interrupted(db_path):
     assert q.get_job(j2)["status"] == "queued"
 
 
-def test_recover_skips_other_statuses(db_path):
-    j_rec = q.create_job(label="recording")
+def test_recover_skips_done_and_error(db_path):
     j_done = q.create_job(label="done")
     q.set_status(j_done, "queued")
     q.set_status(j_done, "done")
@@ -76,9 +80,17 @@ def test_recover_skips_other_statuses(db_path):
     q.set_status(j_err, "error")
     count = q.recover_interrupted_jobs()
     assert count == 0
-    assert q.get_job(j_rec)["status"] == "recording"
     assert q.get_job(j_done)["status"] == "done"
     assert q.get_job(j_err)["status"] == "error"
+
+
+def test_recover_marks_ghost_recording_jobs_as_error(db_path):
+    j_rec = q.create_job(label="recording")
+    count = q.recover_interrupted_jobs()
+    assert count == 1
+    job = q.get_job(j_rec)
+    assert job["status"] == "error"
+    assert job["error_message"] == "recording interrupted — audio not saved"
 
 
 def test_clear_completed(db_path):

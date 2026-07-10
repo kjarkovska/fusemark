@@ -60,6 +60,7 @@ def _now():
 def _conn():
     con = sqlite3.connect(DB_PATH)
     con.row_factory = sqlite3.Row
+    con.execute("PRAGMA busy_timeout = 5000")
     try:
         yield con
         con.commit()
@@ -86,6 +87,9 @@ def init_db():
             ("meeting_date",    "ALTER TABLE jobs ADD COLUMN meeting_date TEXT"),
             ("glossary_terms",  "ALTER TABLE jobs ADD COLUMN glossary_terms TEXT"),
             ("keep_audio",      "ALTER TABLE jobs ADD COLUMN keep_audio INTEGER"),
+            ("progress",        "ALTER TABLE jobs ADD COLUMN progress INTEGER"),
+            ("eta",             "ALTER TABLE jobs ADD COLUMN eta INTEGER"),
+            ("retry_count",     "ALTER TABLE jobs ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0"),
         ]
         for col, sql in migrations:
             if col not in existing_cols:
@@ -174,6 +178,8 @@ def clear_completed():
 def recover_interrupted_jobs():
     """
     Reset jobs stuck mid-processing back to 'queued' so the worker retries them.
+    Jobs stuck in 'recording' had their audio buffered only in memory, so it's
+    gone after a crash — mark those 'error' instead of retrying them.
     Called once on app startup.
     """
     with _conn() as con:
@@ -185,9 +191,17 @@ def recover_interrupted_jobs():
             """,
             (_now(),),
         )
-    count = result.rowcount
+        recording_result = con.execute(
+            """
+            UPDATE jobs
+               SET status = 'error', error_message = 'recording interrupted — audio not saved', updated_at = ?
+             WHERE status = 'recording'
+            """,
+            (_now(),),
+        )
+    count = result.rowcount + recording_result.rowcount
     if count:
-        logger.info("Recovered %d interrupted job(s) -> queued", count)
+        logger.info("Recovered %d interrupted job(s)", count)
     return count
 
 

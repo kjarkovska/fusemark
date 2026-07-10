@@ -267,16 +267,12 @@ function renderJob(job) {
 }
 
 function progressFromJob(job) {
-  if (!job.extra_context) return 0;
-  const m = job.extra_context.match(/transcribing:(\d+)%/);
-  return m ? parseInt(m[1]) : 0;
+  return job.progress || 0;
 }
 
 function etaFromJob(job) {
-  if (!job.extra_context) return null;
-  const m = job.extra_context.match(/transcribing:\d+%:eta:(\d+)s/);
-  if (!m) return null;
-  const secs = parseInt(m[1]);
+  if (job.eta === null || job.eta === undefined) return null;
+  const secs = job.eta;
   const mm = String(Math.floor(secs / 60)).padStart(2, '0');
   const ss = String(secs % 60).padStart(2, '0');
   return `${mm}:${ss}`;

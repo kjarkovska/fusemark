@@ -106,12 +106,13 @@ class Worker:
         try:
             self._generate(job_id, job)
         except _RetryableError as exc:
-            retries = _parse_retry_count(job.get("error_message", ""))
+            retries = job.get("retry_count", 0) or 0
             if retries < MAX_RETRIES:
                 q.update_job(
                     job_id,
                     status="queued",
-                    error_message=f"retry:{retries + 1}:{exc}",
+                    retry_count=retries + 1,
+                    error_message=str(exc),
                 )
                 logger.warning("Job %s will retry (%s/%s): %s", job_id, retries + 1, MAX_RETRIES, exc)
             else:
@@ -210,16 +211,6 @@ class Worker:
 
 class _RetryableError(Exception):
     """Raised when a generation step fails but should be retried automatically."""
-
-
-def _parse_retry_count(error_message):
-    """Extract retry count from error_message field (format: 'retry:N:...')."""
-    if error_message and error_message.startswith("retry:"):
-        try:
-            return int(error_message.split(":")[1])
-        except (IndexError, ValueError):
-            pass
-    return 0
 
 
 def _enforce_size_limit(config):

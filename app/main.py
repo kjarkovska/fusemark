@@ -229,6 +229,7 @@ def main():
         # taskbar updated via server.on_recording → _on_recording callback
 
     def _quit():
+        server.stop_recording()  # flush any in-progress recording to disk before exit
         worker.stop()
         tray.stop()
         window.destroy()
