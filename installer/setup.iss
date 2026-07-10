@@ -8,7 +8,7 @@
 ; MyAppVersion must match app/version.py at release time (see installer/README.md).
 
 #define MyAppName "FuseMark"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppExeName "FuseMark.exe"
 
 [Setup]
