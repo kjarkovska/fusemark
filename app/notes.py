@@ -43,7 +43,12 @@ def save_note(note_md, label, folder, vault_path, date_str=""):
     filename = f"{today} {label or 'Porada'}.md"
     filename = "".join(c for c in filename if c not in r'\/:*?"<>|')
 
-    target_dir = os.path.join(vault_path, "FuseMark", "Meetings", folder or "Other")
+    # Guard against path traversal — only the bare folder name is allowed.
+    folder = os.path.basename(folder or "")
+    if folder in ("", ".", ".."):
+        folder = "Other"
+
+    target_dir = os.path.join(vault_path, "FuseMark", "Meetings", folder)
     os.makedirs(target_dir, exist_ok=True)
 
     note_md = re.sub(r'(?m)^(date:)\s*.*$', f'date: {today}', note_md, count=1)
