@@ -29,6 +29,15 @@ dist\FuseMark\FuseMark.exe
 iscc installer\setup.iss
 #   -> produces installer\Output\FuseMarkSetup.exe
 
+# sanity-check the size against the previous release before uploading — a large
+# unexplained jump usually means something got bundled twice (this happened once:
+# ffmpeg.exe + ffprobe.exe were each embedded twice in the v1.0.0 build, ~198MB of
+# dead weight, only caught by comparing sizes across releases). The [Files] section
+# itself is guarded by tests/test_installer_script.py, but that only catches
+# duplicate lines in setup.iss — not other packaging mistakes — so still compare:
+(Get-Item installer\Output\FuseMarkSetup.exe).Length / 1MB
+gh release view <previous-tag> --json assets --jq '.assets[0].size' # bytes; divide by 1MB to compare
+
 # sign the installer too, then test on a clean Windows VM with NO Python installed.
 ```
 
