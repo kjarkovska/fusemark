@@ -1,0 +1,8 @@
+# Development and CI tooling, pinned for the same reason as requirements.txt:
+# a floating ruff can redden CI on an unrelated PR, and a floating PyInstaller
+# changes what a release tag actually ships. When upgrading, bump one line and
+# let CI validate (for pyinstaller: also rebuild and smoke-test the packaged exe).
+
+ruff==0.15.16
+pytest==9.0.3
+pyinstaller==6.21.0   # release builds only; keep in sync with local build machine
