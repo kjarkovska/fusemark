@@ -17,6 +17,17 @@ def _parse_version(v: str) -> tuple:
     return tuple(int(x) for x in v.lstrip("v").split("."))
 
 
+def _fetch_latest_release() -> tuple:
+    """Fetch (version, url) for the latest GitHub release. Raises on failure."""
+    req = urllib.request.Request(
+        RELEASES_URL,
+        headers={"User-Agent": f"FuseMark/{VERSION}"},
+    )
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        data = json.loads(resp.read())
+    return data["tag_name"].lstrip("v"), data.get("html_url", "")
+
+
 def check_for_update(force: bool = False) -> dict | None:
     """Check GitHub for a newer release. Returns {version, url} or None.
 
@@ -45,14 +56,7 @@ def check_for_update(force: bool = False) -> dict | None:
                 pass
 
     try:
-        req = urllib.request.Request(
-            RELEASES_URL,
-            headers={"User-Agent": f"FuseMark/{VERSION}"},
-        )
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            data = json.loads(resp.read())
-        latest = data["tag_name"].lstrip("v")
-        url = data.get("html_url", "")
+        latest, url = _fetch_latest_release()
         update_available = _parse_version(latest) > _parse_version(VERSION)
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with cfg.lock():

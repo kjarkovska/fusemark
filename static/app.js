@@ -215,14 +215,8 @@ function renderJob(job) {
 
   let progressLabel = '';
   if (job.status === 'transcribing') {
-    if (job.extra_context === 'transcribing:uploading') {
-      progressLabel = window.STRINGS.progress_uploading;
-    } else if (job.extra_context === 'transcribing:processing') {
-      progressLabel = window.STRINGS.progress_transcribing_api;
-    } else {
-      const eta = etaFromJob(job);
-      progressLabel = eta ? `${progress}%, ${eta}` : `${progress}%`;
-    }
+    const eta = etaFromJob(job);
+    progressLabel = eta ? `${progress}%, ${eta}` : `${progress}%`;
   }
 
   const progressBar = isActive
