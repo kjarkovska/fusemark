@@ -32,3 +32,43 @@ def test_save_note_rejects_path_traversal(tmp_vault, tmp_path):
 def test_save_note_bare_dotdot_folder_falls_back_to_other(tmp_vault):
     out_path = notes.save_note("note body", "Label", "..", str(tmp_vault))
     assert os.path.join("Meetings", "Other") in out_path
+
+
+def test_save_note_collision_uniquifies(tmp_vault):
+    p1 = notes.save_note("first", "Standup", "Other", str(tmp_vault), date_str="2026-01-01")
+    p2 = notes.save_note("second", "Standup", "Other", str(tmp_vault), date_str="2026-01-01")
+    assert p1 != p2
+    assert os.path.basename(p1) == "2026-01-01 Standup.md"
+    assert os.path.basename(p2) == "2026-01-01 Standup (2).md"
+    with open(p1, encoding="utf-8") as f:
+        assert f.read() == "first"
+    with open(p2, encoding="utf-8") as f:
+        assert f.read() == "second"
+
+
+def test_save_note_existing_path_overwrites_in_place(tmp_vault):
+    p1 = notes.save_note("first", "Standup", "Other", str(tmp_vault), date_str="2026-01-01")
+    p2 = notes.save_note(
+        "updated", "Standup", "Other", str(tmp_vault), date_str="2026-01-01", existing_path=p1
+    )
+    assert p2 == p1
+    with open(p1, encoding="utf-8") as f:
+        assert f.read() == "updated"
+
+
+def test_save_transcript_collision_uniquifies(tmp_vault):
+    p1 = notes.save_transcript("first", "Standup", str(tmp_vault), date_str="2026-01-01")
+    p2 = notes.save_transcript("second", "Standup", str(tmp_vault), date_str="2026-01-01")
+    assert p1 != p2
+    assert os.path.basename(p1) == "2026-01-01 Standup.md"
+    assert os.path.basename(p2) == "2026-01-01 Standup (2).md"
+
+
+def test_save_transcript_existing_path_overwrites_in_place(tmp_vault):
+    p1 = notes.save_transcript("first", "Standup", str(tmp_vault), date_str="2026-01-01")
+    p2 = notes.save_transcript(
+        "updated", "Standup", str(tmp_vault), date_str="2026-01-01", existing_path=p1
+    )
+    assert p2 == p1
+    with open(p1, encoding="utf-8") as f:
+        assert "updated" in f.read()

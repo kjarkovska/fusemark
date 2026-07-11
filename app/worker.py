@@ -164,7 +164,10 @@ class Worker:
         transcript = job.get("transcript") or ""
         date_str = job.get("meeting_date", "") or ""
 
-        transcript_path = save_transcript(transcript, job.get("label", ""), vault_path, date_str=date_str)
+        transcript_path = save_transcript(
+            transcript, job.get("label", ""), vault_path, date_str=date_str,
+            existing_path=job.get("transcript_path") or None,
+        )
         if transcript_path:
             q.update_job(job_id, transcript_path=transcript_path)
 
@@ -181,7 +184,10 @@ class Worker:
         except LLMRateLimitError as exc:
             raise _RetryableError(str(exc)) from exc
 
-        out_path = save_note(note, job.get("label", ""), job.get("folder", "Other"), vault_path, date_str=date_str)
+        out_path = save_note(
+            note, job.get("label", ""), job.get("folder", "Other"), vault_path, date_str=date_str,
+            existing_path=job.get("output_note_path") or None,
+        )
         q.update_job(job_id, output_note_path=out_path)
 
         try:
