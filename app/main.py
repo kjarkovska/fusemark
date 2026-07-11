@@ -229,7 +229,10 @@ def main():
         # taskbar updated via server.on_recording → _on_recording callback
 
     def _quit():
-        server.stop_recording()  # flush any in-progress recording to disk before exit
+        try:
+            server.stop_recording()  # flush any in-progress recording to disk before exit
+        except Exception:
+            logger.exception("Failed to flush in-progress recording during quit")
         worker.stop()
         tray.stop()
         window.destroy()
