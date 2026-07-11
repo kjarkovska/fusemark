@@ -20,7 +20,6 @@ Routes:
   POST /open-url      — open a URL in the system browser (validated: https:// only)
 """
 
-import json
 import logging
 import mimetypes
 import os
@@ -293,12 +292,19 @@ def route_job_context(job_id):
 
 @app.route("/jobs/<job_id>/audio", methods=["POST"])
 def route_job_audio(job_id):
+    job = q.get_job(job_id)
+    if job is None:
+        return jsonify({"error": "Job not found"}), 404
+
     data = request.get_json(silent=True) or {}
     keep = 1 if data.get("keep") else 0
+
+    if not keep and job["status"] not in ("done", "error"):
+        return jsonify({"error": "Cannot delete audio for a job still in progress."}), 400
+
     q.update_job(job_id, keep_audio=keep)
 
     if not keep:
-        job = q.get_job(job_id)
         audio = job.get("audio_path") or job.get("recording_path")
         if audio and os.path.exists(audio):
             os.remove(audio)
@@ -523,31 +529,25 @@ def update_check_route():
     import app.updater as updater
     import datetime
     import urllib.error
-    import urllib.request
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     try:
-        req = urllib.request.Request(
-            updater.RELEASES_URL,
-            headers={"User-Agent": f"FuseMark/{VERSION}"},
-        )
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            data = json.loads(resp.read())
-        latest = data["tag_name"].lstrip("v")
-        url = data.get("html_url", "")
+        latest, url = updater._fetch_latest_release()
         update_available = updater._parse_version(latest) > updater._parse_version(VERSION)
-        config = cfg.load()
-        config["last_update_check"] = now
-        config["latest_known_version"] = latest
-        config["latest_known_url"] = url
-        cfg.save(config)
+        with cfg.lock():
+            config = cfg.load()
+            config["last_update_check"] = now
+            config["latest_known_version"] = latest
+            config["latest_known_url"] = url
+            cfg.save(config)
         return jsonify({"ok": True, "update_available": update_available,
                         "version": latest, "url": url, "checked_at": now})
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
             # No releases published yet — not an error
-            config = cfg.load()
-            config["last_update_check"] = now
-            cfg.save(config)
+            with cfg.lock():
+                config = cfg.load()
+                config["last_update_check"] = now
+                cfg.save(config)
             return jsonify({"ok": True, "update_available": False,
                             "version": "", "url": "", "checked_at": now})
         logger.warning("Update check HTTP error %s", exc.code)
@@ -689,6 +689,9 @@ def wizard_test_llm():
 @app.route("/wizard/test-recording", methods=["POST"])
 def wizard_test_recording():
     """Record 5 seconds; return filename. Blocks for the full 5s — UI must show spinner."""
+    if _recording_service.is_recording:
+        return jsonify({"error": "Cannot test recording while a meeting is being recorded."}), 409
+
     config = cfg.load()
     recordings_dir = os.path.join(cfg.DATA_DIR, "recordings")
     os.makedirs(recordings_dir, exist_ok=True)
@@ -698,10 +701,15 @@ def wizard_test_recording():
         output_device=config.get("output_device"),
         input_device=config.get("input_device"),
     )
-    r.start()
-    _time.sleep(5)
-    r.stop()
-    r.save(filepath)
+    try:
+        r.start()
+        _time.sleep(5)
+        r.stop()
+        r.save(filepath)
+    except Exception as exc:
+        logger.exception("Wizard test recording failed")
+        r.stop()
+        return jsonify({"error": str(exc)}), 500
     return jsonify({"filename": filename})
 
 

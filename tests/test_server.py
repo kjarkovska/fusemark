@@ -279,6 +279,7 @@ def test_update_job_context(flask_client):
 
 def test_job_audio_keep_false_no_file(flask_client):
     job_id = q.create_job()
+    q.set_status(job_id, "done")
     r = flask_client.post(
         f"/jobs/{job_id}/audio",
         data=json.dumps({"keep": False}),
@@ -286,6 +287,42 @@ def test_job_audio_keep_false_no_file(flask_client):
     )
     assert r.status_code == 200
     assert r.get_json()["ok"] is True
+
+
+def test_job_audio_unknown_job_returns_404(flask_client):
+    r = flask_client.post(
+        "/jobs/nonexistent-id/audio",
+        data=json.dumps({"keep": False}),
+        content_type="application/json",
+    )
+    assert r.status_code == 404
+
+
+def test_job_audio_keep_false_rejected_for_in_progress_job(flask_client, tmp_path):
+    audio = tmp_path / "rec.mp3"
+    audio.write_bytes(b"audio data")
+    job_id = q.create_job()
+    q.update_job(job_id, audio_path=str(audio))
+    q.set_status(job_id, "transcribing")
+    r = flask_client.post(
+        f"/jobs/{job_id}/audio",
+        data=json.dumps({"keep": False}),
+        content_type="application/json",
+    )
+    assert r.status_code == 400
+    assert audio.exists()
+
+
+def test_job_audio_keep_true_allowed_for_in_progress_job(flask_client):
+    job_id = q.create_job()
+    q.set_status(job_id, "transcribing")
+    r = flask_client.post(
+        f"/jobs/{job_id}/audio",
+        data=json.dumps({"keep": True}),
+        content_type="application/json",
+    )
+    assert r.status_code == 200
+    assert q.get_job(job_id)["keep_audio"] == 1
 
 
 def test_languages_returns_list(flask_client):
@@ -673,6 +710,7 @@ def test_job_audio_keep_false_deletes_existing_file(flask_client, tmp_path):
     audio.write_bytes(b"audio data")
     job_id = q.create_job()
     q.update_job(job_id, audio_path=str(audio))
+    q.set_status(job_id, "done")
     r = flask_client.post(
         f"/jobs/{job_id}/audio",
         data=json.dumps({"keep": False}),
@@ -903,6 +941,32 @@ def test_wizard_test_recording_returns_filename(flask_client, tmp_path, monkeypa
     data = r.get_json()
     assert "filename" in data
     assert data["filename"].startswith("wizard_test_")
+
+
+def test_wizard_test_recording_rejected_while_real_recording_active(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    import app.server as srv
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    with patch("app.recorder.Recorder", return_value=MagicMock()):
+        srv._recording_service.start(label="Real meeting")
+    try:
+        r = flask_client.post("/wizard/test-recording")
+        assert r.status_code == 409
+    finally:
+        srv._recording_service.stop()
+
+
+def test_wizard_test_recording_cleans_up_on_save_failure(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    mock_rec = MagicMock()
+    mock_rec.save.side_effect = RuntimeError("Nothing was recorded.")
+    with patch("app.server.Recorder", return_value=mock_rec), \
+         patch("app.server._time", MagicMock(time=lambda: 12345, sleep=lambda n: None)):
+        r = flask_client.post("/wizard/test-recording")
+    assert r.status_code == 500
+    assert "error" in r.get_json()
+    mock_rec.stop.assert_called()
 
 
 def test_wizard_playback_serves_file(flask_client, tmp_path, monkeypatch):
