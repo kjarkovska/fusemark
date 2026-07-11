@@ -4,13 +4,13 @@ This file provides guidance to Claude Code when working in this repository.
 
 ## Project
 
-**FuseMark** — a local Windows 11 desktop app for recording meeting audio, transcribing it locally with faster-whisper, and generating structured Czech meeting notes into a Markdown vault (Obsidian, Logseq, or any Markdown app) via Claude Haiku 3.5 API.
+**FuseMark** — a local Windows 11 desktop app for recording meeting audio, transcribing it locally with faster-whisper, and generating structured Czech meeting notes into a Markdown vault (Obsidian, Logseq, or any Markdown app) via Claude Haiku 4.5 API (+ OpenAI GPT-4o mini, Mistral Small).
 
 Audio never leaves the machine. Recording and processing are fully decoupled so back-to-back meetings work seamlessly.
 
 ## Current Status
 
-**v1.0.1 RELEASED — installer published to GitHub Releases (unsigned). Tests: 392 passed.**
+**v1.0.2 in progress — 3/4 PRs merged (#64/#65/#66); #67 open for review. Tests: 427 passed.**
 
 Release build fixes: `app/main.py`, `app/server.py`, `app/tray.py`, `app/prompts.py` all updated to resolve asset/template/prompt-defaults paths from `sys._MEIPASS` when frozen (PyInstaller onedir); previously `__file__`-based paths pointed back at the source tree and caused `FileNotFoundError` on first launch of the packaged exe.
 
@@ -48,6 +48,8 @@ Post-review hardening (merged via PR #29): bundled-defaults dir renamed `app/pro
 
 - Review + roadmap session (2026-07-10): second full-app review → consolidated with the 2026-07-04 review into `docs/REVIEWS.md` (single rolling review log, newest first; `docs/REVIEW.md` removed, git tracks the rename). Filed issues #51–#60 + comments on #44/#35 (glossary suggestion loop confirmed dead end-to-end: suggestions computed + stored by a paid per-job LLM call but never surfaced; `add_terms()` unreachable). Headline findings: template pickers wired to nothing (#51 — `notes.load_template()` has zero callers), recorder buffers whole meeting in RAM (#52). **Milestones created**: v1.0.2 = #51/#53/#54/#55/#56/#57/#58/#59/#60 ("meetings are safe, jobs don't die for bad reasons"); v1.1 = #52+#43 (recorder pair), #44/#35 (glossary loop), #27 (gated on #51). **CI hardened** (PR #62): release workflow now asserts tag == `app/version.py` and runs pytest before building; ruff/pytest/pyinstaller pinned in `requirements-dev.txt`; new test asserts setup.iss `MyAppVersion` == `VERSION` — **bump both files together or CI fails**; read-only token, timeouts, PR-run concurrency cancellation. Dependabot alerts enabled — immediately flagged Pillow → bumped 12.1.1→12.2.0 (PR #63; 2 high + 3 moderate CVEs; exposure low, Pillow only tints the bundled icon). Tests: 394 passed.
 
+- v1.0.2 milestone (2026-07-11): closed all 9 issues (#51, #53–#60) across 4 branches/PRs, ordered by severity (data loss first, docs last). **Data safety** (#64, merged, closes #56/#57): `notes.save_note()`/`save_transcript()` gained an `existing_path` param — a retry of the same job overwrites its own prior output, a genuine same-day/same-label collision from a different job is uniquified (` (2)`, ` (3)`, …) instead of clobbered; `config.py` `save()` now writes via temp-file + `os.replace()`, `load()` recovers from a corrupt file (backs it up, returns defaults) instead of crashing at startup, and a new `cfg.lock()` context manager protects the one real race — `updater.check_for_update()` vs `/settings/save`. **Recording lifecycle** (#65, merged, closes #54): `RecordingService.stop()`/`start()`, `Recorder.start()`, and `main._quit()` all guard their failure paths — a `save()` failure marks the job `error` instead of stranding it, a mic-open failure cleans up the already-open loopback stream instead of leaking it, and a failed flush no longer aborts app teardown. **LLM pipeline** (#66, merged, closes #51/#53/#55/#58): `worker._generate()` now loads the user's picked vault template via `notes.load_template()` (previously wired to nothing — zero callers) and threads it through `generate_notes(custom_template=...)` in all three providers as a plain "use this note structure" line, without touching the `note_system.txt` prompt-file contract; a new `LLMTransientError` (connection/5xx/overloaded) joins `LLMRateLimitError` as retryable in all three providers + `worker._generate()`; `/jobs/<id>/retry` now resets `retry_count` to 0; note-generation `max_tokens` raised 4096→8192 with a new `LLMTruncatedError` raised on `stop_reason`/`finish_reason == "length"` instead of silently saving a cut-off note. **Minor bundle** (#67, open for review, closes #59): `/jobs/<id>/audio` 404s on an unknown job and restricts audio deletion to `done`/`error` jobs (marking "keep" is unaffected); `/wizard/test-recording` guards against a concurrent real recording (409) and cleans up on failure instead of leaking a stream; the dead `extra_context === 'transcribing:uploading'/'transcribing:processing'` comparison (pre-#47 progress hack) removed from `static/app.js`; `/update-check` no longer reimplements `updater.check_for_update()`'s fetch/parse — both share a new `updater._fetch_latest_release()`, each keeping the error-handling shape its caller needs. Also fixed CLAUDE.md's D1 doc drift (#60): intro/tech-stack table now say Haiku 4.5 (+ OpenAI/Mistral), `pyaudiowpatch`, `large-v3-turbo`, any Markdown vault. Tests: 427 passed. No version bump / release cut as part of this milestone — that's a separate follow-up once #67 merges.
+
 Update this section at the end of every session.
 
 ## Documentation
@@ -78,15 +80,15 @@ git commit -m "Phase X - [description] complete"
 
 | Layer | Technology |
 |---|---|
-| Audio capture | Python + `sounddevice` (WASAPI loopback + mic, separate streams) |
-| Transcription | `faster-whisper large-v3` (local, CPU) |
-| Note generation | Claude Haiku 3.5 API (`anthropic`) |
+| Audio capture | Python + `pyaudiowpatch` (WASAPI loopback + mic, separate streams) |
+| Transcription | `faster-whisper large-v3-turbo` (local, CPU; configurable) |
+| Note generation | Claude Haiku 4.5 API (`anthropic`) + OpenAI GPT-4o mini + Mistral Small |
 | UI | Flask + HTML (local web app) |
 | System tray | `pystray` |
 | Job queue | SQLite (`sqlite3`) |
 | API key storage | Windows Credential Manager (`keyring`) |
 | Glossary | `glossary.json` |
-| Output | Markdown → Obsidian vault |
+| Output | Markdown → Obsidian, Logseq, or any Markdown app |
 
 ## Key Constraints
 
