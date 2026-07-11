@@ -280,7 +280,7 @@ def route_job_retry(job_id):
     audio = job.get("audio_path") or job.get("recording_path")
     if audio and not os.path.exists(audio):
         return jsonify({"error": "Recording file has been deleted. This job cannot be retried."}), 409
-    q.update_job(job_id, status="queued", error_message=None)
+    q.update_job(job_id, status="queued", error_message=None, retry_count=0)
     return jsonify({"ok": True})
 
 

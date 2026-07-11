@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.exceptions import LLMAuthError, LLMRateLimitError
+from app.exceptions import LLMAuthError, LLMRateLimitError, LLMTransientError, LLMTruncatedError
 
 
 # ------------------------------------------------------------------
@@ -27,7 +27,7 @@ def test_generate_notes_dispatches_to_anthropic():
         mock_cfg.load.return_value = {"llm_provider": "anthropic"}
         result = generate_notes("transcript", label="Standup", language="Czech")
 
-    mock_gen.assert_called_once_with("transcript", "Standup", "", "", "", "Czech", "")
+    mock_gen.assert_called_once_with("transcript", "Standup", "", "", "", "Czech", "", "")
     assert result == "# Note"
 
 
@@ -332,6 +332,78 @@ def test_anthropic_date_str_defaults_to_today():
     assert date.today().isoformat() in kwargs["system"]
 
 
+def test_anthropic_custom_template_appears_in_prompt():
+    from app.llm.anthropic_provider import generate_notes
+
+    mock_client = _make_anthropic_mock()
+    with patch("app.llm.anthropic_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.anthropic_provider.load_glossary", return_value={}), \
+         patch("app.llm.anthropic_provider.anthropic.Anthropic", return_value=mock_client):
+        generate_notes("transcript", custom_template="## Agenda\n## Decisions")
+
+    _, kwargs = mock_client.messages.create.call_args
+    content = kwargs["messages"][0]["content"]
+    assert "## Agenda\n## Decisions" in content
+
+
+def test_anthropic_no_custom_template_omits_structure_hint():
+    from app.llm.anthropic_provider import generate_notes
+
+    mock_client = _make_anthropic_mock()
+    with patch("app.llm.anthropic_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.anthropic_provider.load_glossary", return_value={}), \
+         patch("app.llm.anthropic_provider.anthropic.Anthropic", return_value=mock_client):
+        generate_notes("transcript")
+
+    _, kwargs = mock_client.messages.create.call_args
+    content = kwargs["messages"][0]["content"]
+    assert "Use this note structure" not in content
+
+
+def test_anthropic_connection_error_raises_llm_transient_error():
+    import anthropic as ant
+    from app.llm.anthropic_provider import generate_notes
+
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = ant.APIConnectionError(
+        message="connection failed", request=MagicMock()
+    )
+    with patch("app.llm.anthropic_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.anthropic_provider.load_glossary", return_value={}), \
+         patch("app.llm.anthropic_provider.anthropic.Anthropic", return_value=mock_client):
+        with pytest.raises(LLMTransientError):
+            generate_notes("transcript", language="Czech")
+
+
+def test_anthropic_server_error_raises_llm_transient_error():
+    import anthropic as ant
+    from app.llm.anthropic_provider import generate_notes
+
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = ant.APIStatusError(
+        message="internal server error", response=MagicMock(), body={}
+    )
+    with patch("app.llm.anthropic_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.anthropic_provider.load_glossary", return_value={}), \
+         patch("app.llm.anthropic_provider.anthropic.Anthropic", return_value=mock_client):
+        with pytest.raises(LLMTransientError):
+            generate_notes("transcript", language="Czech")
+
+
+def test_anthropic_truncated_response_raises_llm_truncated_error():
+    from app.llm.anthropic_provider import generate_notes
+
+    mock_msg = MagicMock(stop_reason="max_tokens")
+    mock_msg.content = [MagicMock(text="cut off mid-")]
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = mock_msg
+    with patch("app.llm.anthropic_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.anthropic_provider.load_glossary", return_value={}), \
+         patch("app.llm.anthropic_provider.anthropic.Anthropic", return_value=mock_client):
+        with pytest.raises(LLMTruncatedError):
+            generate_notes("transcript", language="Czech")
+
+
 # ------------------------------------------------------------------
 # OpenAI provider — key and dispatch
 # ------------------------------------------------------------------
@@ -403,6 +475,64 @@ def test_openai_auth_error_raises_llm_auth_error():
             generate_notes("transcript", language="English")
 
 
+def test_openai_connection_error_raises_llm_transient_error():
+    import openai as oai
+    from app.llm.openai_provider import generate_notes
+
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.side_effect = oai.APIConnectionError(
+        message="connection failed", request=MagicMock()
+    )
+    with patch("app.llm.openai_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.openai_provider.load_glossary", return_value={}), \
+         patch("app.llm.openai_provider.OpenAI", return_value=mock_client):
+        with pytest.raises(LLMTransientError):
+            generate_notes("transcript", language="English")
+
+
+def test_openai_server_error_raises_llm_transient_error():
+    import openai as oai
+    from app.llm.openai_provider import generate_notes
+
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.side_effect = oai.APIStatusError(
+        message="internal server error", response=MagicMock(), body={}
+    )
+    with patch("app.llm.openai_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.openai_provider.load_glossary", return_value={}), \
+         patch("app.llm.openai_provider.OpenAI", return_value=mock_client):
+        with pytest.raises(LLMTransientError):
+            generate_notes("transcript", language="English")
+
+
+def test_openai_truncated_response_raises_llm_truncated_error():
+    from app.llm.openai_provider import generate_notes
+
+    mock_resp = MagicMock()
+    mock_resp.choices = [MagicMock(message=MagicMock(content="cut off mid-"), finish_reason="length")]
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = mock_resp
+    with patch("app.llm.openai_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.openai_provider.load_glossary", return_value={}), \
+         patch("app.llm.openai_provider.OpenAI", return_value=mock_client):
+        with pytest.raises(LLMTruncatedError):
+            generate_notes("transcript", language="English")
+
+
+def test_openai_custom_template_appears_in_prompt():
+    from app.llm.openai_provider import generate_notes
+
+    mock_client = _make_openai_mock("# Note")
+    with patch("app.llm.openai_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.openai_provider.load_glossary", return_value={}), \
+         patch("app.llm.openai_provider.OpenAI", return_value=mock_client):
+        generate_notes("transcript", custom_template="## Agenda")
+
+    _, kwargs = mock_client.chat.completions.create.call_args
+    user_msg = kwargs["messages"][1]["content"]
+    assert "## Agenda" in user_msg
+
+
 # ------------------------------------------------------------------
 # Mistral provider — key and dispatch
 # ------------------------------------------------------------------
@@ -449,6 +579,25 @@ def test_mistral_unknown_exception_reraises():
 
     exc = RuntimeError("network failure")
     with pytest.raises(RuntimeError, match="network failure"):
+        _handle_mistral_error(exc)
+
+
+def test_mistral_5xx_status_code_raises_llm_transient_error():
+    from app.llm.mistral_provider import _handle_mistral_error
+
+    exc = Exception("internal server error")
+    exc.status_code = 503
+
+    with pytest.raises(LLMTransientError):
+        _handle_mistral_error(exc)
+
+
+def test_mistral_connection_message_raises_llm_transient_error():
+    from app.llm.mistral_provider import _handle_mistral_error
+
+    exc = Exception("Connection timed out while contacting the API")
+
+    with pytest.raises(LLMTransientError):
         _handle_mistral_error(exc)
 
 
@@ -650,6 +799,48 @@ def test_mistral_generate_unknown_exception_reraises():
          patch("app.llm.mistral_provider.Mistral", return_value=mock_client):
         with pytest.raises(RuntimeError, match="network failure"):
             generate_notes("transcript", language="Czech")
+
+
+def test_mistral_generate_server_error_raises_llm_transient_error():
+    from app.llm.mistral_provider import generate_notes
+
+    mock_client = MagicMock()
+    exc = Exception("service unavailable")
+    exc.status_code = 503
+    mock_client.chat.complete.side_effect = exc
+    with patch("app.llm.mistral_provider.keyring.get_password", return_value="ms-key"), \
+         patch("app.llm.mistral_provider.load_glossary", return_value={}), \
+         patch("app.llm.mistral_provider.Mistral", return_value=mock_client):
+        with pytest.raises(LLMTransientError):
+            generate_notes("transcript", language="Czech")
+
+
+def test_mistral_generate_truncated_response_raises_llm_truncated_error():
+    from app.llm.mistral_provider import generate_notes
+
+    mock_resp = MagicMock()
+    mock_resp.choices = [MagicMock(message=MagicMock(content="cut off mid-"), finish_reason="length")]
+    mock_client = MagicMock()
+    mock_client.chat.complete.return_value = mock_resp
+    with patch("app.llm.mistral_provider.keyring.get_password", return_value="ms-key"), \
+         patch("app.llm.mistral_provider.load_glossary", return_value={}), \
+         patch("app.llm.mistral_provider.Mistral", return_value=mock_client):
+        with pytest.raises(LLMTruncatedError):
+            generate_notes("transcript", language="Czech")
+
+
+def test_mistral_generate_custom_template_appears_in_prompt():
+    from app.llm.mistral_provider import generate_notes
+
+    mock_client = _make_mistral_mock()
+    with patch("app.llm.mistral_provider.keyring.get_password", return_value="ms-key"), \
+         patch("app.llm.mistral_provider.load_glossary", return_value={}), \
+         patch("app.llm.mistral_provider.Mistral", return_value=mock_client):
+        generate_notes("transcript", custom_template="## Agenda")
+
+    _, kwargs = mock_client.chat.complete.call_args
+    user_msg = kwargs["messages"][1]["content"]
+    assert "## Agenda" in user_msg
 
 
 def test_mistral_suggest_returns_terms():

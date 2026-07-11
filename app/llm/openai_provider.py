@@ -6,7 +6,7 @@ import keyring
 import openai
 from openai import OpenAI
 
-from app.exceptions import LLMAuthError, LLMRateLimitError
+from app.exceptions import LLMAuthError, LLMRateLimitError, LLMTransientError, LLMTruncatedError
 from app.glossary import load as load_glossary
 from app import prompts
 
@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 MODEL = "gpt-4o-mini"
 KEYRING_SERVICE = "FuseMark-OpenAI"
 KEYRING_USERNAME = "api_key"
+MAX_NOTE_TOKENS = 8192
 
 
 def _get_api_key():
@@ -44,7 +45,7 @@ def test_connection(key: str) -> None:
         raise LLMRateLimitError("Rate limit reached.") from exc
 
 
-def generate_notes(transcript, label="", folder="", scratch_notes="", extra_context="", language="Czech", date_str=""):
+def generate_notes(transcript, label="", folder="", scratch_notes="", extra_context="", language="Czech", date_str="", custom_template=""):
     """Generate structured meeting notes from a transcript. Returns markdown string."""
     client = OpenAI(api_key=_get_api_key())
     glossary = load_glossary()
@@ -72,11 +73,13 @@ def generate_notes(transcript, label="", folder="", scratch_notes="", extra_cont
         user_parts.append(f"Meeting name: {label}")
     if folder:
         user_parts.append(f"Folder: {folder}")
+    if custom_template:
+        user_parts.append(f"Use this note structure:\n{custom_template}")
 
     try:
         response = client.chat.completions.create(
             model=MODEL,
-            max_tokens=4096,
+            max_tokens=MAX_NOTE_TOKENS,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": "\n\n".join(user_parts)},
@@ -86,6 +89,13 @@ def generate_notes(transcript, label="", folder="", scratch_notes="", extra_cont
         raise LLMRateLimitError(str(exc)) from exc
     except openai.AuthenticationError as exc:
         raise LLMAuthError("Invalid API key for OpenAI. Check Settings → API Keys.") from exc
+    except (openai.APIConnectionError, openai.APIStatusError) as exc:
+        raise LLMTransientError(str(exc)) from exc
+
+    if response.choices[0].finish_reason == "length":
+        raise LLMTruncatedError(
+            "Note generation was truncated — the transcript may be too long for a single note."
+        )
 
     return response.choices[0].message.content.strip()
 

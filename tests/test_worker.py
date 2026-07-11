@@ -269,6 +269,64 @@ def test_llm_rate_limit_error_causes_retry(mocks):
     assert "queued" in statuses
 
 
+def test_llm_transient_error_causes_retry(mocks):
+    from app.exceptions import LLMTransientError
+
+    job = _make_job({"transcript": "text"})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+    mocks["generate"].side_effect = LLMTransientError("connection reset")
+
+    w = Worker()
+    w._process_next()
+
+    statuses = [c.kwargs.get("status") for c in mocks["q"].update_job.call_args_list if "status" in c.kwargs]
+    assert "queued" in statuses
+
+
+# ------------------------------------------------------------------
+# Custom note template (vault-stored) threading
+# ------------------------------------------------------------------
+
+def test_custom_template_loaded_and_passed_to_generate_notes(mocks):
+    job = _make_job({"transcript": "text", "template": "Standup"})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+
+    with patch("app.worker.load_template", return_value="## Agenda\n## Decisions") as mock_load:
+        w = Worker()
+        w._process_next()
+
+    mock_load.assert_called_once_with("/vault", "Standup")
+    _, generate_kwargs = mocks["generate"].call_args
+    assert generate_kwargs.get("custom_template") == "## Agenda\n## Decisions"
+
+
+def test_no_template_selected_passes_empty_custom_template(mocks):
+    job = _make_job({"transcript": "text", "template": None})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+
+    w = Worker()
+    w._process_next()
+
+    _, generate_kwargs = mocks["generate"].call_args
+    assert generate_kwargs.get("custom_template") == ""
+
+
+def test_template_not_found_in_vault_passes_empty_custom_template(mocks):
+    job = _make_job({"transcript": "text", "template": "Nonexistent"})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+
+    with patch("app.worker.load_template", return_value=None):
+        w = Worker()
+        w._process_next()
+
+    _, generate_kwargs = mocks["generate"].call_args
+    assert generate_kwargs.get("custom_template") == ""
+
+
 # ------------------------------------------------------------------
 # Empty queue
 # ------------------------------------------------------------------

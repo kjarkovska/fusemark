@@ -12,3 +12,11 @@ class LLMRateLimitError(Exception):
 
 class LLMAuthError(Exception):
     """Raised when the LLM provider rejects the API key."""
+
+
+class LLMTransientError(Exception):
+    """Raised on a connection failure or 5xx/overloaded response from the LLM provider — safe to retry."""
+
+
+class LLMTruncatedError(Exception):
+    """Raised when the LLM response was cut off at the max_tokens limit."""
