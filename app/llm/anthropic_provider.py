@@ -5,7 +5,7 @@ from datetime import date
 import anthropic
 import keyring
 
-from app.exceptions import LLMAuthError, LLMRateLimitError
+from app.exceptions import LLMAuthError, LLMRateLimitError, LLMTransientError, LLMTruncatedError
 from app.glossary import load as load_glossary
 from app import prompts
 
@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 MODEL = "claude-haiku-4-5-20251001"
 KEYRING_SERVICE = "FuseMark-Anthropic"
 KEYRING_USERNAME = "api_key"
+MAX_NOTE_TOKENS = 8192
 
 
 def _get_api_key():
@@ -43,7 +44,7 @@ def test_connection(key: str) -> None:
         raise LLMRateLimitError("Rate limit reached.") from exc
 
 
-def generate_notes(transcript, label="", folder="", scratch_notes="", extra_context="", language="Czech", date_str=""):
+def generate_notes(transcript, label="", folder="", scratch_notes="", extra_context="", language="Czech", date_str="", custom_template=""):
     """Generate structured meeting notes from a transcript. Returns markdown string."""
     client = anthropic.Anthropic(api_key=_get_api_key())
     glossary = load_glossary()
@@ -71,11 +72,13 @@ def generate_notes(transcript, label="", folder="", scratch_notes="", extra_cont
         user_parts.append(f"Meeting name: {label}")
     if folder:
         user_parts.append(f"Folder: {folder}")
+    if custom_template:
+        user_parts.append(f"Use this note structure:\n{custom_template}")
 
     try:
         message = client.messages.create(
             model=MODEL,
-            max_tokens=4096,
+            max_tokens=MAX_NOTE_TOKENS,
             system=system,
             messages=[{"role": "user", "content": "\n\n".join(user_parts)}],
         )
@@ -83,6 +86,13 @@ def generate_notes(transcript, label="", folder="", scratch_notes="", extra_cont
         raise LLMRateLimitError(str(exc)) from exc
     except anthropic.AuthenticationError as exc:
         raise LLMAuthError("Invalid API key for Anthropic. Check Settings → API Keys.") from exc
+    except (anthropic.APIConnectionError, anthropic.APIStatusError) as exc:
+        raise LLMTransientError(str(exc)) from exc
+
+    if message.stop_reason == "max_tokens":
+        raise LLMTruncatedError(
+            "Note generation was truncated — the transcript may be too long for a single note."
+        )
 
     return message.content[0].text.strip()
 

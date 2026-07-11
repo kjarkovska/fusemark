@@ -18,10 +18,10 @@ logger = logging.getLogger(__name__)
 
 from app import queue as q
 from app import config as cfg
-from app.exceptions import ModelNotReadyError, LLMRateLimitError
+from app.exceptions import ModelNotReadyError, LLMRateLimitError, LLMTransientError
 from app.transcription import transcribe
 from app.llm import generate_notes, suggest_glossary_terms
-from app.notes import save_note, save_transcript
+from app.notes import save_note, save_transcript, load_template
 
 
 POLL_INTERVAL = 5   # seconds between queue checks
@@ -163,6 +163,7 @@ class Worker:
 
         transcript = job.get("transcript") or ""
         date_str = job.get("meeting_date", "") or ""
+        custom_template = load_template(vault_path, job.get("template", "") or "") or ""
 
         transcript_path = save_transcript(
             transcript, job.get("label", ""), vault_path, date_str=date_str,
@@ -180,8 +181,9 @@ class Worker:
                 extra_context=job.get("extra_context", "") or "",
                 language=config.get("language_name", "Czech"),
                 date_str=date_str,
+                custom_template=custom_template,
             )
-        except LLMRateLimitError as exc:
+        except (LLMRateLimitError, LLMTransientError) as exc:
             raise _RetryableError(str(exc)) from exc
 
         out_path = save_note(

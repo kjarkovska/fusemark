@@ -489,6 +489,18 @@ def test_retry_import_job_no_audio_succeeds(flask_client):
     assert q.get_job(job_id)["status"] == "queued"
 
 
+def test_retry_resets_retry_count(flask_client, tmp_path):
+    audio = tmp_path / "rec.mp3"
+    audio.write_bytes(b"")
+    job_id = q.create_job()
+    q.update_job(job_id, status="error", error_message="bad key",
+                 audio_path=str(audio), retry_count=5)
+    r = flask_client.post(f"/jobs/{job_id}/retry")
+    assert r.status_code == 200
+    refreshed = q.get_job(job_id)
+    assert refreshed["retry_count"] == 0
+
+
 # ------------------------------------------------------------------
 # Vault warning on index page
 # ------------------------------------------------------------------
