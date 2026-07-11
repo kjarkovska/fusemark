@@ -1,6 +1,12 @@
+import contextlib
 import json
+import logging
 import os
 import shutil
+import threading
+import time
+
+logger = logging.getLogger(__name__)
 
 DATA_DIR = os.path.join(os.environ["APPDATA"], "FuseMark")
 
@@ -46,6 +52,19 @@ CONFIG_PATH = os.path.join(DATA_DIR, "config.json")
 
 _PROJECT_ROOT_CFG = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.json")
 
+# Reentrant so a caller can hold lock() across a load-mutate-save sequence and still
+# call save() (which also acquires this lock) without deadlocking itself.
+_lock = threading.RLock()
+
+
+@contextlib.contextmanager
+def lock():
+    """Hold the config lock across a load-mutate-save sequence so concurrent writers
+    (e.g. the update-check background thread and a Settings save) can't drop each
+    other's changes."""
+    with _lock:
+        yield
+
 
 def load():
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -56,8 +75,17 @@ def load():
         if not os.path.exists(CONFIG_PATH) and os.path.exists(_PROJECT_ROOT_CFG):
             shutil.copy2(_PROJECT_ROOT_CFG, CONFIG_PATH)
     if os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        try:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except json.JSONDecodeError:
+            backup_path = f"{CONFIG_PATH}.corrupt-{int(time.time())}"
+            try:
+                shutil.copy2(CONFIG_PATH, backup_path)
+                logger.warning("config.json was corrupt — backed up to %s, using defaults", backup_path)
+            except OSError:
+                logger.warning("config.json was corrupt and could not be backed up — using defaults")
+            return dict(DEFAULTS)
         merged = {**DEFAULTS, **data}
         # Upgrade old model default to turbo
         if merged.get("whisper_model") == "large-v3":
@@ -67,6 +95,9 @@ def load():
 
 
 def save(config):
-    os.makedirs(DATA_DIR, exist_ok=True)
-    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-        json.dump(config, f, indent=2, ensure_ascii=False)
+    with _lock:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        tmp_path = CONFIG_PATH + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, CONFIG_PATH)

@@ -1,4 +1,5 @@
 import json
+import os
 import app.config as cfg
 
 
@@ -95,3 +96,40 @@ def test_defaults_contain_p1_keys(tmp_path, monkeypatch):
     ]
     for key in p1_keys:
         assert key in result, f"Missing P1 key: {key}"
+
+
+def test_save_is_atomic_no_leftover_tmp_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    cfg.save(dict(cfg.DEFAULTS))
+    assert not (tmp_path / "config.json.tmp").exists()
+    assert (tmp_path / "config.json").exists()
+
+
+def test_load_corrupt_file_returns_defaults_and_backs_up(tmp_path, monkeypatch):
+    cfg_path = tmp_path / "config.json"
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(cfg_path))
+    cfg_path.write_text("{not valid json", encoding="utf-8")
+    result = cfg.load()
+    assert result == dict(cfg.DEFAULTS)
+    backups = list(tmp_path.glob("config.json.corrupt-*"))
+    assert len(backups) == 1
+    with open(backups[0], encoding="utf-8") as f:
+        assert f.read() == "{not valid json"
+
+
+def test_lock_context_manager_allows_load_mutate_save(tmp_path, monkeypatch):
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    with cfg.lock():
+        config = cfg.load()
+        config["vault_path"] = "/locked/vault"
+        cfg.save(config)
+    assert cfg.load()["vault_path"] == "/locked/vault"
+
+
+def test_lock_is_reentrant_for_nested_save_call(tmp_path, monkeypatch):
+    # save() acquires the same lock internally — must not deadlock when called
+    # from inside an already-held cfg.lock() block.
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    with cfg.lock():
+        cfg.save(dict(cfg.DEFAULTS))
+    assert os.path.exists(str(tmp_path / "config.json"))

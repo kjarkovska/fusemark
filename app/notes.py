@@ -34,14 +34,27 @@ def load_template(vault_path, template_name):
         return f.read()
 
 
-def save_note(note_md, label, folder, vault_path, date_str=""):
+def _unique_path(target_dir, filename):
+    """Return filename, or a ' (2)', ' (3)', ... variant if it already exists in target_dir."""
+    base, ext = os.path.splitext(filename)
+    candidate = filename
+    n = 2
+    while os.path.exists(os.path.join(target_dir, candidate)):
+        candidate = f"{base} ({n}){ext}"
+        n += 1
+    return candidate
+
+
+def save_note(note_md, label, folder, vault_path, date_str="", existing_path=None):
     """
     Write the note markdown to {vault}/FuseMark/Meetings/{folder}/.
     Returns the path of the created file.
+
+    If existing_path is given, overwrites that exact file — a retry of the same job
+    reusing its own prior output. Otherwise, a same-day/same-label collision from a
+    different job is uniquified rather than overwritten.
     """
     today = date_str or date.today().isoformat()
-    filename = f"{today} {label or 'Porada'}.md"
-    filename = "".join(c for c in filename if c not in r'\/:*?"<>|')
 
     # Guard against path traversal — only the bare folder name is allowed.
     folder = os.path.basename(folder or "")
@@ -53,7 +66,13 @@ def save_note(note_md, label, folder, vault_path, date_str=""):
 
     note_md = re.sub(r'(?m)^(date:)\s*.*$', f'date: {today}', note_md, count=1)
 
-    out_path = os.path.join(target_dir, filename)
+    if existing_path:
+        out_path = existing_path
+    else:
+        filename = f"{today} {label or 'Porada'}.md"
+        filename = "".join(c for c in filename if c not in r'\/:*?"<>|')
+        out_path = os.path.join(target_dir, _unique_path(target_dir, filename))
+
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(note_md)
 
@@ -61,10 +80,14 @@ def save_note(note_md, label, folder, vault_path, date_str=""):
     return out_path
 
 
-def save_transcript(transcript_text, label, vault_path, date_str=""):
+def save_transcript(transcript_text, label, vault_path, date_str="", existing_path=None):
     """
     Save the raw transcript to {vault}/FuseMark/Transcripts/{date} {label}.md.
     Returns the saved path, or None if vault_path is not set.
+
+    If existing_path is given, overwrites that exact file — a retry of the same job
+    reusing its own prior output. Otherwise, a same-day/same-label collision from a
+    different job is uniquified rather than overwritten.
     """
     if not vault_path:
         logger.warning("vault_path not set — transcript not saved to vault")
@@ -72,12 +95,16 @@ def save_transcript(transcript_text, label, vault_path, date_str=""):
 
     today = date_str or date.today().isoformat()
     label_clean = label or "Porada"
-    filename = "".join(c for c in f"{today} {label_clean}.md" if c not in r'\/:*?"<>|')
 
     target_dir = os.path.join(vault_path, "FuseMark", "Transcripts")
     os.makedirs(target_dir, exist_ok=True)
 
-    out_path = os.path.join(target_dir, filename)
+    if existing_path:
+        out_path = existing_path
+    else:
+        filename = "".join(c for c in f"{today} {label_clean}.md" if c not in r'\/:*?"<>|')
+        out_path = os.path.join(target_dir, _unique_path(target_dir, filename))
+
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(f"# {today} {label_clean}\n\n{transcript_text}\n")
 

@@ -55,19 +55,21 @@ def check_for_update(force: bool = False) -> dict | None:
         url = data.get("html_url", "")
         update_available = _parse_version(latest) > _parse_version(VERSION)
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        config = cfg.load()
-        config["last_update_check"] = now
-        config["latest_known_version"] = latest
-        config["latest_known_url"] = url
-        cfg.save(config)
+        with cfg.lock():
+            config = cfg.load()
+            config["last_update_check"] = now
+            config["latest_known_version"] = latest
+            config["latest_known_url"] = url
+            cfg.save(config)
         return {"version": latest, "url": url} if update_available else None
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
             # No releases published yet — record the check time and return no update
             now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-            config = cfg.load()
-            config["last_update_check"] = now
-            cfg.save(config)
+            with cfg.lock():
+                config = cfg.load()
+                config["last_update_check"] = now
+                cfg.save(config)
             return None
         logger.debug("Update check HTTP error %s", exc.code, exc_info=True)
         return None

@@ -317,26 +317,27 @@ def route_status():
 @app.route("/settings/save", methods=["POST"])
 def route_settings_save():
     data = request.get_json(silent=True) or {}
-    config = cfg.load()
-    for key in ("vault_path", "whisper_model", "log_level", "default_template", "llm_provider", "ui_language"):
-        if key in data:
-            config[key] = data[key]
-    for key in ("output_device", "input_device"):
-        val = data.get(key)
-        config[key] = int(val) if val not in (None, "", "null") else None
-    lang_code = data.get("language")
-    if lang_code:
-        config["language"] = lang_code
-        lang_entry = next((l for l in cfg.SUPPORTED_LANGUAGES if l["code"] == lang_code), None)
-        if lang_entry:
-            config["language_name"] = lang_entry["name"]
-    if "auto_delete_recordings" in data:
-        config["auto_delete_recordings"] = bool(data["auto_delete_recordings"])
-    if "max_recordings_gb" in data:
-        config["max_recordings_gb"] = float(data["max_recordings_gb"])
-    if "check_updates" in data:
-        config["check_updates"] = bool(data["check_updates"])
-    cfg.save(config)
+    with cfg.lock():
+        config = cfg.load()
+        for key in ("vault_path", "whisper_model", "log_level", "default_template", "llm_provider", "ui_language"):
+            if key in data:
+                config[key] = data[key]
+        for key in ("output_device", "input_device"):
+            val = data.get(key)
+            config[key] = int(val) if val not in (None, "", "null") else None
+        lang_code = data.get("language")
+        if lang_code:
+            config["language"] = lang_code
+            lang_entry = next((l for l in cfg.SUPPORTED_LANGUAGES if l["code"] == lang_code), None)
+            if lang_entry:
+                config["language_name"] = lang_entry["name"]
+        if "auto_delete_recordings" in data:
+            config["auto_delete_recordings"] = bool(data["auto_delete_recordings"])
+        if "max_recordings_gb" in data:
+            config["max_recordings_gb"] = float(data["max_recordings_gb"])
+        if "check_updates" in data:
+            config["check_updates"] = bool(data["check_updates"])
+        cfg.save(config)
     return jsonify({"ok": True})
 
 
