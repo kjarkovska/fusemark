@@ -119,36 +119,43 @@ class Recorder:
         self._mic_frames = []
         self._pa = pyaudio.PyAudio()
 
-        loopback = self._find_loopback()
-        self._system_rate = int(loopback["defaultSampleRate"])
-        self._system_channels = min(int(loopback["maxInputChannels"]), 2)
+        try:
+            loopback = self._find_loopback()
+            self._system_rate = int(loopback["defaultSampleRate"])
+            self._system_channels = min(int(loopback["maxInputChannels"]), 2)
 
-        mic = self._find_mic()
-        self._mic_rate = int(mic["defaultSampleRate"])
-        self._mic_channels = 1
+            mic = self._find_mic()
+            self._mic_rate = int(mic["defaultSampleRate"])
+            self._mic_channels = 1
 
-        self._system_stream = self._pa.open(
-            format=FORMAT,
-            channels=self._system_channels,
-            rate=self._system_rate,
-            input=True,
-            input_device_index=loopback["index"],
-            frames_per_buffer=CHUNK,
-            stream_callback=self._system_callback,
-        )
+            self._system_stream = self._pa.open(
+                format=FORMAT,
+                channels=self._system_channels,
+                rate=self._system_rate,
+                input=True,
+                input_device_index=loopback["index"],
+                frames_per_buffer=CHUNK,
+                stream_callback=self._system_callback,
+            )
 
-        self._mic_stream = self._pa.open(
-            format=FORMAT,
-            channels=self._mic_channels,
-            rate=self._mic_rate,
-            input=True,
-            input_device_index=mic["index"],
-            frames_per_buffer=CHUNK,
-            stream_callback=self._mic_callback,
-        )
+            self._mic_stream = self._pa.open(
+                format=FORMAT,
+                channels=self._mic_channels,
+                rate=self._mic_rate,
+                input=True,
+                input_device_index=mic["index"],
+                frames_per_buffer=CHUNK,
+                stream_callback=self._mic_callback,
+            )
 
-        self._system_stream.start_stream()
-        self._mic_stream.start_stream()
+            self._system_stream.start_stream()
+            self._mic_stream.start_stream()
+        except Exception:
+            # Clean up whatever opened before the failure (e.g. a BT mic that
+            # disconnected between loopback and mic stream open) instead of
+            # leaking the stream + PyAudio instance.
+            self.stop()
+            raise
 
     def stop(self):
         if self._system_stream:

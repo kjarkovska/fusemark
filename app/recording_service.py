@@ -57,7 +57,11 @@ class RecordingService:
                 output_device=config.get("output_device"),
                 input_device=config.get("input_device"),
             )
-            r.start()
+            try:
+                r.start()
+            except Exception as exc:
+                logger.error("Failed to start recording: %s", exc)
+                return {"error": str(exc)}
             self._recorder = r
 
             job_id = q.create_job(label=label, folder=folder)
@@ -74,6 +78,13 @@ class RecordingService:
         logger.info("Recording started, job %s", job_id)
         return {"job_id": job_id}
 
+    def _notify_stopped(self):
+        if self._tray:
+            self._tray.set_recording(False)
+            self._tray.set_tooltip("FuseMark")
+        if self.on_recording:
+            self.on_recording(False)
+
     def stop(self) -> dict:
         with self._lock:
             if self._recorder is None:
@@ -84,21 +95,21 @@ class RecordingService:
             self._recorder = None
             self._current_job_id = None
 
-        r.stop()
-
-        recordings_dir = os.path.join(cfg.DATA_DIR, "recordings")
-        os.makedirs(recordings_dir, exist_ok=True)
-        audio_path = os.path.join(recordings_dir, f"{job_id}.mp3")
-        r.save(audio_path)
+        try:
+            r.stop()
+            recordings_dir = os.path.join(cfg.DATA_DIR, "recordings")
+            os.makedirs(recordings_dir, exist_ok=True)
+            audio_path = os.path.join(recordings_dir, f"{job_id}.mp3")
+            r.save(audio_path)
+        except Exception as exc:
+            logger.error("Failed to save recording for job %s: %s", job_id, exc)
+            q.update_job(job_id, status="error", error_message=f"Recording could not be saved: {exc}")
+            self._notify_stopped()
+            return {"error": str(exc)}
 
         q.update_job(job_id, audio_path=audio_path, recording_path=audio_path)
         q.set_status(job_id, "queued")
-
-        if self._tray:
-            self._tray.set_recording(False)
-            self._tray.set_tooltip("FuseMark")
-        if self.on_recording:
-            self.on_recording(False)
+        self._notify_stopped()
 
         logger.info("Recording stopped, job %s queued", job_id)
         return {"job_id": job_id, "audio_path": audio_path}

@@ -93,6 +93,18 @@ def test_start_when_already_recording_returns_error(service, tmp_path, monkeypat
     assert "error" in second
 
 
+def test_start_when_recorder_start_raises_returns_error(service, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.config.DATA_DIR", str(tmp_path))
+    mock_rec = MagicMock()
+    mock_rec.start.side_effect = RuntimeError("mic busy")
+    with patch("app.recorder.Recorder", return_value=mock_rec):
+        result = service.start()
+
+    assert "error" in result
+    assert service.is_recording is False
+    assert service.current_job_id is None
+
+
 def test_start_notifies_tray(service_with_tray, tmp_path, monkeypatch):
     monkeypatch.setattr("app.config.DATA_DIR", str(tmp_path))
     svc, tray = service_with_tray
@@ -177,3 +189,44 @@ def test_on_recording_not_required(service, tmp_path, monkeypatch):
     with patch("app.recorder.Recorder", return_value=MagicMock()):
         service.start()
     service.stop()  # no on_recording set — must not raise
+
+
+def test_stop_when_save_raises_marks_job_error(service, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.config.DATA_DIR", str(tmp_path))
+    mock_rec = MagicMock()
+    mock_rec.save.side_effect = RuntimeError("Nothing was recorded.")
+    with patch("app.recorder.Recorder", return_value=mock_rec):
+        start_result = service.start(label="Test")
+
+    result = service.stop()
+
+    assert "error" in result
+    job = q.get_job(start_result["job_id"])
+    assert job["status"] == "error"
+    assert "Nothing was recorded" in job["error_message"]
+
+
+def test_stop_when_save_raises_still_clears_is_recording(service, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.config.DATA_DIR", str(tmp_path))
+    mock_rec = MagicMock()
+    mock_rec.save.side_effect = RuntimeError("boom")
+    with patch("app.recorder.Recorder", return_value=mock_rec):
+        service.start()
+
+    service.stop()
+
+    assert service.is_recording is False
+    assert service.current_job_id is None
+
+
+def test_stop_when_save_raises_still_notifies_tray(service_with_tray, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.config.DATA_DIR", str(tmp_path))
+    svc, tray = service_with_tray
+    mock_rec = MagicMock()
+    mock_rec.save.side_effect = RuntimeError("boom")
+    with patch("app.recorder.Recorder", return_value=mock_rec):
+        svc.start()
+
+    svc.stop()
+
+    tray.set_recording.assert_called_with(False)
