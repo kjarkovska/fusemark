@@ -70,6 +70,18 @@ hiddenimports = [
     "mistralai",
     "keyring",
     "keyring.backends.Windows",   # Windows Credential Manager backend
+    # app/routes/* are imported lazily inside register_blueprints() — modulegraph
+    # should still find them via the function body, but list them explicitly so a
+    # missed blueprint fails the build instead of 404ing silently at runtime.
+    "app.routes",
+    "app.routes.pages",
+    "app.routes.recording",
+    "app.routes.jobs",
+    "app.routes.settings_api",
+    "app.routes.llm_keys",
+    "app.routes.prompts_glossary",
+    "app.routes.updates",
+    "app.routes.wizard",
 ]
 
 # --- Build graph -----------------------------------------------------------
