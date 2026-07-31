@@ -3,6 +3,8 @@ import json
 import threading
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import app.queue as q
 
 
@@ -1368,3 +1370,124 @@ def test_prompts_status_route(flask_client, monkeypatch, tmp_path):
     assert isinstance(data, list)
     assert {e["name"] for e in data} == set(pm._PROMPTS.keys())
     assert all(e["status"] == "default" for e in data)
+
+
+# ------------------------------------------------------------------
+# Blueprint refactor guards (#18) — the split into app/routes/ must be a pure
+# move: same routes, same methods, same app.server surface for main.py, and
+# no blueprint may defeat monkeypatch.setattr(srv, ...) by importing a name
+# directly out of app.server instead of reading it off the module at call time.
+# ------------------------------------------------------------------
+
+_EXPECTED_ROUTES = {
+    ("/", ("GET",)),
+    ("/api-key", ("POST",)),
+    ("/api-key-status", ("GET",)),
+    ("/api/download-model", ("POST",)),
+    ("/api/languages", ("GET",)),
+    ("/api/model-status", ("GET",)),
+    ("/api/prompts-status", ("GET",)),
+    ("/api/templates", ("GET",)),
+    ("/api/test-llm-stored", ("POST",)),
+    ("/autostart", ("GET",)),
+    ("/autostart", ("POST",)),
+    ("/import-audio", ("POST",)),
+    ("/import-transcript", ("POST",)),
+    ("/jobs", ("DELETE",)),
+    ("/jobs", ("GET",)),
+    ("/jobs/<job_id>", ("DELETE",)),
+    ("/jobs/<job_id>/audio", ("POST",)),
+    ("/jobs/<job_id>/context", ("POST",)),
+    ("/jobs/<job_id>/retry", ("POST",)),
+    ("/open-glossary", ("POST",)),
+    ("/open-log", ("POST",)),
+    ("/open-prompts-folder", ("POST",)),
+    ("/open-url", ("POST",)),
+    ("/recordings/cleanup", ("POST",)),
+    ("/recordings/size", ("GET",)),
+    ("/settings", ("GET",)),
+    ("/settings/save", ("POST",)),
+    ("/start", ("POST",)),
+    ("/static/<path:filename>", ("GET",)),
+    ("/status", ("GET",)),
+    ("/stop", ("POST",)),
+    ("/update-check", ("POST",)),
+    ("/update-status", ("GET",)),
+    ("/wizard", ("GET",)),
+    ("/wizard/browse-folder", ("POST",)),
+    ("/wizard/complete", ("POST",)),
+    ("/wizard/playback/<filename>", ("GET",)),
+    ("/wizard/reset", ("POST",)),
+    ("/wizard/test-llm", ("POST",)),
+    ("/wizard/test-recording", ("POST",)),
+}
+
+
+def test_url_map_matches_expected_routes():
+    """The blueprint split must be a pure move — same 40 routes (39 + static),
+    same methods, verified against a dump of the pre-refactor url_map."""
+    import app.server as srv
+    actual = {
+        (r.rule, tuple(sorted(m for m in r.methods if m not in ("HEAD", "OPTIONS"))))
+        for r in srv.app.url_map.iter_rules()
+    }
+    assert actual == _EXPECTED_ROUTES
+
+
+def test_main_py_surface_intact():
+    """app/main.py does `from app import server` and calls these directly —
+    the split must not move them behind a create_app() or otherwise change
+    this module's importable surface."""
+    import app.server as srv
+    from flask import Flask
+    assert isinstance(srv.app, Flask)
+    for name in ("run", "set_tray", "set_on_recording", "start_recording", "stop_recording"):
+        assert callable(getattr(srv, name))
+
+
+def test_blueprints_registered():
+    import app.server as srv
+    assert set(srv.app.blueprints) == {
+        "pages", "recording", "jobs", "settings_api",
+        "llm_keys", "prompts_glossary", "updates", "wizard",
+    }
+
+
+def test_no_route_module_imports_server_symbols():
+    """Blueprint modules must reach shared state via `server.X` at call time
+    (late binding), not `from app.server import X` (binds at import time and
+    silently defeats every monkeypatch.setattr(srv, ...) in this file).
+
+    Scans the 8 leaf blueprint modules only — app/routes/__init__.py is the
+    registrar (it imports the leaves, not app.server) and its docstring
+    explains this very rule, which would false-positive a naive `*.py` glob.
+    """
+    import pathlib
+    routes_dir = pathlib.Path(__file__).resolve().parent.parent / "app" / "routes"
+    leaf_modules = [
+        "pages.py", "recording.py", "jobs.py", "settings_api.py",
+        "llm_keys.py", "prompts_glossary.py", "updates.py", "wizard.py",
+    ]
+    offenders = [
+        name for name in leaf_modules
+        if "from app.server import" in (routes_dir / name).read_text(encoding="utf-8")
+    ]
+    assert offenders == []
+
+
+@pytest.mark.parametrize("path,blueprint", [
+    ("/", "pages"),
+    ("/status", "recording"),
+    ("/jobs", "jobs"),
+    ("/api/languages", "settings_api"),
+    ("/api-key-status", "llm_keys"),
+    ("/api/prompts-status", "prompts_glossary"),
+    ("/update-status", "updates"),
+    ("/wizard", "wizard"),
+])
+def test_host_guard_covers_every_blueprint(flask_client, path, blueprint):
+    """The DNS-rebinding guard is app-level (@app.before_request), so it must
+    keep covering every blueprint after the split — one representative GET
+    route per blueprint, spoofed Host header."""
+    r = flask_client.get(path, headers={"Host": "evil.com"})
+    assert r.status_code == 403
