@@ -46,6 +46,13 @@ class RecordingService:
         with self._lock:
             return self._current_job_id
 
+    @property
+    def recorder(self):
+        """The live Recorder while a recording is in progress, else None.
+        Used by GET /level to poll real signal levels."""
+        with self._lock:
+            return self._recorder
+
     def start(self, label: str = "", folder: str = "", template: str = "") -> dict:
         from app.recorder import Recorder
         with self._lock:

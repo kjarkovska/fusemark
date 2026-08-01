@@ -10,6 +10,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "opt_default_template": "— default —",
         # Recorder status
         "rec_status_label": "Recording",
+        "warn_no_mic_signal": "No microphone signal detected — check your input device.",
         # Notes section
         "notes_label_idle": "Rough notes",
         "notes_label_active": "Quick notes",
@@ -214,6 +215,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "opt_default_template": "— výchozí —",
         # Recorder status
         "rec_status_label": "Nahrávám",
+        "warn_no_mic_signal": "Nezachycen žádný signál z mikrofonu — zkontrolujte vstupní zařízení.",
         # Notes section
         "notes_label_idle": "Hrubé poznámky",
         "notes_label_active": "Rychlé poznámky",

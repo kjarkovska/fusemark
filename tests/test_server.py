@@ -24,6 +24,59 @@ def test_status_not_recording(flask_client):
     assert data["job_id"] is None
 
 
+# ------------------------------------------------------------------
+# /level — real capture signal for the level meter (#43)
+# ------------------------------------------------------------------
+
+def test_level_when_not_recording(flask_client):
+    r = flask_client.get("/level")
+    assert r.status_code == 200
+    assert r.get_json() == {
+        "recording": False,
+        "system": 0.0,
+        "mic": 0.0,
+        "signal": False,
+        "system_silent": False,
+        "mic_silent": False,
+    }
+
+
+def test_level_while_recording_returns_rms(flask_client, monkeypatch):
+    import app.server as srv
+    mock_service = MagicMock()
+    mock_service.recorder.levels.return_value = {
+        "system": 0.42,
+        "mic": 0.13,
+        "system_bytes": 1000,
+        "mic_bytes": 0,
+        "system_silent": False,
+        "mic_silent": True,
+    }
+    monkeypatch.setattr(srv, "_recording_service", mock_service)
+
+    r = flask_client.get("/level")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["recording"] is True
+    assert data["system"] == 0.42
+    assert data["mic"] == 0.13
+    assert data["signal"] is True  # system_bytes > 0
+    assert data["system_silent"] is False
+    assert data["mic_silent"] is True
+
+
+def test_level_json_contract_keys(flask_client):
+    r = flask_client.get("/level")
+    assert set(r.get_json().keys()) == {
+        "recording", "system", "mic", "signal", "system_silent", "mic_silent",
+    }
+
+
+def test_level_rejects_spoofed_host(flask_client):
+    r = flask_client.get("/level", headers={"Host": "evil.com"})
+    assert r.status_code == 403
+
+
 def test_jobs_empty(flask_client):
     r = flask_client.get("/jobs")
     assert r.status_code == 200
@@ -1441,6 +1494,7 @@ _EXPECTED_ROUTES = {
     ("/jobs/<job_id>/audio", ("POST",)),
     ("/jobs/<job_id>/context", ("POST",)),
     ("/jobs/<job_id>/retry", ("POST",)),
+    ("/level", ("GET",)),
     ("/open-glossary", ("POST",)),
     ("/open-log", ("POST",)),
     ("/open-prompts-folder", ("POST",)),

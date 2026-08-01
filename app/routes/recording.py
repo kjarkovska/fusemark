@@ -45,6 +45,32 @@ def route_status():
     })
 
 
+@bp.route("/level")
+def route_level():
+    """Real capture signal, polled by the frontend level meter while
+    recording. Always 200 — the browser polls this on a race with
+    start/stop, and a transient 4xx would just be noise in that window."""
+    recorder = server._recording_service.recorder
+    if recorder is None:
+        return jsonify({
+            "recording": False,
+            "system": 0.0,
+            "mic": 0.0,
+            "signal": False,
+            "system_silent": False,
+            "mic_silent": False,
+        })
+    levels = recorder.levels()
+    return jsonify({
+        "recording": True,
+        "system": levels["system"],
+        "mic": levels["mic"],
+        "signal": bool(levels["system_bytes"] or levels["mic_bytes"]),
+        "system_silent": levels["system_silent"],
+        "mic_silent": levels["mic_silent"],
+    })
+
+
 @bp.route("/recordings/size")
 def recordings_size():
     d = os.path.join(cfg.DATA_DIR, "recordings")
