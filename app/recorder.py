@@ -29,6 +29,7 @@ import time
 import uuid
 import wave
 
+import numpy as np
 import pyaudiowpatch as pyaudio
 
 from app.utils import ffmpeg_exe
@@ -38,6 +39,13 @@ logger = logging.getLogger(__name__)
 CHUNK = 1024
 FORMAT = pyaudio.paInt16   # int16 — 2 bytes per sample
 OUTPUT_BITRATE = "64k"
+
+# Level-meter tuning. RMS is expressed as a 0.0-1.0 fraction of int16 full
+# scale — typical speech sits around 0.02-0.15, so these thresholds/decay
+# are picked for "does this look like a live mic", not loudness accuracy.
+SILENCE_THRESHOLD = 0.005   # RMS below this counts as silence, ~-46 dBFS
+SILENCE_SECONDS = 10.0      # how long without signal before levels() flags silent
+_LEVEL_DECAY = 0.7          # per-callback decay applied to the held peak
 
 
 class Recorder:
@@ -75,6 +83,14 @@ class Recorder:
         self._mic_wav_path = None
         self._system_bytes = 0
         self._mic_bytes = 0
+
+        # Level meter state — decayed-peak RMS per stream, plus a monotonic
+        # timestamp of the last time each stream was above SILENCE_THRESHOLD,
+        # so levels() can report "no signal for N seconds" (see start()).
+        self._system_level = 0.0
+        self._mic_level = 0.0
+        self._system_last_loud_at = time.monotonic()
+        self._mic_last_loud_at = time.monotonic()
 
     # ------------------------------------------------------------------
     # Device helpers
@@ -117,7 +133,11 @@ class Recorder:
     # ------------------------------------------------------------------
 
     def _system_callback(self, in_data, frame_count, time_info, status):
+        level = _rms_int16(in_data)
         with self._lock:
+            self._system_level = max(level, self._system_level * _LEVEL_DECAY)
+            if level >= SILENCE_THRESHOLD:
+                self._system_last_loud_at = time.monotonic()
             wav = self._system_wav
             if wav is not None:
                 try:
@@ -130,7 +150,11 @@ class Recorder:
         return (None, pyaudio.paContinue)
 
     def _mic_callback(self, in_data, frame_count, time_info, status):
+        level = _rms_int16(in_data)
         with self._lock:
+            self._mic_level = max(level, self._mic_level * _LEVEL_DECAY)
+            if level >= SILENCE_THRESHOLD:
+                self._mic_last_loud_at = time.monotonic()
             wav = self._mic_wav
             if wav is not None:
                 try:
@@ -140,12 +164,29 @@ class Recorder:
                     logger.exception("Dropped a mic-audio chunk")
         return (None, pyaudio.paContinue)
 
+    def levels(self) -> dict:
+        """Current signal levels — polled by GET /level while recording."""
+        with self._lock:
+            now = time.monotonic()
+            return {
+                "system": self._system_level,
+                "mic": self._mic_level,
+                "system_bytes": self._system_bytes,
+                "mic_bytes": self._mic_bytes,
+                "system_silent": (now - self._system_last_loud_at) >= SILENCE_SECONDS,
+                "mic_silent": (now - self._mic_last_loud_at) >= SILENCE_SECONDS,
+            }
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
     def start(self):
         self._pa = pyaudio.PyAudio()
+        self._system_level = 0.0
+        self._mic_level = 0.0
+        self._system_last_loud_at = time.monotonic()
+        self._mic_last_loud_at = time.monotonic()
 
         try:
             loopback = self._find_loopback()
@@ -284,6 +325,27 @@ class Recorder:
 
         logger.info("Saved: %s", path)
         return path
+
+
+# ------------------------------------------------------------------
+# Level-meter helper
+# ------------------------------------------------------------------
+
+def _rms_int16(data: bytes) -> float:
+    """RMS of int16 PCM as a 0.0-1.0 fraction of full scale.
+
+    numpy, not the stdlib audioop module — audioop was removed in Python
+    3.13. This project's dev venv runs 3.13 while CI pins 3.12 (where
+    audioop still exists), so an audioop-based implementation would pass
+    CI and then crash on the next `python -m app.main` outside it.
+    """
+    if not data:
+        return 0.0
+    usable = data[: (len(data) // 2) * 2]  # drop a trailing odd byte, if any
+    if not usable:
+        return 0.0
+    samples = np.frombuffer(usable, dtype=np.int16)
+    return float(np.sqrt(np.mean(samples.astype(np.float32) ** 2)) / 32768.0)
 
 
 # ------------------------------------------------------------------

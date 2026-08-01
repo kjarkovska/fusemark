@@ -36,6 +36,30 @@ def test_current_job_id_none_initially(service):
     assert service.current_job_id is None
 
 
+def test_recorder_property_none_initially(service):
+    assert service.recorder is None
+
+
+def test_recorder_property_returns_recorder_while_recording(service, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.config.DATA_DIR", str(tmp_path))
+    mock_rec = MagicMock()
+    with patch("app.recorder.Recorder", return_value=mock_rec):
+        service.start()
+
+    assert service.recorder is mock_rec
+
+
+def test_recorder_property_none_after_stop(service, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.config.DATA_DIR", str(tmp_path))
+    mock_rec = MagicMock()
+    with patch("app.recorder.Recorder", return_value=mock_rec):
+        service.start()
+
+    service.stop()
+
+    assert service.recorder is None
+
+
 # ------------------------------------------------------------------
 # start()
 # ------------------------------------------------------------------

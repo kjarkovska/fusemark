@@ -5,6 +5,7 @@ let timerInterval = null;
 let timerSeconds = 0;
 let jobsPollInterval = null;
 let levelMeterInterval = null;
+let levelHistory = [];
 const METER_BARS = 14;
 
 // ------------------------------------------------------------------
@@ -102,24 +103,46 @@ function startLevelMeter() {
   if (!meter) return;
   meter.innerHTML = Array(METER_BARS).fill(null)
     .map(() => '<span class="level-bar"></span>').join('');
-  levelMeterInterval = setInterval(() => {
-    meter.querySelectorAll('.level-bar').forEach(bar => {
-      const l = 0.25 + Math.random() * 0.75;
+  levelHistory = Array(METER_BARS).fill(0);
+  pollLevel();
+  levelMeterInterval = setInterval(pollLevel, 250);
+}
+
+async function pollLevel() {
+  const meter = document.getElementById('level-meter');
+  if (!meter) return;
+  try {
+    const d = await fetch('/level').then(r => r.json());
+    // One scalar per poll, scrolled through a fixed-length history — turns
+    // real (mono) signal strength into the same left-to-right bar look the
+    // old fake meter had.
+    levelHistory.push(Math.max(d.system, d.mic));
+    levelHistory.shift();
+
+    meter.querySelectorAll('.level-bar').forEach((bar, i) => {
+      const l = Math.max(0.06, Math.min(1, levelHistory[i] * 3));
       bar.style.height = `${Math.round(l * 16)}px`;
       bar.style.opacity = String(0.6 + l * 0.4);
     });
-  }, 110);
+
+    const warning = document.getElementById('level-warning');
+    if (warning) warning.style.display = d.mic_silent ? '' : 'none';
+  } catch (_) {}
 }
 
 function stopLevelMeter() {
   clearInterval(levelMeterInterval);
   levelMeterInterval = null;
+  levelHistory = [];
   const meter = document.getElementById('level-meter');
-  if (!meter) return;
-  meter.querySelectorAll('.level-bar').forEach(bar => {
-    bar.style.height = '3px';
-    bar.style.opacity = '0.15';
-  });
+  if (meter) {
+    meter.querySelectorAll('.level-bar').forEach(bar => {
+      bar.style.height = '3px';
+      bar.style.opacity = '0.15';
+    });
+  }
+  const warning = document.getElementById('level-warning');
+  if (warning) warning.style.display = 'none';
 }
 
 // ------------------------------------------------------------------

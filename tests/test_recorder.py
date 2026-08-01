@@ -6,6 +6,7 @@ import pytest
 
 from app.recorder import (
     Recorder,
+    _rms_int16,
     list_partial_sessions,
     partial_paths,
     rewrite_wav_header,
@@ -152,6 +153,111 @@ def test_callback_after_stop_is_noop(monkeypatch):
     # A callback firing after stop() (a straggler from PortAudio's own
     # thread) must not raise, even though the WAV handle is now None.
     rec._system_callback(b"\x00\x01", 1, {}, 0)
+
+
+# ------------------------------------------------------------------
+# Level meter (#43)
+# ------------------------------------------------------------------
+
+def test_rms_of_silence_is_zero():
+    assert _rms_int16(b"\x00\x00" * 100) == 0.0
+
+
+def test_rms_of_full_scale_is_near_one():
+    # 0x7fff little-endian = 32767, the int16 max.
+    level = _rms_int16(b"\xff\x7f" * 100)
+    assert 0.99 < level <= 1.0
+
+
+def test_rms_of_empty_bytes_is_zero():
+    assert _rms_int16(b"") == 0.0
+
+
+def test_rms_handles_odd_length_buffer():
+    # 5 bytes: drops the trailing byte, uses the first 4 (2 full-scale samples).
+    level = _rms_int16(b"\xff\x7f\xff\x7f\x00")
+    assert level > 0.99
+
+
+def test_levels_zero_before_any_callback(monkeypatch):
+    pa, _ = _make_pa_mock()
+    monkeypatch.setattr("app.recorder.pyaudio.PyAudio", lambda: pa)
+
+    rec = Recorder()
+    rec.start()
+    levels = rec.levels()
+    assert levels["system"] == 0.0
+    assert levels["mic"] == 0.0
+    rec.stop()
+
+
+def test_levels_updates_after_loud_callback(monkeypatch):
+    pa, _ = _make_pa_mock()
+    monkeypatch.setattr("app.recorder.pyaudio.PyAudio", lambda: pa)
+
+    rec = Recorder()
+    rec.start()
+    rec._system_callback(b"\xff\x7f" * 200, 200, {}, 0)
+    assert rec.levels()["system"] > 0.0
+    rec.stop()
+
+
+def test_level_decays_but_does_not_reset_to_zero(monkeypatch):
+    pa, _ = _make_pa_mock()
+    monkeypatch.setattr("app.recorder.pyaudio.PyAudio", lambda: pa)
+
+    rec = Recorder()
+    rec.start()
+    rec._system_callback(b"\xff\x7f" * 200, 200, {}, 0)
+    loud_level = rec.levels()["system"]
+    rec._system_callback(b"\x00\x00" * 200, 200, {}, 0)
+    decayed_level = rec.levels()["system"]
+
+    assert loud_level > 0.9
+    assert 0 < decayed_level < loud_level
+    rec.stop()
+
+
+def test_not_silent_immediately_after_start(monkeypatch):
+    """The silence window gives a fresh recording SILENCE_SECONDS of grace
+    before flagging silence, rather than starting silent-by-default."""
+    pa, _ = _make_pa_mock()
+    monkeypatch.setattr("app.recorder.pyaudio.PyAudio", lambda: pa)
+
+    rec = Recorder()
+    rec.start()
+    levels = rec.levels()
+    assert levels["system_silent"] is False
+    assert levels["mic_silent"] is False
+    rec.stop()
+
+
+def test_silent_flagged_once_window_elapses(monkeypatch):
+    pa, _ = _make_pa_mock()
+    monkeypatch.setattr("app.recorder.pyaudio.PyAudio", lambda: pa)
+    monkeypatch.setattr("app.recorder.SILENCE_SECONDS", 0)
+
+    rec = Recorder()
+    rec.start()
+    levels = rec.levels()
+    assert levels["system_silent"] is True
+    assert levels["mic_silent"] is True
+    rec.stop()
+
+
+def test_loud_callback_clears_silent_flag(monkeypatch):
+    pa, _ = _make_pa_mock()
+    monkeypatch.setattr("app.recorder.pyaudio.PyAudio", lambda: pa)
+    monkeypatch.setattr("app.recorder.SILENCE_SECONDS", 9999)  # never elapses on its own
+
+    rec = Recorder()
+    rec.start()
+    # Force stale state, then prove a loud callback resets it.
+    rec._mic_last_loud_at -= 20000
+    assert rec.levels()["mic_silent"] is True
+    rec._mic_callback(b"\xff\x7f" * 200, 200, {}, 0)
+    assert rec.levels()["mic_silent"] is False
+    rec.stop()
 
 
 def test_discard_is_idempotent(monkeypatch):
