@@ -90,7 +90,7 @@ def test_recover_marks_ghost_recording_jobs_as_error(db_path):
     assert count == 1
     job = q.get_job(j_rec)
     assert job["status"] == "error"
-    assert job["error_message"] == "recording interrupted — audio not saved"
+    assert job["error_message"] == "recording interrupted — no audio could be recovered"
 
 
 def test_clear_completed(db_path):

@@ -158,6 +158,10 @@ def main():
     icons = _build_icons()
 
     q.init_db()
+
+    from app.recording_service import salvage_interrupted_recordings
+    salvage_interrupted_recordings()
+
     q.recover_interrupted_jobs()
 
     from app import glossary
