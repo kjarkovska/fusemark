@@ -113,6 +113,16 @@ def _recordings_size_mb(recordings_dir: str) -> float:
         for f in os.listdir(recordings_dir)
         if f.endswith(".mp3")
     )
+    # In-progress and (until the next startup salvage) crash-orphaned partial
+    # WAVs live under recordings/.partial/ — without this the Settings size
+    # figure could silently miss GBs of them.
+    partial_dir = os.path.join(recordings_dir, ".partial")
+    if os.path.isdir(partial_dir):
+        total += sum(
+            os.path.getsize(os.path.join(partial_dir, f))
+            for f in os.listdir(partial_dir)
+            if os.path.isfile(os.path.join(partial_dir, f))
+        )
     return total / (1024 * 1024)
 
 
@@ -152,6 +162,23 @@ def cleanup_recordings(data_dir, delete_processed=False, delete_orphans=True):
             freed += mp3.stat().st_size
             mp3.unlink(missing_ok=True)
             deleted += 1
+
+    if delete_orphans:
+        # Partial WAVs are named "<job_id>.system.wav" / "<job_id>.mic.wav".
+        # Startup salvage (recording_service.salvage_interrupted_recordings)
+        # is the primary recovery path — anything still here for a job that
+        # isn't actively 'recording' is a leftover from a session that has
+        # already been salvaged, failed to salvage, or no longer exists.
+        partial_dir = Path(recordings_dir) / ".partial"
+        if partial_dir.is_dir():
+            active_ids = {j["id"] for j in all_jobs if j["status"] == "recording"}
+            for wav in partial_dir.glob("*.wav"):
+                session_id = wav.name.split(".")[0]
+                if session_id not in active_ids:
+                    freed += wav.stat().st_size
+                    wav.unlink(missing_ok=True)
+                    deleted += 1
+
     return {"deleted": deleted, "freed_mb": round(freed / (1024 * 1024), 1)}
 
 

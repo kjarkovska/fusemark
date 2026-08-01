@@ -178,9 +178,10 @@ def clear_completed():
 def recover_interrupted_jobs():
     """
     Reset jobs stuck mid-processing back to 'queued' so the worker retries them.
-    Jobs stuck in 'recording' had their audio buffered only in memory, so it's
-    gone after a crash — mark those 'error' instead of retrying them.
-    Called once on app startup.
+    Jobs still stuck in 'recording' by the time this runs are the ones
+    recording_service.salvage_interrupted_recordings() (called earlier in
+    startup) could not recover any audio for — mark those 'error' instead
+    of retrying them. Called once on app startup.
     """
     with _conn() as con:
         result = con.execute(
@@ -194,7 +195,7 @@ def recover_interrupted_jobs():
         recording_result = con.execute(
             """
             UPDATE jobs
-               SET status = 'error', error_message = 'recording interrupted — audio not saved', updated_at = ?
+               SET status = 'error', error_message = 'recording interrupted — no audio could be recovered', updated_at = ?
              WHERE status = 'recording'
             """,
             (_now(),),

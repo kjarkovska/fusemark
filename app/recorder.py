@@ -5,8 +5,13 @@ Captures two separate streams simultaneously:
   - System audio via WASAPI loopback (pyaudiowpatch)
   - Microphone input (pyaudiowpatch)
 
-Frames are collected in memory, then written as two temp WAV files at each
-device's native sample rate. ffmpeg mixes + resamples both to a single mp3.
+Frames are streamed straight to two partial WAV files on disk as they arrive
+(recordings/.partial/<session_id>.{system,mic}.wav) instead of being buffered
+in memory for the whole meeting. stop() closes the WAV handles (patching
+their headers); save() hands the finished files to ffmpeg to mix + resample
+into a single mp3, then deletes them. If the process dies mid-recording, the
+partial WAVs survive with an unpatched header — salvage_partial() repairs and
+recovers them on the next startup (see recording_service.salvage_interrupted_recordings).
 
 CLI usage:
   python app/recorder.py --list-devices
@@ -19,9 +24,9 @@ import argparse
 import logging
 import os
 import subprocess
-import tempfile
 import threading
 import time
+import uuid
 import wave
 
 import pyaudiowpatch as pyaudio
@@ -36,18 +41,20 @@ OUTPUT_BITRATE = "64k"
 
 
 class Recorder:
-    def __init__(self, output_device=None, input_device=None):
+    def __init__(self, output_device=None, input_device=None, session_id=None):
         """
         output_device: index of the output device whose audio to loopback-capture.
                        None = use the system default output device.
         input_device:  index of the microphone.
                        None = use the system default input device.
+        session_id:    identifies this recording's partial WAV files on disk —
+                       normally the job id, so a crash mid-recording can be
+                       matched back to its job at startup. None = random.
         """
         self._output_device = output_device
         self._input_device = input_device
+        self._session_id = session_id or uuid.uuid4().hex
 
-        self._system_frames = []
-        self._mic_frames = []
         self._lock = threading.Lock()
 
         self._pa = None
@@ -59,6 +66,15 @@ class Recorder:
         self._system_channels = None
         self._mic_rate = None
         self._mic_channels = None
+
+        # Partial WAV handles + paths + running byte counts — replaces the old
+        # in-memory frame lists so an N-hour meeting no longer costs N hours of RAM.
+        self._system_wav = None
+        self._mic_wav = None
+        self._system_wav_path = None
+        self._mic_wav_path = None
+        self._system_bytes = 0
+        self._mic_bytes = 0
 
     # ------------------------------------------------------------------
     # Device helpers
@@ -102,12 +118,26 @@ class Recorder:
 
     def _system_callback(self, in_data, frame_count, time_info, status):
         with self._lock:
-            self._system_frames.append(in_data)
+            wav = self._system_wav
+            if wav is not None:
+                try:
+                    wav.writeframesraw(in_data)
+                    self._system_bytes += len(in_data)
+                except Exception:
+                    # Must never raise out of a PortAudio callback — that
+                    # silently kills the stream with no user-visible error.
+                    logger.exception("Dropped a system-audio chunk")
         return (None, pyaudio.paContinue)
 
     def _mic_callback(self, in_data, frame_count, time_info, status):
         with self._lock:
-            self._mic_frames.append(in_data)
+            wav = self._mic_wav
+            if wav is not None:
+                try:
+                    wav.writeframesraw(in_data)
+                    self._mic_bytes += len(in_data)
+                except Exception:
+                    logger.exception("Dropped a mic-audio chunk")
         return (None, pyaudio.paContinue)
 
     # ------------------------------------------------------------------
@@ -115,8 +145,6 @@ class Recorder:
     # ------------------------------------------------------------------
 
     def start(self):
-        self._system_frames = []
-        self._mic_frames = []
         self._pa = pyaudio.PyAudio()
 
         try:
@@ -127,6 +155,18 @@ class Recorder:
             mic = self._find_mic()
             self._mic_rate = int(mic["defaultSampleRate"])
             self._mic_channels = 1
+
+            # Open the partial WAVs before the streams, so a callback can
+            # never fire before self._system_wav / self._mic_wav exist.
+            self._system_wav_path, self._mic_wav_path = partial_paths(self._session_id)
+            self._system_bytes = 0
+            self._mic_bytes = 0
+            self._system_wav = _open_partial_wav(
+                self._system_wav_path, self._system_channels, self._system_rate
+            )
+            self._mic_wav = _open_partial_wav(
+                self._mic_wav_path, self._mic_channels, self._mic_rate
+            )
 
             self._system_stream = self._pa.open(
                 format=FORMAT,
@@ -153,8 +193,9 @@ class Recorder:
         except Exception:
             # Clean up whatever opened before the failure (e.g. a BT mic that
             # disconnected between loopback and mic stream open) instead of
-            # leaking the stream + PyAudio instance.
+            # leaking the stream + PyAudio instance + partial WAV files.
             self.stop()
+            self._discard_partials()
             raise
 
     def stop(self):
@@ -170,42 +211,62 @@ class Recorder:
             self._pa.terminate()
             self._pa = None
 
-    def save(self, path):
-        """Mix both streams and write to path as .mp3. Returns path."""
+        # stop_stream() above blocks until in-flight callbacks finish, so no
+        # callback can be running by the time we close the WAV handles.
         with self._lock:
-            system_frames = list(self._system_frames)
-            mic_frames = list(self._mic_frames)
+            for attr in ("_system_wav", "_mic_wav"):
+                wav = getattr(self, attr)
+                if wav is None:
+                    continue
+                setattr(self, attr, None)  # clear first: a stray callback then no-ops
+                try:
+                    wav.close()  # patches the RIFF/data chunk sizes
+                except Exception:
+                    logger.warning("Failed to close partial WAV (%s)", attr, exc_info=True)
 
-        if not system_frames and not mic_frames:
+    def _discard_partials(self):
+        """Delete the partial WAV files and reset path/byte state. Idempotent."""
+        for attr in ("_system_wav_path", "_mic_wav_path"):
+            path = getattr(self, attr)
+            if path and os.path.exists(path):
+                try:
+                    os.unlink(path)
+                except OSError:
+                    logger.warning("Failed to remove partial WAV: %s", path)
+            setattr(self, attr, None)
+        self._system_bytes = 0
+        self._mic_bytes = 0
+
+    def discard(self):
+        """Close everything and drop the partial WAVs without producing an mp3.
+        For failure paths where save() will never run. Idempotent — safe to
+        call after stop() or after save() has already cleaned up."""
+        self.stop()
+        self._discard_partials()
+
+    def save(self, path):
+        """Mix both partial WAVs and write to path as .mp3. Returns path."""
+        if self._system_wav is not None or self._mic_wav is not None:
+            self.stop()
+
+        with self._lock:
+            system_path = self._system_wav_path
+            mic_path = self._mic_wav_path
+            total_bytes = self._system_bytes + self._mic_bytes
+
+        if not total_bytes:
+            self._discard_partials()
             raise RuntimeError("Nothing was recorded.")
 
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
 
-        system_tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-        mic_tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-        system_tmp.close()
-        mic_tmp.close()
-
         try:
-            _write_wav(
-                system_tmp.name,
-                system_frames,
-                self._system_channels,
-                self._system_rate,
-            )
-            _write_wav(
-                mic_tmp.name,
-                mic_frames,
-                self._mic_channels,
-                self._mic_rate,
-            )
-
             # ffmpeg mixes the two streams, resamples to 16 kHz mono, encodes mp3
             result = subprocess.run(
                 [
                     ffmpeg_exe(), "-y",
-                    "-i", system_tmp.name,
-                    "-i", mic_tmp.name,
+                    "-i", system_path,
+                    "-i", mic_path,
                     "-filter_complex", "amix=inputs=2:duration=longest",
                     "-ar", "16000",
                     "-ac", "1",
@@ -219,24 +280,143 @@ class Recorder:
             if result.returncode != 0:
                 raise RuntimeError(f"ffmpeg failed:\n{result.stderr}")
         finally:
-            os.unlink(system_tmp.name)
-            os.unlink(mic_tmp.name)
+            self._discard_partials()
 
         logger.info("Saved: %s", path)
         return path
 
 
 # ------------------------------------------------------------------
-# Helpers
+# Partial-file helpers — module-level so startup salvage can use them
+# without constructing a Recorder.
 # ------------------------------------------------------------------
 
-def _write_wav(path, frames, channels, rate):
-    with wave.open(path, "wb") as wf:
-        wf.setnchannels(channels)
-        wf.setsampwidth(2)  # FORMAT = paInt16 = 2 bytes
-        wf.setframerate(rate)
-        wf.writeframes(b"".join(frames))
+def partial_dir() -> str:
+    from app.config import DATA_DIR
+    return os.path.join(DATA_DIR, "recordings", ".partial")
 
+
+def partial_paths(session_id: str) -> tuple:
+    d = partial_dir()
+    return (
+        os.path.join(d, f"{session_id}.system.wav"),
+        os.path.join(d, f"{session_id}.mic.wav"),
+    )
+
+
+def _open_partial_wav(path, channels, rate):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    wf = wave.open(path, "wb")
+    wf.setnchannels(channels)
+    wf.setsampwidth(2)  # FORMAT = paInt16 = 2 bytes
+    wf.setframerate(rate)
+    return wf
+
+
+def list_partial_sessions() -> list:
+    """Return session ids (job ids) with at least a system partial WAV on disk."""
+    d = partial_dir()
+    if not os.path.isdir(d):
+        return []
+    suffix = ".system.wav"
+    return [name[: -len(suffix)] for name in os.listdir(d) if name.endswith(suffix)]
+
+
+def rewrite_wav_header(path: str) -> bool:
+    """Repair a WAV left with a stale header by a crash mid-write.
+
+    wave.Wave_write only patches the RIFF/data chunk sizes on close(); a
+    process killed mid-recording leaves a header that undersells (or zeroes)
+    how much PCM data actually follows it. Scans the chunk list for 'data',
+    trusts the file's actual size for its length, and rewrites just the two
+    size fields in place. Returns False if the file isn't a parseable
+    RIFF/WAVE container or has no usable data chunk.
+    """
+    try:
+        file_size = os.path.getsize(path)
+        with open(path, "r+b") as f:
+            riff = f.read(12)
+            if len(riff) < 12 or riff[0:4] != b"RIFF" or riff[8:12] != b"WAVE":
+                return False
+
+            data_header_offset = None
+            data_size_on_disk = None
+            pos = 12
+            while pos + 8 <= file_size:
+                f.seek(pos)
+                chunk_id = f.read(4)
+                size_bytes = f.read(4)
+                if len(chunk_id) < 4 or len(size_bytes) < 4:
+                    break
+                declared_size = int.from_bytes(size_bytes, "little")
+                if chunk_id == b"data":
+                    data_header_offset = pos
+                    data_size_on_disk = file_size - (pos + 8)
+                    break
+                advance = declared_size + (declared_size % 2)  # chunks are word-padded
+                if advance <= 0:
+                    break
+                pos += 8 + advance
+
+            if not data_header_offset or not data_size_on_disk or data_size_on_disk <= 0:
+                return False
+
+            f.seek(4)
+            f.write((file_size - 8).to_bytes(4, "little"))
+            f.seek(data_header_offset + 4)
+            f.write(data_size_on_disk.to_bytes(4, "little"))
+        return True
+    except OSError:
+        return False
+
+
+def salvage_partial(session_id: str, out_path: str) -> str | None:
+    """Repair and mix a crash-orphaned session's partial WAVs into out_path.
+
+    Returns out_path on success, None if nothing usable was recoverable.
+    Always deletes the partial WAVs afterward, whether salvage succeeded or not.
+    """
+    system_path, mic_path = partial_paths(session_id)
+    system_ok = os.path.exists(system_path) and rewrite_wav_header(system_path)
+    mic_ok = os.path.exists(mic_path) and rewrite_wav_header(mic_path)
+
+    try:
+        if system_ok and mic_ok:
+            args = [
+                ffmpeg_exe(), "-y",
+                "-i", system_path, "-i", mic_path,
+                "-filter_complex", "amix=inputs=2:duration=longest",
+                "-ar", "16000", "-ac", "1", "-b:a", OUTPUT_BITRATE, out_path,
+            ]
+        elif system_ok or mic_ok:
+            args = [
+                ffmpeg_exe(), "-y",
+                "-i", system_path if system_ok else mic_path,
+                "-ar", "16000", "-ac", "1", "-b:a", OUTPUT_BITRATE, out_path,
+            ]
+        else:
+            return None
+
+        os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
+        result = subprocess.run(
+            args, capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+        )
+        if result.returncode != 0:
+            logger.warning("Salvage ffmpeg failed for session %s: %s", session_id, result.stderr)
+            return None
+        return out_path
+    finally:
+        for p in (system_path, mic_path):
+            if os.path.exists(p):
+                try:
+                    os.unlink(p)
+                except OSError:
+                    logger.warning("Failed to remove partial WAV after salvage: %s", p)
+
+
+# ------------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------------
 
 def list_devices():
     """Print all audio devices with their index, type, and loopback/default markers."""

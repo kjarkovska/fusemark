@@ -1091,6 +1091,48 @@ def test_recordings_cleanup_keeps_active_job_files(flask_client, tmp_path, monke
 
 
 # ------------------------------------------------------------------
+# #52 — recordings/.partial/ accounting (in-progress + crash-orphaned WAVs)
+# ------------------------------------------------------------------
+
+def test_recordings_size_includes_partial_wavs(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    rdir = tmp_path / "recordings"
+    (rdir / ".partial").mkdir(parents=True)
+    (rdir / ".partial" / "job1.system.wav").write_bytes(b"x" * 1024 * 512)  # 0.5 MB
+    r = flask_client.get("/recordings/size")
+    data = r.get_json()
+    assert data["size_mb"] == 0.5
+
+
+def test_recordings_cleanup_sweeps_orphan_partial(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    rdir = tmp_path / "recordings"
+    (rdir / ".partial").mkdir(parents=True)
+    wav = rdir / ".partial" / "no-such-job.system.wav"
+    wav.write_bytes(b"audio")
+    r = flask_client.post("/recordings/cleanup")
+    assert r.status_code == 200
+    assert r.get_json()["deleted"] == 1
+    assert not wav.exists()
+
+
+def test_recordings_cleanup_keeps_partial_for_active_recording_job(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path))
+    rdir = tmp_path / "recordings"
+    (rdir / ".partial").mkdir(parents=True)
+    job_id = q.create_job(label="in progress")  # status defaults to 'recording'
+    wav = rdir / ".partial" / f"{job_id}.system.wav"
+    wav.write_bytes(b"audio")
+    r = flask_client.post("/recordings/cleanup")
+    assert r.status_code == 200
+    assert r.get_json()["deleted"] == 0
+    assert wav.exists()
+
+
+# ------------------------------------------------------------------
 # P7 — settings/save accepts new fields
 # ------------------------------------------------------------------
 
