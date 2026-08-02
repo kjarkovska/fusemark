@@ -11,6 +11,7 @@ the APPDATA prompts folder, so the user always has every prompt to edit.
 
 import logging
 import os
+import re
 import sys
 
 logger = logging.getLogger(__name__)
@@ -42,12 +43,27 @@ def _user_dir() -> str:
     return os.path.join(DATA_DIR, "prompts")
 
 
+_PLACEHOLDER_RE = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+
 def _substitute(text: str, **kwargs) -> str:
-    """Replace {key} placeholders using str.replace — safe for values containing braces."""
-    result = text
-    for key, value in kwargs.items():
-        result = result.replace("{" + key + "}", value)
-    return result
+    """Replace every {key} placeholder in one simultaneous pass.
+
+    Unknown {tokens} are left untouched, and substituted values are never
+    rescanned — a value that itself contains a literal {key} token (e.g. a
+    meeting title of "Q3 {glossary} review") is not re-expanded, because
+    re.sub only scans the original text, not the strings it inserts.
+
+    Uses a function replacement rather than a string one: re.sub's string
+    form interprets backslash sequences like \\1/\\g<0> in the replacement,
+    which would misfire on user-controlled values (glossary JSON, titles).
+    A callable's return value is always inserted literally.
+    """
+    def _replace(match):
+        key = match.group(1)
+        return kwargs[key] if key in kwargs else match.group(0)
+
+    return _PLACEHOLDER_RE.sub(_replace, text)
 
 
 def _validate(text: str, required: list) -> None:
@@ -56,15 +72,53 @@ def _validate(text: str, required: list) -> None:
         raise ValueError(f"missing required placeholders: {missing}")
 
 
+# name -> (cache_key, resolved_text). cache_key is a stat-based fingerprint
+# of both candidate files (see _stat_key) so an edit, a newly created
+# override, or a deleted override all naturally invalidate the entry —
+# nothing here is captured once at import time.
+_cache: dict = {}
+
+
+def _stat_key(path: str) -> tuple:
+    """A fingerprint for one file's on-disk state, distinguishing "missing"
+    from any real content so override creation/deletion both invalidate."""
+    try:
+        st = os.stat(path)
+        return (path, st.st_mtime_ns, st.st_size)
+    except OSError:
+        return (path, None, None)
+
+
+def _read(path: str) -> str:
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def clear_cache() -> None:
+    """Drop all memoized prompts. Called after open_prompts_folder() seeds
+    new files, so a freshly created override is picked up immediately."""
+    _cache.clear()
+
+
 def _load(name: str) -> str:
     meta = _PROMPTS[name]
     user_path = os.path.join(_user_dir(), meta["file"])
     bundled_path = os.path.join(_BUNDLED_DIR, meta["file"])
 
+    key = (_stat_key(user_path), _stat_key(bundled_path))
+    cached = _cache.get(name)
+    if cached is not None and cached[0] == key:
+        return cached[1]
+
+    text = _resolve(meta, user_path, bundled_path)
+    _cache[name] = (key, text)
+    return text
+
+
+def _resolve(meta: dict, user_path: str, bundled_path: str) -> str:
     if os.path.exists(user_path):
         try:
-            with open(user_path, "r", encoding="utf-8") as f:
-                text = f.read()
+            text = _read(user_path)
             _validate(text, meta["required"])
             return text
         except Exception as exc:
@@ -74,8 +128,7 @@ def _load(name: str) -> str:
             )
 
     try:
-        with open(bundled_path, "r", encoding="utf-8") as f:
-            return f.read()
+        return _read(bundled_path)
     except OSError as exc:
         # The bundled default is the last-resort fallback — there is nothing
         # below it. Fail loudly with context instead of leaking a bare
@@ -108,6 +161,10 @@ def validate_user_prompts() -> list:
       "default" — no user override; the bundled default is in use
       "custom"  — a valid user override is in use
       "invalid" — a user override exists but was rejected (bundled default used)
+
+    Deliberately does not share _load()'s cache: this runs once per Settings
+    page load (not per-job on a hot path), needs the actual validation error
+    text rather than just the resolved prompt, and must always reflect disk.
     """
     user_dir = _user_dir()
     results = []
@@ -141,6 +198,7 @@ def open_prompts_folder() -> None:
                 content = f.read()
             with open(dst, "w", encoding="utf-8") as f:
                 f.write(content)
+    clear_cache()
     try:
         os.startfile(user_dir)
     except Exception as exc:

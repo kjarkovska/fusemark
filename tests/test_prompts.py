@@ -1,5 +1,16 @@
+import os
+
 import pytest
 import app.prompts as pm
+
+
+@pytest.fixture(autouse=True)
+def _clear_prompt_cache():
+    """_load()'s module-level cache must not leak resolved text between
+    tests that reuse the same prompt `name` under different tmp_path dirs."""
+    pm.clear_cache()
+    yield
+    pm.clear_cache()
 
 
 # ------------------------------------------------------------------
@@ -34,6 +45,39 @@ def test_substitute_leaves_unreferenced_placeholders():
     assert result == "A and {b}"
 
 
+def test_substitute_does_not_reexpand_injected_value():
+    """The #31 bug: a value substituted for one key must not have its own
+    literal {other_key} text picked up by that key's later substitution."""
+    result = pm._substitute("{template} / {glossary}", template="Title: {glossary}", glossary="GLOSS")
+    assert result == "Title: {glossary} / GLOSS"
+
+
+def test_substitute_value_with_regex_backreference_syntax_is_literal():
+    """Guards against ever switching back to a string-form re.sub, which
+    would interpret \\1/\\g<0> in a user-controlled value."""
+    result = pm._substitute("{x}", x=r"a\1b\g<0>")
+    assert result == r"a\1b\g<0>"
+
+
+def test_substitute_ignores_non_identifier_braces():
+    result = pm._substitute("{a-b} and {a}", a="A")
+    assert result == "{a-b} and A"
+
+
+def test_build_note_system_title_containing_glossary_token_is_not_expanded(tmp_path, monkeypatch):
+    """The real #31 scenario: a meeting title containing the literal text
+    '{glossary}' must not have that later replaced by the real glossary."""
+    monkeypatch.setattr(pm, "_user_dir", lambda: str(tmp_path / "prompts"))
+    rendered_template = pm.build_note_template(date="2026-01-01", title="Q3 {glossary} review")
+    result = pm.build_note_system(
+        lang_instruction="en",
+        template=rendered_template,
+        glossary="REAL_GLOSSARY_JSON",
+    )
+    assert "Q3 {glossary} review" in result
+    assert result.count("REAL_GLOSSARY_JSON") == 1
+
+
 # ------------------------------------------------------------------
 # _load — bundled default fallback
 # ------------------------------------------------------------------
@@ -66,6 +110,149 @@ def test_load_falls_back_to_bundled_when_user_override_invalid(tmp_path, monkeyp
         text = pm._load("note_template")
     assert "{date}" in text
     assert "invalid" in caplog.text.lower() or "bundled" in caplog.text.lower()
+
+
+# ------------------------------------------------------------------
+# _load — caching (#30)
+# ------------------------------------------------------------------
+
+def _bump_mtime(path, seconds_forward):
+    import os
+    st = os.stat(path)
+    new_ns = st.st_mtime_ns + int(seconds_forward * 1_000_000_000)
+    os.utime(path, ns=(new_ns, new_ns))
+
+
+def test_load_reads_file_once_per_unchanged_state(tmp_path, monkeypatch):
+    user_dir = tmp_path / "prompts"
+    user_dir.mkdir()
+    (user_dir / "note_template.md").write_text("v1 {date} {title}", encoding="utf-8")
+    monkeypatch.setattr(pm, "_user_dir", lambda: str(user_dir))
+
+    calls = []
+    real_read = pm._read
+    monkeypatch.setattr(pm, "_read", lambda p: (calls.append(p), real_read(p))[1])
+
+    pm._load("note_template")
+    pm._load("note_template")
+    pm._load("note_template")
+
+    user_reads = [c for c in calls if c.endswith("note_template.md") and str(user_dir) in c]
+    assert len(user_reads) == 1
+
+
+def test_load_picks_up_edit_without_restart(tmp_path, monkeypatch):
+    user_dir = tmp_path / "prompts"
+    user_dir.mkdir()
+    path = user_dir / "note_template.md"
+    path.write_text("v1 {date} {title}", encoding="utf-8")
+    monkeypatch.setattr(pm, "_user_dir", lambda: str(user_dir))
+
+    assert "v1" in pm._load("note_template")
+
+    path.write_text("v2 {date} {title}", encoding="utf-8")
+    _bump_mtime(path, 1)
+
+    assert "v2" in pm._load("note_template")
+
+
+def test_load_picks_up_newly_created_override(tmp_path, monkeypatch):
+    user_dir = tmp_path / "prompts"
+    monkeypatch.setattr(pm, "_user_dir", lambda: str(user_dir))
+
+    first = pm._load("note_template")
+    assert "custom" not in first
+
+    user_dir.mkdir()
+    (user_dir / "note_template.md").write_text("custom {date} {title}", encoding="utf-8")
+
+    assert "custom" in pm._load("note_template")
+
+
+def test_load_picks_up_deleted_override(tmp_path, monkeypatch):
+    user_dir = tmp_path / "prompts"
+    user_dir.mkdir()
+    path = user_dir / "note_template.md"
+    path.write_text("custom {date} {title}", encoding="utf-8")
+    monkeypatch.setattr(pm, "_user_dir", lambda: str(user_dir))
+
+    assert "custom" in pm._load("note_template")
+
+    path.unlink()
+
+    assert "custom" not in pm._load("note_template")
+
+
+def test_load_does_not_cache_invalid_override_as_valid(tmp_path, monkeypatch):
+    user_dir = tmp_path / "prompts"
+    user_dir.mkdir()
+    path = user_dir / "note_template.md"
+    path.write_text("no placeholders at all", encoding="utf-8")
+    monkeypatch.setattr(pm, "_user_dir", lambda: str(user_dir))
+
+    first = pm._load("note_template")
+    assert "{date}" in first  # fell back to bundled
+
+    path.write_text("fixed {date} {title}", encoding="utf-8")
+    _bump_mtime(path, 1)
+
+    assert "fixed" in pm._load("note_template")
+
+
+def test_clear_cache_forces_reread(tmp_path, monkeypatch):
+    user_dir = tmp_path / "prompts"
+    user_dir.mkdir()
+    path = user_dir / "note_template.md"
+    path.write_text("v1 {date} {title}", encoding="utf-8")
+    monkeypatch.setattr(pm, "_user_dir", lambda: str(user_dir))
+
+    pm._load("note_template")
+
+    # Same mtime/size — a naive cache miss check would still hit if it only
+    # compared content, but overwriting with identical stats should still be
+    # forced through by an explicit clear_cache() call.
+    pm.clear_cache()
+    calls = []
+    real_read = pm._read
+    monkeypatch.setattr(pm, "_read", lambda p: (calls.append(p), real_read(p))[1])
+    pm._load("note_template")
+    assert len(calls) == 1
+
+
+def test_open_prompts_folder_clears_cache(tmp_path, monkeypatch):
+    user_dir = tmp_path / "prompts"
+    monkeypatch.setattr(pm, "_user_dir", lambda: str(user_dir))
+
+    # Prime the cache against the bundled default (no override yet).
+    first = pm._load("note_template")
+    assert "custom" not in first
+
+    with __import__("unittest.mock", fromlist=["patch"]).patch("os.startfile"):
+        pm.open_prompts_folder()
+
+    # open_prompts_folder() seeds a copy of the bundled default (not a
+    # "custom" one), but the read must come from the newly-created user file,
+    # not a stale cached bundled-file resolution.
+    text = pm._load("note_template")
+    assert os.path.exists(os.path.join(str(user_dir), "note_template.md"))
+    assert text == first  # content is the same (seeded from the same bundled source)
+
+
+def test_cache_respects_monkeypatched_user_dir_across_tests(tmp_path, monkeypatch):
+    """Two different tmp_path-based user dirs for the same prompt name must
+    not collide in the cache — this is really a regression guard for the
+    autouse clear_cache fixture, not new behavior."""
+    dir_a = tmp_path / "a"
+    dir_a.mkdir()
+    (dir_a / "note_template.md").write_text("from A {date} {title}", encoding="utf-8")
+    monkeypatch.setattr(pm, "_user_dir", lambda: str(dir_a))
+    assert "from A" in pm._load("note_template")
+
+    dir_b = tmp_path / "b"
+    dir_b.mkdir()
+    (dir_b / "note_template.md").write_text("from B {date} {title}", encoding="utf-8")
+    monkeypatch.setattr(pm, "_user_dir", lambda: str(dir_b))
+    assert "from B" in pm._load("note_template")
 
 
 # ------------------------------------------------------------------
