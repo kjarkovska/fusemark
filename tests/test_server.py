@@ -895,6 +895,44 @@ def test_job_glossary_survives_corrupt_glossary_terms_json(flask_client):
     assert r.get_json()["added"] == []
 
 
+def test_job_glossary_approve_round_trips_to_whisper_prompt(flask_client, tmp_vault):
+    """Every other test in this section mocks app.glossary.add_terms to
+    isolate the route. This one doesn't — it's the actual end-to-end chain
+    #35 asked for: approve via the real route -> real add_terms() -> real
+    Glossary.md on disk -> build_whisper_prompt() picks up the new term.
+    Also re-proves the pipe-escaping fix survives through the route, not
+    just through direct glossary.py calls (context contains a literal '|')."""
+    import app.glossary as gl
+
+    job_id = q.create_job(label="glossary round trip")
+    q.update_job(job_id, glossary_terms=json.dumps([
+        {"canonical": "Kanban", "aliases": ["Kánban"], "context": "board | backlog", "type": "concept"},
+        {"canonical": "Unapproved", "aliases": [], "context": "", "type": ""},
+    ]))
+    q.set_status(job_id, "done")
+
+    r = flask_client.post(
+        f"/jobs/{job_id}/glossary",
+        data=json.dumps({"approve": ["Kanban"]}),
+        content_type="application/json",
+    )
+    assert r.status_code == 200
+    assert r.get_json()["added"] == ["Kanban"]
+
+    glossary_path = tmp_vault / "FuseMark" / "Glossary.md"
+    assert glossary_path.exists()
+
+    reloaded = gl.load()["terms"]
+    assert len(reloaded) == 1
+    assert reloaded[0]["canonical"] == "Kanban"
+    assert reloaded[0]["context"] == "board | backlog"  # pipe survived escape/unescape
+
+    prompt = gl.build_whisper_prompt()
+    assert "Kanban" in prompt
+    assert "Kánban" in prompt
+    assert "Unapproved" not in prompt
+
+
 # ------------------------------------------------------------------
 # /api/model-status
 # ------------------------------------------------------------------

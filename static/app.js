@@ -113,6 +113,14 @@ function startLevelMeter() {
   levelMeterInterval = setInterval(pollLevel, 250);
 }
 
+// Pure so it's directly testable (see tests/js/app.test.js) — maps a 0-1 RMS
+// reading to a bar height/opacity, floored so silence still shows a sliver
+// rather than disappearing, capped at the 16px bar height.
+function levelToBarHeight(level) {
+  const l = Math.max(0.06, Math.min(1, level * 3));
+  return {heightPx: Math.round(l * 16), opacity: 0.6 + l * 0.4};
+}
+
 async function pollLevel() {
   const meter = document.getElementById('level-meter');
   if (!meter) return;
@@ -125,9 +133,9 @@ async function pollLevel() {
     levelHistory.shift();
 
     meter.querySelectorAll('.level-bar').forEach((bar, i) => {
-      const l = Math.max(0.06, Math.min(1, levelHistory[i] * 3));
-      bar.style.height = `${Math.round(l * 16)}px`;
-      bar.style.opacity = String(0.6 + l * 0.4);
+      const {heightPx, opacity} = levelToBarHeight(levelHistory[i]);
+      bar.style.height = `${heightPx}px`;
+      bar.style.opacity = String(opacity);
     });
 
     const warning = document.getElementById('level-warning');
@@ -575,4 +583,27 @@ async function submitImport() {
   document.getElementById('import-transcript').value = '';
   document.getElementById('import-label').value = '';
   document.getElementById('import-msg').textContent = '';
+}
+
+// ------------------------------------------------------------------
+// Test harness support — no-op in the browser (module is undefined there).
+// Exposes the pure/DOM-free functions for tests/js/app.test.js; anything
+// that touches document/fetch directly (renderJob, pollLevel, the various
+// submit* handlers) is intentionally left out — see that file's header
+// comment for why.
+// ------------------------------------------------------------------
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    esc,
+    parseGlossaryTerms,
+    progressFromJob,
+    etaFromJob,
+    statusLabel,
+    formatLocalDate,
+    stripVtt,
+    toggleGlossaryTerm,
+    levelToBarHeight,
+    glossarySelection,
+  };
 }
