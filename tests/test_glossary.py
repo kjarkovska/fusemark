@@ -128,6 +128,118 @@ def test_add_terms_partial_dedup(vault, patched_path):
     assert added == ["Teams"]
 
 
+def test_add_terms_dedups_against_existing_alias(vault, patched_path):
+    """A new term whose canonical matches an EXISTING term's alias must be
+    treated as a duplicate — otherwise the glossary ends up with the same
+    name as both a canonical and an alias of something else."""
+    _write_glossary(vault, [
+        {"canonical": "Jira", "aliases": ["Yira"], "context": "", "type": ""},
+    ])
+    added = gl.add_terms([{"canonical": "Yira", "aliases": [], "context": "", "type": ""}])
+    assert added == []
+    assert len(gl.load(vault)["terms"]) == 1
+
+
+# ------------------------------------------------------------------
+# add_terms() — pipe/newline/backslash escaping (#35)
+# ------------------------------------------------------------------
+
+def test_add_terms_round_trips_pipe_in_context(vault, patched_path):
+    """A literal '|' in a value must not be mistaken for a column separator
+    on the next load — it used to corrupt the row into extra cells."""
+    gl.add_terms([{"canonical": "Jira", "aliases": [], "context": "tracker | issues", "type": "product"}])
+    terms = gl.load(vault)["terms"]
+    assert len(terms) == 1
+    assert terms[0]["canonical"] == "Jira"
+    assert terms[0]["context"] == "tracker | issues"
+
+
+def test_add_terms_round_trips_backslash_in_context(vault, patched_path):
+    gl.add_terms([{"canonical": "Path", "aliases": [], "context": "C:\\Users\\x", "type": ""}])
+    terms = gl.load(vault)["terms"]
+    assert terms[0]["context"] == "C:\\Users\\x"
+
+
+def test_add_terms_collapses_newline_in_context(vault, patched_path):
+    """An embedded newline would otherwise break one table row across two
+    physical lines, corrupting the table structure."""
+    gl.add_terms([{"canonical": "Multi", "aliases": [], "context": "line one\nline two", "type": ""}])
+    terms = gl.load(vault)["terms"]
+    assert len(terms) == 1
+    assert "\n" not in terms[0]["context"]
+    assert "line one" in terms[0]["context"]
+    assert "line two" in terms[0]["context"]
+
+
+def test_add_terms_round_trips_pipe_in_alias(vault, patched_path):
+    gl.add_terms([{"canonical": "Weird", "aliases": ["a|b"], "context": "", "type": ""}])
+    terms = gl.load(vault)["terms"]
+    assert terms[0]["aliases"] == ["a|b"]
+
+
+def test_glossary_round_trip_with_czech_diacritics(vault, patched_path):
+    gl.add_terms([{"canonical": "Džira", "aliases": ["Yira"], "context": "sledování úkolů", "type": "nástroj"}])
+    terms = gl.load(vault)["terms"]
+    assert terms[0]["canonical"] == "Džira"
+    assert terms[0]["context"] == "sledování úkolů"
+    assert "Džira" in gl.build_whisper_prompt()
+
+
+# ------------------------------------------------------------------
+# add_terms() — malformed LLM output (#35)
+# ------------------------------------------------------------------
+
+def test_add_terms_skips_non_dict_entries(vault, patched_path):
+    added = gl.add_terms(["not a dict", None, 42, {"canonical": "Slack", "aliases": [], "context": "", "type": ""}])
+    assert added == ["Slack"]
+
+
+def test_add_terms_skips_entry_missing_canonical(vault, patched_path):
+    added = gl.add_terms([{"aliases": [], "context": "", "type": ""}])
+    assert added == []
+    assert gl.load(vault)["terms"] == []
+
+
+def test_add_terms_skips_blank_canonical(vault, patched_path):
+    added = gl.add_terms([{"canonical": "   ", "aliases": [], "context": "", "type": ""}])
+    assert added == []
+
+
+def test_add_terms_coerces_string_aliases_to_list(vault, patched_path):
+    added = gl.add_terms([{"canonical": "Solo", "aliases": "OnlyOne", "context": "", "type": ""}])
+    assert added == ["Solo"]
+    assert gl.load(vault)["terms"][0]["aliases"] == ["OnlyOne"]
+
+
+def test_add_terms_truncates_overlong_fields(vault, patched_path):
+    long_name = "x" * 500
+    long_context = "y" * 5000
+    gl.add_terms([{"canonical": long_name, "aliases": [], "context": long_context, "type": ""}])
+    term = gl.load(vault)["terms"][0]
+    assert len(term["canonical"]) == gl.MAX_CANONICAL_CHARS
+    assert len(term["context"]) == gl.MAX_CONTEXT_CHARS
+
+
+def test_add_terms_only_malformed_entries_writes_nothing(vault, patched_path):
+    """All-malformed input must not create a Glossary.md at all."""
+    gl.add_terms([None, "junk", {}])
+    assert not os.path.exists(gl.glossary_path())
+
+
+# ------------------------------------------------------------------
+# add_terms() — vault_path parameter (#35)
+# ------------------------------------------------------------------
+
+def test_add_terms_accepts_explicit_vault_path(tmp_path):
+    (tmp_path / "FuseMark").mkdir()
+    added = gl.add_terms(
+        [{"canonical": "Explicit", "aliases": [], "context": "", "type": ""}],
+        vault_path=str(tmp_path),
+    )
+    assert added == ["Explicit"]
+    assert gl.load(str(tmp_path))["terms"][0]["canonical"] == "Explicit"
+
+
 # ------------------------------------------------------------------
 # glossary_path()
 # ------------------------------------------------------------------

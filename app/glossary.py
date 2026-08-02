@@ -2,25 +2,29 @@
 glossary.py — Glossary management for FuseMark
 
 Stores the glossary as a Markdown table at {vault}/FuseMark/Glossary.md.
-Falls back to {project_root}/Glossary.md if vault_path is not configured.
+Falls back to {DATA_DIR}/Glossary.md if vault_path is not configured.
 
 Public API (all backward-compatible):
   - glossary_path()       — resolve the current glossary file path
   - load()                — return {"terms": [...]} from the Markdown table
   - build_whisper_prompt() — canonical terms + aliases as a Whisper hint string
-  - add_terms(new_terms)  — append new terms, deduplicate by canonical name
+  - add_terms(new_terms)  — append new terms, deduplicate by canonical name/alias
   - migrate_if_needed()   — one-time migration from legacy glossary.json
   - open_glossary()       — open Glossary.md in the notes app (Obsidian URI or default handler)
 """
 
 import logging
 import os
+import re
 
 logger = logging.getLogger(__name__)
 
 from app.config import DATA_DIR
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 _LEGACY_JSON_PATH = os.path.join(_PROJECT_ROOT, "glossary.json")
+
+MAX_CANONICAL_CHARS = 100
+MAX_CONTEXT_CHARS = 300
 
 
 # ------------------------------------------------------------------
@@ -43,7 +47,48 @@ def glossary_path(vault_path=None):
 
 # ------------------------------------------------------------------
 # Markdown table parsing and serialisation
+#
+# Cell values (canonical/alias/context/type) can contain characters that
+# would otherwise corrupt the table structure — a literal "|" would split
+# into extra cells, an embedded newline would break the row onto multiple
+# lines. _escape_cell()/_unescape_cell() round-trip those characters through
+# backslash escapes so any term text is safe to store.
 # ------------------------------------------------------------------
+
+def _escape_cell(value) -> str:
+    """Make a value safe inside one Markdown pipe-table cell."""
+    text = str(value if value is not None else "")
+    text = text.replace("\\", "\\\\").replace("|", "\\|")
+    text = text.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+    return text.strip()
+
+
+def _unescape_cell(value: str) -> str:
+    """Inverse of _escape_cell."""
+    result = []
+    i = 0
+    while i < len(value):
+        if value[i] == "\\" and i + 1 < len(value) and value[i + 1] in "\\|":
+            result.append(value[i + 1])
+            i += 2
+        else:
+            result.append(value[i])
+            i += 1
+    return "".join(result)
+
+
+def _split_row(line: str) -> list:
+    """Split one Markdown table row into unescaped cell values."""
+    line = line.strip()
+    if line.startswith("|"):
+        line = line[1:]
+    if line.endswith("|") and not line.endswith("\\|"):
+        line = line[:-1]
+    # Split on a "|" that isn't preceded by a backslash — an escaped pipe
+    # inside a value must not be treated as a column separator.
+    cells = re.split(r"(?<!\\)\|", line)
+    return [_unescape_cell(c.strip()) for c in cells]
+
 
 def _parse_table(lines):
     """Parse a Markdown pipe table into a list of term dicts."""
@@ -53,7 +98,7 @@ def _parse_table(lines):
         line = line.strip()
         if not line.startswith("|"):
             continue
-        cells = [c.strip() for c in line.strip("|").split("|")]
+        cells = _split_row(line)
         if not header_seen:
             header_seen = True
             continue
@@ -82,9 +127,10 @@ def _terms_to_table_lines(terms):
         "|------|---------|---------|------|",
     ]
     for t in terms:
-        aliases_str = ", ".join(t.get("aliases", []))
+        aliases_str = ", ".join(_escape_cell(a) for a in t.get("aliases", []))
         lines.append(
-            f"| {t['canonical']} | {aliases_str} | {t.get('context', '')} | {t.get('type', '')} |"
+            f"| {_escape_cell(t['canonical'])} | {aliases_str} | "
+            f"{_escape_cell(t.get('context', ''))} | {_escape_cell(t.get('type', ''))} |"
         )
     return lines
 
@@ -131,24 +177,58 @@ def build_whisper_prompt():
     return ", ".join(parts)
 
 
-def add_terms(new_terms):
+def _normalize_term(raw) -> dict | None:
+    """Coerce a raw term into a safe, well-typed dict, or None if unusable.
+
+    new_terms can come straight from LLM JSON output (app/worker.py's
+    suggest_glossary_terms) or a Flask request body — neither is guaranteed
+    to be a well-formed {"canonical","aliases","context","type"} dict.
+    """
+    if not isinstance(raw, dict):
+        return None
+    canonical = str(raw.get("canonical") or "").strip()
+    if not canonical:
+        return None
+    aliases_raw = raw.get("aliases") or []
+    if isinstance(aliases_raw, str):
+        aliases_raw = [aliases_raw]
+    aliases = [str(a).strip() for a in aliases_raw if str(a).strip()]
+    return {
+        "canonical": canonical[:MAX_CANONICAL_CHARS],
+        "aliases": aliases,
+        "context": str(raw.get("context") or "").strip()[:MAX_CONTEXT_CHARS],
+        "type": str(raw.get("type") or "").strip(),
+    }
+
+
+def add_terms(new_terms, vault_path=None):
     """
     Append a list of new term dicts to Glossary.md.
-    Skips any term whose canonical form already exists (case-insensitive).
+
+    Skips any malformed entry (not a dict, or missing/blank canonical) and
+    any term whose canonical form already exists — case-insensitively,
+    checked against both existing canonicals and existing aliases, so a new
+    term can't collide with a name the glossary already knows under.
     """
-    glossary = load()
+    glossary = load(vault_path)
     existing_terms = glossary.get("terms", [])
-    existing_lower = {t["canonical"].lower() for t in existing_terms}
+    existing_lower = set()
+    for t in existing_terms:
+        existing_lower.add(t["canonical"].lower())
+        existing_lower.update(a.lower() for a in t.get("aliases", []))
 
     added = []
-    for term in new_terms:
-        if term["canonical"].lower() not in existing_lower:
-            existing_terms.append(term)
-            existing_lower.add(term["canonical"].lower())
-            added.append(term["canonical"])
+    for raw in new_terms:
+        term = _normalize_term(raw)
+        if term is None or term["canonical"].lower() in existing_lower:
+            continue
+        existing_terms.append(term)
+        existing_lower.add(term["canonical"].lower())
+        existing_lower.update(a.lower() for a in term["aliases"])
+        added.append(term["canonical"])
 
     if added:
-        _save(existing_terms)
+        _save(existing_terms, vault_path)
         logger.info("Added: %s", ", ".join(added))
     else:
         logger.debug("No new terms to add.")
