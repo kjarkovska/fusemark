@@ -1,0 +1,8 @@
+{
+  "name": "fusemark-frontend",
+  "private": true,
+  "description": "Test-only package.json for static/app.js — FuseMark itself has no build step or bundler; static/*.js is served as-is by Flask.",
+  "scripts": {
+    "test": "node --test tests/js"
+  }
+}

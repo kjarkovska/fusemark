@@ -8,6 +8,7 @@ import keyring
 from app.exceptions import LLMAuthError, LLMRateLimitError, LLMTransientError, LLMTruncatedError
 from app.glossary import load as load_glossary
 from app import prompts
+from app.llm._common import build_system_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ def test_connection(key: str) -> None:
         raise LLMRateLimitError("Rate limit reached.") from exc
 
 
-def generate_notes(transcript, label="", folder="", scratch_notes="", extra_context="", language="Czech", date_str="", custom_template=""):
+def generate_notes(transcript, label="", folder="", scratch_notes="", extra_context="", language="Czech", date_str="", custom_template="", template_instructions=""):
     """Generate structured meeting notes from a transcript. Returns markdown string."""
     client = anthropic.Anthropic(api_key=_get_api_key())
     glossary = load_glossary()
@@ -57,10 +58,11 @@ def generate_notes(transcript, label="", folder="", scratch_notes="", extra_cont
     else:
         lang_instruction = f"Always write in {language}."
 
-    system = prompts.build_note_system(
+    system = build_system_prompt(
         lang_instruction=lang_instruction,
         template=template,
-        glossary=json.dumps(glossary, ensure_ascii=False, indent=2),
+        glossary_json=json.dumps(glossary, ensure_ascii=False, indent=2),
+        template_instructions=template_instructions,
     )
 
     user_parts = [f"Transcript:\n{transcript}"]

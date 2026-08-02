@@ -14,6 +14,19 @@ def _clear_prompt_cache():
 
 
 # ------------------------------------------------------------------
+# note_system.txt contract (#27 precedent guard)
+# ------------------------------------------------------------------
+
+def test_note_system_required_placeholders_unchanged():
+    """#27's per-template instruction block is concatenated onto the
+    resolved system prompt in app/llm/_common.py, deliberately without
+    adding a 4th placeholder to note_system.txt — that would invalidate
+    every existing user override of this prompt file. Locks the contract
+    so a future change doesn't quietly reintroduce that break."""
+    assert pm._PROMPTS["note_system"]["required"] == ["{lang_instruction}", "{template}", "{glossary}"]
+
+
+# ------------------------------------------------------------------
 # _validate
 # ------------------------------------------------------------------
 

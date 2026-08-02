@@ -5,6 +5,32 @@ from datetime import date
 
 logger = logging.getLogger(__name__)
 
+# Optional per-template instruction block: <!-- fusemark:prompt ... --> lets a
+# vault template carry a few lines of behavioral steering for the LLM (e.g. a
+# sales-call template: "be terse, extract objections and competitor mentions")
+# layered on top of the structural sections the template already defines.
+PROMPT_BLOCK_RE = re.compile(r"<!--\s*fusemark:prompt\s*(.*?)-->", re.DOTALL | re.IGNORECASE)
+MAX_TEMPLATE_PROMPT_CHARS = 2000
+
+
+def split_template_prompt(text):
+    """Split a raw vault template into (skeleton, instructions).
+
+    The instruction block(s) are removed from the skeleton so they can never
+    leak into the generated note's output. Multiple blocks are concatenated
+    with a space; the result is capped at MAX_TEMPLATE_PROMPT_CHARS. Returns
+    (text, "") unchanged when no block is present — including when a block
+    marker is malformed/unterminated, since the regex then simply won't match.
+    """
+    if not text:
+        return "", ""
+    blocks = PROMPT_BLOCK_RE.findall(text)
+    if not blocks:
+        return text, ""
+    skeleton = PROMPT_BLOCK_RE.sub("", text).strip()
+    instructions = " ".join(b.strip() for b in blocks if b.strip())
+    return skeleton, instructions[:MAX_TEMPLATE_PROMPT_CHARS]
+
 
 def list_templates(vault_path):
     """Return sorted list of template name stems from {vault}/FuseMark/Templates/."""

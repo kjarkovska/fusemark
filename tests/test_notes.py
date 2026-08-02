@@ -72,3 +72,72 @@ def test_save_transcript_existing_path_overwrites_in_place(tmp_vault):
     assert p2 == p1
     with open(p1, encoding="utf-8") as f:
         assert "updated" in f.read()
+
+
+# ------------------------------------------------------------------
+# split_template_prompt() — per-template instruction block (#27)
+# ------------------------------------------------------------------
+
+def test_split_template_prompt_empty_string():
+    assert notes.split_template_prompt("") == ("", "")
+
+
+def test_split_template_prompt_no_block_returns_text_unchanged():
+    text = "# {title}\n\n## Agenda\n## Decisions\n"
+    assert notes.split_template_prompt(text) == (text, "")
+
+
+def test_split_template_prompt_extracts_block():
+    text = "# {title}\n\n<!-- fusemark:prompt\nBe terse.\n-->\n\n## Agenda\n"
+    skeleton, instructions = notes.split_template_prompt(text)
+    assert instructions == "Be terse."
+    assert "fusemark:prompt" not in skeleton
+
+
+def test_split_template_prompt_strips_block_from_skeleton():
+    text = "# {title}\n<!-- fusemark:prompt\nBe terse.\n-->\n## Agenda\n"
+    skeleton, _ = notes.split_template_prompt(text)
+    assert "Be terse." not in skeleton
+    assert "# {title}" in skeleton
+    assert "## Agenda" in skeleton
+
+
+def test_split_template_prompt_multiple_blocks_concatenated():
+    text = (
+        "# {title}\n"
+        "<!-- fusemark:prompt\nBe terse.\n-->\n"
+        "## Agenda\n"
+        "<!-- fusemark:prompt\nExtract action items.\n-->\n"
+        "## Decisions\n"
+    )
+    skeleton, instructions = notes.split_template_prompt(text)
+    assert instructions == "Be terse. Extract action items."
+    assert "fusemark:prompt" not in skeleton
+    assert "## Agenda" in skeleton and "## Decisions" in skeleton
+
+
+def test_split_template_prompt_case_insensitive_marker():
+    text = "<!-- FuseMark:Prompt\nBe terse.\n-->\n## Agenda\n"
+    _, instructions = notes.split_template_prompt(text)
+    assert instructions == "Be terse."
+
+
+def test_split_template_prompt_caps_length():
+    long_instructions = "x" * 5000
+    text = f"<!-- fusemark:prompt\n{long_instructions}\n-->\n## Agenda\n"
+    _, instructions = notes.split_template_prompt(text)
+    assert len(instructions) == notes.MAX_TEMPLATE_PROMPT_CHARS
+
+
+def test_split_template_prompt_unterminated_block_left_alone():
+    text = "# {title}\n<!-- fusemark:prompt\nBe terse.\n## Agenda\n"  # no closing -->
+    skeleton, instructions = notes.split_template_prompt(text)
+    assert skeleton == text
+    assert instructions == ""
+
+
+def test_split_template_prompt_does_not_strip_plain_html_comments():
+    text = "# {title}\n<!-- just a regular comment -->\n## Agenda\n"
+    skeleton, instructions = notes.split_template_prompt(text)
+    assert skeleton == text
+    assert instructions == ""

@@ -21,7 +21,7 @@ from app import config as cfg
 from app.exceptions import ModelNotReadyError, LLMRateLimitError, LLMTransientError
 from app.transcription import transcribe
 from app.llm import generate_notes, suggest_glossary_terms
-from app.notes import save_note, save_transcript, load_template
+from app.notes import save_note, save_transcript, load_template, split_template_prompt
 
 
 POLL_INTERVAL = 5   # seconds between queue checks
@@ -163,7 +163,8 @@ class Worker:
 
         transcript = job.get("transcript") or ""
         date_str = job.get("meeting_date", "") or ""
-        custom_template = load_template(vault_path, job.get("template", "") or "") or ""
+        raw_template = load_template(vault_path, job.get("template", "") or "") or ""
+        custom_template, template_instructions = split_template_prompt(raw_template)
 
         transcript_path = save_transcript(
             transcript, job.get("label", ""), vault_path, date_str=date_str,
@@ -182,6 +183,7 @@ class Worker:
                 language=config.get("language_name", "Czech"),
                 date_str=date_str,
                 custom_template=custom_template,
+                template_instructions=template_instructions,
             )
         except (LLMRateLimitError, LLMTransientError) as exc:
             raise _RetryableError(str(exc)) from exc
