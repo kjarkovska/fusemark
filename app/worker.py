@@ -192,12 +192,13 @@ class Worker:
         )
         q.update_job(job_id, output_note_path=out_path)
 
-        try:
-            terms = suggest_glossary_terms(transcript)
-            if terms:
-                q.update_job(job_id, glossary_terms=json.dumps(terms, ensure_ascii=False))
-        except Exception as exc:
-            logger.debug("Glossary suggestion failed (non-fatal): %s", exc)
+        if config.get("glossary_suggestions", True):
+            try:
+                terms = suggest_glossary_terms(transcript)
+                if terms:
+                    q.update_job(job_id, glossary_terms=json.dumps(terms, ensure_ascii=False))
+            except Exception as exc:
+                logger.debug("Glossary suggestion failed (non-fatal): %s", exc)
 
 
     def _maybe_delete_recording(self, job_id):

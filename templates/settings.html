@@ -262,6 +262,13 @@
             </div>
           </div>
           <div class="field">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="glossary_suggestions" {% if config.glossary_suggestions %}checked{% endif %}>
+              {{ t.label_glossary_suggestions_toggle }}
+            </label>
+            <p class="field-hint">{{ t.hint_glossary_suggestions }}</p>
+          </div>
+          <div class="field">
             <button class="btn-secondary btn-full" onclick="openGlossary()">{{ t.btn_open_glossary }}</button>
           </div>
           <div class="field">
@@ -329,6 +336,7 @@
           auto_delete_recordings: document.getElementById('auto_delete_recordings').checked,
           max_recordings_gb: parseFloat(document.getElementById('max_recordings_gb').value) || 5.0,
           check_updates: document.getElementById('check_updates').checked,
+          glossary_suggestions: document.getElementById('glossary_suggestions').checked,
         })
       });
       const data = await res.json();

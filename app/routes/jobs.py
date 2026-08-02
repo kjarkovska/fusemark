@@ -1,5 +1,6 @@
 """Job import (transcript/audio) and job list CRUD/actions."""
 
+import json
 import os
 
 from flask import Blueprint, jsonify, request
@@ -142,3 +143,42 @@ def route_job_audio(job_id):
             os.remove(audio)
 
     return jsonify({"ok": True})
+
+
+@bp.route("/jobs/<job_id>/glossary", methods=["POST"])
+def route_job_glossary(job_id):
+    """Approve or dismiss the LLM's glossary-term suggestions for a job.
+
+    body {"approve": ["Jira", "Kanban"]} — canonical names to add, matched
+    case-insensitively against the job's own stored suggestions (never the
+    client's own dicts — the server re-reads them from the DB, so the
+    browser can't inject arbitrary glossary entries). [] or omitted = dismiss
+    everything. Either way the job's glossary_terms column is cleared, so
+    the suggestion card disappears from the jobs panel.
+    """
+    job = q.get_job(job_id)
+    if job is None:
+        return jsonify({"error": "Job not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    approve = {str(c).strip().lower() for c in (data.get("approve") or [])}
+
+    try:
+        suggested = json.loads(job.get("glossary_terms") or "[]")
+        if not isinstance(suggested, list):
+            suggested = []
+    except (TypeError, ValueError):
+        suggested = []
+
+    to_add = [
+        t for t in suggested
+        if isinstance(t, dict) and str(t.get("canonical", "")).strip().lower() in approve
+    ]
+
+    added = []
+    if to_add:
+        from app.glossary import add_terms
+        added = add_terms(to_add)
+
+    q.update_job(job_id, glossary_terms=None)
+    return jsonify({"ok": True, "added": added})

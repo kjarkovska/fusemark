@@ -8,6 +8,11 @@ let levelMeterInterval = null;
 let levelHistory = [];
 const METER_BARS = 14;
 
+// jobId -> Set<canonical> of currently-checked glossary suggestions. Lives
+// outside the DOM because refreshJobs() rebuilds #jobs-list from scratch
+// every 3s, which would otherwise wipe out checkbox state on every poll.
+let glossarySelection = {};
+
 // ------------------------------------------------------------------
 // Recording
 // ------------------------------------------------------------------
@@ -272,6 +277,8 @@ function renderJob(job) {
        </div>`
     : '';
 
+  const glossarySuggestions = renderGlossarySuggestions(job);
+
   return `
     <div class="job">
       ${header}
@@ -280,7 +287,65 @@ function renderJob(job) {
       ${errorActions}
       ${contextField}
       ${audioDecision}
+      ${glossarySuggestions}
     </div>`;
+}
+
+function parseGlossaryTerms(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(t => t && typeof t === 'object' && t.canonical) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function renderGlossarySuggestions(job) {
+  const suggested = parseGlossaryTerms(job.glossary_terms);
+  if (job.status !== 'done' || !suggested.length) return '';
+
+  // Default to all-checked the first time this job's suggestions are seen;
+  // subsequent renders (every 3s poll) read back whatever the user toggled.
+  if (!glossarySelection[job.id]) {
+    glossarySelection[job.id] = new Set(suggested.map(t => t.canonical));
+  }
+  const selected = glossarySelection[job.id];
+
+  const rows = suggested.map(t => `
+    <label class="glossary-term">
+      <input type="checkbox" value="${esc(t.canonical)}" ${selected.has(t.canonical) ? 'checked' : ''}
+             onchange="toggleGlossaryTerm('${job.id}', this.value, this.checked)">
+      <span class="glossary-term-name">${esc(t.canonical)}</span>
+      ${t.context ? `<span class="glossary-context">${esc(t.context)}</span>` : ''}
+    </label>`).join('');
+
+  return `
+    <div class="job-glossary">
+      <div class="job-glossary-label">${window.STRINGS.label_glossary_suggestions}</div>
+      ${rows}
+      <div class="job-glossary-actions">
+        <button class="btn-secondary" onclick="applyGlossary('${job.id}', true)">${window.STRINGS.btn_glossary_add}</button>
+        <button class="btn-secondary" onclick="applyGlossary('${job.id}', false)">${window.STRINGS.btn_glossary_dismiss}</button>
+      </div>
+    </div>`;
+}
+
+function toggleGlossaryTerm(jobId, canonical, checked) {
+  const set = glossarySelection[jobId];
+  if (!set) return;
+  if (checked) set.add(canonical); else set.delete(canonical);
+}
+
+async function applyGlossary(jobId, approve) {
+  const selected = glossarySelection[jobId] ? Array.from(glossarySelection[jobId]) : [];
+  await fetch(`/jobs/${jobId}/glossary`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({approve: approve ? selected : []}),
+  });
+  delete glossarySelection[jobId];
+  refreshJobs();
 }
 
 function progressFromJob(job) {
@@ -370,7 +435,8 @@ function esc(str) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ------------------------------------------------------------------

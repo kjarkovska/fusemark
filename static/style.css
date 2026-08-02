@@ -664,6 +664,39 @@ button {
 }
 .job-audio button { padding: 3px 10px; font-size: var(--t-11); width: auto; }
 
+.job-glossary {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.job-glossary-label {
+  font-size: var(--t-11);
+  font-weight: var(--fw-semi);
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.glossary-term {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--t-11);
+  padding: 3px 0;
+  cursor: pointer;
+}
+.glossary-term-name { font-weight: var(--fw-semi); }
+.glossary-context {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.job-glossary-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.job-glossary-actions button { padding: 3px 10px; font-size: var(--t-11); width: auto; }
+
 .job-note-link {
   display: block;
   font-size: var(--t-11);

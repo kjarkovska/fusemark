@@ -776,6 +776,126 @@ def test_job_audio_keep_false_deletes_existing_file(flask_client, tmp_path):
 
 
 # ------------------------------------------------------------------
+# /jobs/<id>/glossary — approve/dismiss glossary-term suggestions (#44)
+# ------------------------------------------------------------------
+
+def _job_with_suggestions(vault_path=None):
+    job_id = q.create_job(label="glossary job")
+    q.update_job(job_id, glossary_terms=json.dumps([
+        {"canonical": "Jira", "aliases": ["Yira"], "context": "tracker", "type": "product"},
+        {"canonical": "Kanban", "aliases": [], "context": "board", "type": "concept"},
+    ]))
+    q.set_status(job_id, "done")
+    return job_id
+
+
+def test_job_glossary_unknown_job_404(flask_client):
+    r = flask_client.post(
+        "/jobs/no-such-job/glossary",
+        data=json.dumps({"approve": ["Jira"]}),
+        content_type="application/json",
+    )
+    assert r.status_code == 404
+
+
+def test_job_glossary_approve_calls_add_terms_with_full_dicts(flask_client):
+    job_id = _job_with_suggestions()
+    with patch("app.glossary.add_terms") as mock_add:
+        mock_add.return_value = ["Jira"]
+        r = flask_client.post(
+            f"/jobs/{job_id}/glossary",
+            data=json.dumps({"approve": ["Jira"]}),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["ok"] is True
+    assert data["added"] == ["Jira"]
+    mock_add.assert_called_once()
+    (approved_dicts,), _ = mock_add.call_args
+    assert approved_dicts == [{"canonical": "Jira", "aliases": ["Yira"], "context": "tracker", "type": "product"}]
+
+
+def test_job_glossary_approve_is_case_insensitive(flask_client):
+    job_id = _job_with_suggestions()
+    with patch("app.glossary.add_terms", return_value=["Jira"]) as mock_add:
+        r = flask_client.post(
+            f"/jobs/{job_id}/glossary",
+            data=json.dumps({"approve": ["jira"]}),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    mock_add.assert_called_once()
+
+
+def test_job_glossary_dismiss_does_not_call_add_terms(flask_client):
+    job_id = _job_with_suggestions()
+    with patch("app.glossary.add_terms") as mock_add:
+        r = flask_client.post(
+            f"/jobs/{job_id}/glossary",
+            data=json.dumps({"approve": []}),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    assert r.get_json()["added"] == []
+    mock_add.assert_not_called()
+
+
+def test_job_glossary_empty_body_is_dismiss(flask_client):
+    job_id = _job_with_suggestions()
+    with patch("app.glossary.add_terms") as mock_add:
+        r = flask_client.post(f"/jobs/{job_id}/glossary")
+    assert r.status_code == 200
+    mock_add.assert_not_called()
+
+
+def test_job_glossary_clears_column_on_approve(flask_client):
+    job_id = _job_with_suggestions()
+    with patch("app.glossary.add_terms", return_value=["Jira"]):
+        flask_client.post(
+            f"/jobs/{job_id}/glossary",
+            data=json.dumps({"approve": ["Jira"]}),
+            content_type="application/json",
+        )
+    assert q.get_job(job_id)["glossary_terms"] is None
+
+
+def test_job_glossary_clears_column_on_dismiss(flask_client):
+    job_id = _job_with_suggestions()
+    flask_client.post(
+        f"/jobs/{job_id}/glossary",
+        data=json.dumps({"approve": []}),
+        content_type="application/json",
+    )
+    assert q.get_job(job_id)["glossary_terms"] is None
+
+
+def test_job_glossary_ignores_canonicals_not_in_suggestions(flask_client):
+    job_id = _job_with_suggestions()
+    with patch("app.glossary.add_terms") as mock_add:
+        r = flask_client.post(
+            f"/jobs/{job_id}/glossary",
+            data=json.dumps({"approve": ["NotSuggested"]}),
+            content_type="application/json",
+        )
+    assert r.status_code == 200
+    mock_add.assert_not_called()
+
+
+def test_job_glossary_survives_corrupt_glossary_terms_json(flask_client):
+    job_id = q.create_job(label="corrupt")
+    q.update_job(job_id, glossary_terms="not valid json")
+    q.set_status(job_id, "done")
+    r = flask_client.post(
+        f"/jobs/{job_id}/glossary",
+        data=json.dumps({"approve": ["Jira"]}),
+        content_type="application/json",
+    )
+    assert r.status_code == 200
+    assert r.get_json()["added"] == []
+
+
+# ------------------------------------------------------------------
 # /api/model-status
 # ------------------------------------------------------------------
 
@@ -1218,6 +1338,19 @@ def test_settings_save_accepts_check_updates(flask_client, tmp_path, monkeypatch
     assert cfg.load()["check_updates"] is False
 
 
+def test_settings_save_accepts_glossary_suggestions(flask_client, tmp_path, monkeypatch):
+    import app.config as cfg
+    monkeypatch.setattr(cfg, "CONFIG_PATH", str(tmp_path / "config.json"))
+    cfg.save({**cfg.DEFAULTS, "setup_complete": True})
+    r = flask_client.post(
+        "/settings/save",
+        data=json.dumps({"glossary_suggestions": False}),
+        content_type="application/json",
+    )
+    assert r.status_code == 200
+    assert cfg.load()["glossary_suggestions"] is False
+
+
 # ------------------------------------------------------------------
 # P7 — test-llm-stored
 # ------------------------------------------------------------------
@@ -1493,6 +1626,7 @@ _EXPECTED_ROUTES = {
     ("/jobs/<job_id>", ("DELETE",)),
     ("/jobs/<job_id>/audio", ("POST",)),
     ("/jobs/<job_id>/context", ("POST",)),
+    ("/jobs/<job_id>/glossary", ("POST",)),
     ("/jobs/<job_id>/retry", ("POST",)),
     ("/level", ("GET",)),
     ("/open-glossary", ("POST",)),
