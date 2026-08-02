@@ -4,8 +4,34 @@ Consolidated review log, newest first. One file for all reviews — do not creat
 
 | Date | Version | Scope | Findings filed as |
 |---|---|---|---|
+| [2026-08-02](#glossary-workflows-verification-2026-08-02) | v1.1 (unreleased) | Glossary workflows end-to-end (#35) | 2 bugs, fixed in the same pass — no new issues filed |
 | [2026-07-10](#review-2026-07-10) | v1.0.1 | Full application review | #51–#60, comments on #44/#35 |
 | [2026-07-04](#review-2026-07-04) | v1.0.0 | Full codebase: security / technical / privacy / enhancements | #36–#45 |
+
+---
+
+# Glossary workflows verification: 2026-08-02
+
+**Reviewer:** Claude (Sonnet 5)
+**Scope:** #35 — verify each of the five glossary flows the issue lists, end-to-end. Not a full application review.
+**Posture:** Fix-in-place. Two real bugs found; both fixed in the same PR (`fix/glossary-core-hardening`) rather than filed as follow-up issues, since `app/glossary.py` `add_terms()` had zero production callers at the time — the last risk-free moment to change its behavior before #44 gives it its first caller.
+
+| Flow | Status | Covered by |
+|---|---|---|
+| Adding terms (`add_terms()`) | ✅ now hardened | `tests/test_glossary.py` (32 tests) |
+| Whisper `initial_prompt` | ✅ already wired correctly | `tests/test_transcription.py::test_transcribe_local_glossary_used_as_initial_prompt` |
+| LLM suggesting new terms | ⏸ deferred to #44 | worker computes + stores `jobs.glossary_terms`; nothing surfaces it yet |
+| Approving/adding terms | ⏸ deferred to #44 | `add_terms()` itself is now hardened and ready for its first caller |
+| Opening the glossary (`open_glossary()`) | ✅ already covered | `tests/test_glossary.py` (Obsidian URI + default-handler + no-vault paths) |
+
+## Bugs found and fixed
+
+1. **Unescaped pipe/newline corrupted the Markdown table.** `_terms_to_table_lines()` wrote cell values raw, so a `|` in `context` (e.g. an LLM-suggested description like "tracker | issues") produced an extra column that `_parse_table()` then mis-parsed on the next load, and an embedded newline broke one logical row across two physical lines. Fixed with `_escape_cell()`/`_unescape_cell()` — backslash-escaping `\` and `|`, collapsing embedded newlines to spaces — round-tripped through `_split_row()`'s escape-aware pipe split.
+2. **`KeyError` on malformed LLM output.** `add_terms()` did `term["canonical"]` directly; a term dict from LLM JSON missing that key (or `new_terms` containing a non-dict entry) would crash the whole call. Fixed with `_normalize_term()`, which returns `None` for anything unusable and gets filtered out before it reaches the write path.
+
+Also fixed in the same risk-free window: dedup now checks incoming canonicals against existing **aliases** too (not just canonicals), and both `canonical`/`context` are length-capped (`MAX_CANONICAL_CHARS`/`MAX_CONTEXT_CHARS`) so a runaway LLM response can't produce an unbounded table row.
+
+**Not fixed, documented as pre-existing and out of scope:** `docs/template_example.md:23` claims vault templates go through prompt substitution — they don't (`worker.py` passes them raw as `custom_template`). Unrelated to the glossary; noted for whoever picks up #27.
 
 ---
 
