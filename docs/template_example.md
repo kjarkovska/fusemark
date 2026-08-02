@@ -20,23 +20,31 @@ The template name (without `.md`) will appear in the Template dropdown on the ma
 
 When FuseMark generates a note, it:
 
-1. **Substitutes placeholders** — replaces `{date}` and `{title}` with the actual meeting date and name before sending anything to the LLM.
-2. **Sends the template to the LLM** — the LLM sees the substituted template as its output target and fills every section based on the transcript, scratch notes, and context you provided.
-3. **Enforces the frontmatter date** — the `date:` frontmatter field is always set to the selected meeting date after generation, regardless of what the LLM wrote. This is guaranteed.
-4. **Leaves sections empty when there is nothing to fill** — if the transcript has no relevant content for a section, the LLM leaves it blank rather than hallucinating.
+1. **Sends your template to the LLM as-is** — a vault template's `{date}`/`{title}` text is *not* substituted before the LLM sees it (that automatic substitution only applies to FuseMark's own built-in template). The LLM is instructed to use your template as the output structure and fills it in from the transcript, scratch notes, and context you provided — in practice it reliably fills the date/title fields itself, but write literal values there if you want to be certain.
+2. **Enforces the frontmatter date afterward** — regardless of what the LLM wrote, the `date:` frontmatter field is always overwritten with the selected meeting date once generation finishes. This is guaranteed.
+3. **Leaves sections empty when there is nothing to fill** — if the transcript has no relevant content for a section, the LLM leaves it blank rather than hallucinating.
 
 ---
 
 ## Available placeholders
 
-These are substituted **before** the LLM runs. Use standard Python format-string syntax: `{placeholder}`.
-
-| Placeholder | Value | When set |
-|---|---|---|
-| `{date}` | Meeting date in `YYYY-MM-DD` format | Always — from the date picker, defaults to today |
-| `{title}` | Meeting name / label | Always — from the Meeting name field, defaults to `"Meeting"` |
+`{date}` and `{title}` are conventional placeholders the LLM recognizes and fills from the meeting date / Meeting name field — but for a vault template, this is the LLM following the pattern, not automatic substitution FuseMark performs. The `date:` frontmatter field is the one exception: it's always overwritten with the real meeting date after generation, regardless of what the LLM wrote there.
 
 Everything else in the template is **structure for the LLM** — section headings, bullet formats, checkbox syntax. The LLM reads the template and fills each section with content extracted from the transcript.
+
+---
+
+## Per-template instructions (optional)
+
+A template can carry a few lines of extra behavioral instructions for the LLM, layered on top of its structural sections — for example, a sales-call template that should stay terse and call out competitor mentions. Wrap them in an HTML comment anywhere in the file:
+
+```markdown
+<!-- fusemark:prompt
+Be terse. Extract objections and competitor mentions by name.
+-->
+```
+
+This block is stripped out before the template is shown to the LLM as its output structure, so it never leaks into the generated note — it's appended separately as extra guidance. It's optional; a template with no block behaves exactly as before. Multiple blocks in one template are concatenated together.
 
 ---
 

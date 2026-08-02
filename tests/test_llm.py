@@ -27,7 +27,7 @@ def test_generate_notes_dispatches_to_anthropic():
         mock_cfg.load.return_value = {"llm_provider": "anthropic"}
         result = generate_notes("transcript", label="Standup", language="Czech")
 
-    mock_gen.assert_called_once_with("transcript", "Standup", "", "", "", "Czech", "", "")
+    mock_gen.assert_called_once_with("transcript", "Standup", "", "", "", "Czech", "", "", "")
     assert result == "# Note"
 
 
@@ -346,6 +346,19 @@ def test_anthropic_custom_template_appears_in_prompt():
     assert "## Agenda\n## Decisions" in content
 
 
+def test_anthropic_template_instructions_appended_to_system():
+    from app.llm.anthropic_provider import generate_notes
+
+    mock_client = _make_anthropic_mock()
+    with patch("app.llm.anthropic_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.anthropic_provider.load_glossary", return_value={}), \
+         patch("app.llm.anthropic_provider.anthropic.Anthropic", return_value=mock_client):
+        generate_notes("transcript", template_instructions="Be terse and extract objections.")
+
+    _, kwargs = mock_client.messages.create.call_args
+    assert "Be terse and extract objections." in kwargs["system"]
+
+
 def test_anthropic_no_custom_template_omits_structure_hint():
     from app.llm.anthropic_provider import generate_notes
 
@@ -531,6 +544,20 @@ def test_openai_custom_template_appears_in_prompt():
     _, kwargs = mock_client.chat.completions.create.call_args
     user_msg = kwargs["messages"][1]["content"]
     assert "## Agenda" in user_msg
+
+
+def test_openai_template_instructions_appended_to_system():
+    from app.llm.openai_provider import generate_notes
+
+    mock_client = _make_openai_mock("# Note")
+    with patch("app.llm.openai_provider.keyring.get_password", return_value="key"), \
+         patch("app.llm.openai_provider.load_glossary", return_value={}), \
+         patch("app.llm.openai_provider.OpenAI", return_value=mock_client):
+        generate_notes("transcript", template_instructions="Be terse and extract objections.")
+
+    _, kwargs = mock_client.chat.completions.create.call_args
+    system_msg = kwargs["messages"][0]["content"]
+    assert "Be terse and extract objections." in system_msg
 
 
 # ------------------------------------------------------------------
@@ -841,6 +868,20 @@ def test_mistral_generate_custom_template_appears_in_prompt():
     _, kwargs = mock_client.chat.complete.call_args
     user_msg = kwargs["messages"][1]["content"]
     assert "## Agenda" in user_msg
+
+
+def test_mistral_template_instructions_appended_to_system():
+    from app.llm.mistral_provider import generate_notes
+
+    mock_client = _make_mistral_mock()
+    with patch("app.llm.mistral_provider.keyring.get_password", return_value="ms-key"), \
+         patch("app.llm.mistral_provider.load_glossary", return_value={}), \
+         patch("app.llm.mistral_provider.Mistral", return_value=mock_client):
+        generate_notes("transcript", template_instructions="Be terse and extract objections.")
+
+    _, kwargs = mock_client.chat.complete.call_args
+    system_msg = kwargs["messages"][0]["content"]
+    assert "Be terse and extract objections." in system_msg
 
 
 def test_mistral_suggest_returns_terms():

@@ -331,6 +331,35 @@ def test_custom_template_loaded_and_passed_to_generate_notes(mocks):
     assert generate_kwargs.get("custom_template") == "## Agenda\n## Decisions"
 
 
+def test_template_instruction_block_passed_and_stripped_from_custom_template(mocks):
+    job = _make_job({"transcript": "text", "template": "SalesCall"})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+
+    raw_template = "## Agenda\n<!-- fusemark:prompt\nBe terse.\n-->\n## Decisions"
+    with patch("app.worker.load_template", return_value=raw_template):
+        w = Worker()
+        w._process_next()
+
+    _, generate_kwargs = mocks["generate"].call_args
+    assert generate_kwargs.get("template_instructions") == "Be terse."
+    assert "fusemark:prompt" not in generate_kwargs.get("custom_template")
+    assert "## Agenda" in generate_kwargs.get("custom_template")
+
+
+def test_template_without_block_passes_empty_instructions(mocks):
+    job = _make_job({"transcript": "text", "template": "Standup"})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+
+    with patch("app.worker.load_template", return_value="## Agenda\n## Decisions"):
+        w = Worker()
+        w._process_next()
+
+    _, generate_kwargs = mocks["generate"].call_args
+    assert generate_kwargs.get("template_instructions") == ""
+
+
 def test_no_template_selected_passes_empty_custom_template(mocks):
     job = _make_job({"transcript": "text", "template": None})
     mocks["q"].list_jobs.return_value = [job]
