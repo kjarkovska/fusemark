@@ -254,6 +254,35 @@ def test_glossary_terms_stored_in_glossary_terms_column(mocks):
     assert "error_message" not in glossary_calls[0].kwargs
 
 
+def test_glossary_suggestion_skipped_when_disabled(mocks):
+    """glossary_suggestions: False must skip the paid suggest_glossary_terms()
+    call entirely, not just discard its result."""
+    job = _make_job({"transcript": "text"})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+    mocks["cfg"].load.return_value = {"vault_path": "/vault", "whisper_model": "small", "glossary_suggestions": False}
+
+    w = Worker()
+    w._process_next()
+
+    mocks["suggest"].assert_not_called()
+    update_calls = mocks["q"].update_job.call_args_list
+    assert not [c for c in update_calls if "glossary_terms" in c.kwargs]
+
+
+def test_glossary_suggestion_runs_when_enabled_explicitly(mocks):
+    job = _make_job({"transcript": "text"})
+    mocks["q"].list_jobs.return_value = [job]
+    mocks["q"].get_job.return_value = job
+    mocks["cfg"].load.return_value = {"vault_path": "/vault", "whisper_model": "small", "glossary_suggestions": True}
+    mocks["suggest"].return_value = [{"canonical": "JIRA", "type": "product", "aliases": [], "context": ""}]
+
+    w = Worker()
+    w._process_next()
+
+    mocks["suggest"].assert_called_once()
+
+
 def test_llm_rate_limit_error_causes_retry(mocks):
     from app.exceptions import LLMRateLimitError
 

@@ -46,6 +46,7 @@ DEFAULTS = {
     "check_updates": True,
     "setup_complete": False,
     "ui_language": "en",
+    "glossary_suggestions": True,
 }
 
 CONFIG_PATH = os.path.join(DATA_DIR, "config.json")

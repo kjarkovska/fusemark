@@ -34,6 +34,8 @@ def route_settings_save():
             config["max_recordings_gb"] = float(data["max_recordings_gb"])
         if "check_updates" in data:
             config["check_updates"] = bool(data["check_updates"])
+        if "glossary_suggestions" in data:
+            config["glossary_suggestions"] = bool(data["glossary_suggestions"])
         cfg.save(config)
     return jsonify({"ok": True})
 
