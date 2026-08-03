@@ -117,7 +117,7 @@ function startLevelMeter() {
 // reading to a bar height/opacity, floored so silence still shows a sliver
 // rather than disappearing, capped at the 16px bar height.
 function levelToBarHeight(level) {
-  const l = Math.max(0.06, Math.min(1, level * 3));
+  const l = Math.max(0.06, Math.min(1, level * 6));
   return {heightPx: Math.round(l * 16), opacity: 0.6 + l * 0.4};
 }
 
